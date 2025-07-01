@@ -2,13 +2,20 @@ import { ChatResponseError } from '../../utils/index.js';
 
 export async function callHttpApi(
   { question, type, approach, overrides, messages }: ChatRequestOptions,
-  { method, url, stream, signal }: ChatHttpOptions,
+  { method, url, stream, signal, headers = {} }: ChatHttpOptions,
 ) {
+  const defaultHeaders = {
+    'Content-Type': 'application/json',
+  };
+
+  const mergedHeaders = {
+    ...defaultHeaders,
+    ...headers,
+  };
+
   return await fetch(`${url}/${type}`, {
     method: method,
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: mergedHeaders,
     signal,
     body: JSON.stringify({
       messages: [

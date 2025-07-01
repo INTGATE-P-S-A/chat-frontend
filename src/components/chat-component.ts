@@ -78,6 +78,9 @@ export class ChatComponent extends LitElement {
   @property({ type: String, attribute: 'data-custom-styles', converter: (value) => JSON.parse(value || '{}') })
   customStyles: any = {};
 
+  @property({ type: String, attribute: 'data-custom-headers', converter: (value) => JSON.parse(value || '{}') })
+  customHeaders: Record<string, string> = {};
+
   //--
 
   @property({ type: String })
@@ -214,6 +217,7 @@ export class ChatComponent extends LitElement {
         // override if the user has provided different values
         url: this.apiUrl,
         stream: this.useStream,
+        headers: this.customHeaders,
       },
     );
 

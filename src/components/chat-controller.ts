@@ -28,6 +28,10 @@ export class ChatController implements ReactiveController {
     return this._generatingAnswer;
   }
 
+  get signal() {
+    return this._abortController.signal;
+  }
+
   set generatingAnswer(value: boolean) {
     this._generatingAnswer = value;
     this.host.requestUpdate();
@@ -150,6 +154,9 @@ export class ChatController implements ReactiveController {
     if (question) {
       try {
         this.generatingAnswer = true;
+        
+        // Create a new AbortController for this request
+        this._abortController = new AbortController();
 
         // for chat messages, process user question as a chat entry
         if (requestOptions.type === 'chat') {
@@ -159,7 +166,13 @@ export class ChatController implements ReactiveController {
         this.isAwaitingResponse = true;
         this.processingMessage = undefined;
 
-        const response = (await getAPIResponse(requestOptions, httpOptions)) as BotResponse;
+        // Pass the updated httpOptions with the new signal
+        const updatedHttpOptions = {
+          ...httpOptions,
+          signal: this._abortController.signal,
+        };
+
+        const response = (await getAPIResponse(requestOptions, updatedHttpOptions)) as BotResponse;
         this.isAwaitingResponse = false;
 
         await this.processResponse(response, false, httpOptions.stream);

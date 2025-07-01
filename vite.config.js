@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { defineConfig, loadEnv } from 'vite';
 
 process.env.VITE_SEARCH_API_URI = process.env.BACKEND_URI ?? 'http://localhost:3000';
-process.env.VITE_IS_LIB = process.env.IS_LIB ?? 'false';
+process.env.VITE_IS_LIB = 'true';
 console.log(`Using search API base URL: "${process.env.VITE_SEARCH_API_URI}". This will only work if you started a local API in that port. Please set BACKEND_URI to change it.`);
 
 const isLib = process.env.VITE_IS_LIB === 'true';
@@ -19,6 +19,7 @@ const distConfig = isLib ? config : undefined;
 
 export default defineConfig({
   build: {
+    outDir: '../chat-frontend',
     emptyOutDir: true,
     lib: distConfig,
   },
