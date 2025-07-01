@@ -81,6 +81,9 @@ export class ChatComponent extends LitElement {
   @property({ type: String, attribute: 'data-custom-headers', converter: (value) => JSON.parse(value || '{}') })
   customHeaders: Record<string, string> = {};
 
+  @property({ type: Boolean, attribute: 'data-hide-history', converter: (value) => value === 'true' })
+  hideHistory: Boolean = false;
+
   //--
 
   @property({ type: String })
@@ -421,16 +424,16 @@ export class ChatComponent extends LitElement {
           ${this.isChatStarted
             ? html`
                 <div class="chat__header--thread">
-                  ${this.interactionModel === 'chat'
+                  ${!this.hideHistory && this.interactionModel === 'chat'
                     ? this.chatHistoryController.renderHistoryButton({ disabled: this.isDisabled })
                     : ''}
-                  <chat-action-button
+                  ${!this.hideHistory ? `<chat-action-button
                     .label="${globalConfig.RESET_CHAT_BUTTON_TITLE}"
                     actionId="chat-reset-button"
                     @click="${this.resetCurrentChat}"
                     .svgIcon="${iconDelete}"
                   >
-                  </chat-action-button>
+                  </chat-action-button>` : ''}
                 </div>
                 ${this.chatHistoryController.showChatHistory
                   ? html`<div class="chat-history__container">
