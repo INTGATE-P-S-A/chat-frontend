@@ -4,14 +4,15 @@
 
 // Let's give the response a type so we can use it in the component
 
-export function processText(inputText: string, arrays: Array<Array<string> | Array<Citation>>): ProcessTextReturn {
+export function processText(inputText: string, arrays: Array<Array<string> | Array<Citation>>): ProcessTextReturn {  
   // Keeping all the regex at this level so they can be easily changed or removed
   const nextQuestionMatch = `Next questions:|<<([^>]+)>>`;
   const findCitations = /\[(.*?)]/g;
-  const findFollowingSteps = /:(.*?)(?:Follow-up questions:|Next questions:|<<|$)/s;
+  const findFollowingSteps = /:([\s\S]*?)(?:Follow-up questions:|Next questions:|<<|$)/;
+  const findDashListItems = /^-\s*(.+)\n/gm;
   const findNextQuestions = /Next Questions:(.*?)$/s;
   const findQuestionsbyDoubleArrow = /<<([^<>]+)>>/g;
-  const findNumberedItems = /^\d+\.\s/;
+  console.log('xxxxx');
   // Find and process citations
   const citation: NonNullable<unknown> = {};
   let citations: Citation[] = [];
@@ -38,9 +39,11 @@ export function processText(inputText: string, arrays: Array<Array<string> | Arr
   // and sometimes it's not
   const followingStepsMatch = replacedText.match(findFollowingSteps);
   const followingStepsText = followingStepsMatch ? followingStepsMatch[1].trim() : '';
-  const followingSteps = followingStepsText.split('\n').filter(Boolean);
-  const cleanFollowingSteps = followingSteps.map((item) => {
-    return item.replace(findNumberedItems, '');
+  
+  // Extract only dash-formatted list items
+  const dashItems = followingStepsText.match(findDashListItems) || [];
+  const cleanFollowingSteps = dashItems.map((item) => {
+    return item.replace(/^-\s*/, ''); // Remove the dash and any following whitespace
   });
   arrays[1] = cleanFollowingSteps;
 

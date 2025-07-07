@@ -133,7 +133,6 @@ export class ChatThreadComponent extends LitElement {
 
   renderTextEntry(textEntry: ChatMessageText) {
     const entries = [html`<p class="chat__txt--entry">${unsafeHTML(textEntry.value)}</p>`];
-
     // render steps
     if (textEntry.followingSteps && textEntry.followingSteps.length > 0) {
       entries.push(html`
@@ -210,7 +209,7 @@ export class ChatThreadComponent extends LitElement {
           (message) => html`
             <li class="chat__listItem ${message.isUserMessage ? 'user-message' : ''}">
               <div class="chat__txt ${message.isUserMessage ? 'user-message' : ''}">
-                ${message.isUserMessage ? '' : this.renderResponseActions(message)}
+                ${message.isUserMessage ? '' : this.renderResponseActions(message)}                
                 ${message.text.map((textEntry) => this.renderTextEntry(textEntry))} ${this.renderCitation(message)}
                 ${this.renderFollowupQuestions(message)} ${message.error ? this.renderError(message.error) : ''}
               </div>

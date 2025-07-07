@@ -5,8 +5,8 @@ import { customElement, property, query, state } from 'lit/decorators.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import {
   chatHttpOptions,
-  globalConfig,
-  teaserListTexts,
+  globalConfig as mainConfig,
+  teaserListTexts as configTeaserListTexts,
   requestOptions,
   MAX_CHAT_HISTORY,
 } from '../config/global-config.js';
@@ -39,6 +39,9 @@ import './chat-action-button.js';
 import { type TabContent } from './tab-component.js';
 import { ChatController } from './chat-controller.js';
 import { ChatHistoryController } from './chat-history-controller.js';
+
+let teaserListTexts = configTeaserListTexts;
+let globalConfig = mainConfig;
 
 /**
  * A chat component that allows the user to ask questions and get answers from an API.
@@ -80,6 +83,12 @@ export class ChatComponent extends LitElement {
 
   @property({ type: String, attribute: 'data-custom-headers', converter: (value) => JSON.parse(value || '{}') })
   customHeaders: Record<string, string> = {};
+
+  @property({ type: String, attribute: 'data-custom-teasers', converter: (value) => JSON.parse(value || '{}') })
+  customTeasers: Record<string, string> = {};
+
+  @property({ type: String, attribute: 'data-custom-config', converter: (value) => JSON.parse(value || '{}') })
+  customConfig: Record<string, string> = {};
 
   @property({ type: Boolean, attribute: 'data-hide-history', converter: (value) => value === 'true' })
   hideHistory: Boolean = false;
@@ -130,6 +139,15 @@ export class ChatComponent extends LitElement {
     // The following block is only necessary when you want to override the component from settings in the outside.
     // Remove this block when not needed, considering that updated() is a LitElement lifecycle method
     // that may be used by other components if you update this code.
+
+    if (this.customTeasers && Object.keys(this.customTeasers).length > 0) {
+      teaserListTexts = this.customTeasers;
+    }
+
+    if (this.customConfig && Object.keys(this.customConfig).length > 0) {
+       globalConfig = {...mainConfig, ...this.customConfig};
+    }
+
     if (changedProperties.has('customStyles')) {
       this.style.setProperty('--c-accent-high', this.customStyles.AccentHigh);
       this.style.setProperty('--c-accent-lighter', this.customStyles.AccentLight);
