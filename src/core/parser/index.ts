@@ -18,13 +18,13 @@ export async function parseStreamedMessages({
   const chunks = readStream<BotResponseChunk | BotResponseError>(reader);
 
   const streamedMessageRaw: string[] = [];
-  const stepsBuffer: string[] = [];
   
-  let isProcessingStep = false;
-  let isLastStep = false;
   
-  let followUpQuestionIndex = 0;
-  let stepIndex = 0;
+  let buffering = false;
+  let bufferingFinisher: string | null = null;
+  let bufferingClosure: string | null = null;
+  let bufferText: string = '';
+
   let textBlockIndex = 0;
 
   let updatedEntry = {
@@ -37,7 +37,7 @@ export async function parseStreamedMessages({
       return;
     }
 
-    if (chunk.error) {
+    if ('error' in chunk) {
       throw new ChatResponseError(chunk.message, chunk.statusCode);
     }
 
@@ -62,11 +62,33 @@ export async function parseStreamedMessages({
 
     streamedMessageRaw.push(chunkValue);      
 
-    if(chunkValue.includes('\n')) {
-      console.log('enter');
+    if(chunkValue.includes('\n\n')) {
+      chunkValue = chunkValue.replace(/\n\n/g, '<br/>');
+    }
+
+    if(!buffering && chunkValue.includes('**')) {
+      console.log('Bold', chunkValue);
+      buffering = true;
+      chunkValue = chunkValue.replace('**', '<strong>');
+      bufferingFinisher = '**';
+      bufferingClosure = '</strong>';
     }
    
-    updatedEntry = updateTextEntry({ chunkValue, textBlockIndex, chatEntry: updatedEntry });
+    if(!buffering){
+      updatedEntry = updateTextEntry({ chunkValue, textBlockIndex, chatEntry: updatedEntry });
+    }else{
+      if(bufferingFinisher && bufferingClosure && chunkValue.includes(bufferingFinisher)){
+        updatedEntry = updateTextEntry({ chunkValue: bufferText + chunkValue.replace(bufferingFinisher, bufferingClosure), textBlockIndex, chatEntry: updatedEntry });
+
+        bufferingFinisher = null;
+        bufferingClosure = null;
+        bufferText = '';
+        buffering = false;
+      }else{
+        bufferText += chunkValue;
+        console.log({bufferText});
+      }      
+    }
     
     const citations = parseCitations(streamedMessageRaw.join(''));
     updatedEntry = updateCitationsEntry({ citations, chatEntry: updatedEntry });
