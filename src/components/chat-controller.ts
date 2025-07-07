@@ -87,6 +87,7 @@ export class ChatController implements ReactiveController {
     const timestamp = getTimestamp();
     let thoughts: string | undefined;
     let dataPoints: string[] | undefined;
+            
 
     const updateChatWithMessageOrChunk = async (message: string | BotResponse, chunked: boolean) => {
       this.processingMessage = {
@@ -113,13 +114,13 @@ export class ChatController implements ReactiveController {
           chatEntry: this.processingMessage,
           signal: this._abortController.signal,
           apiResponseBody: (message as unknown as Response).body,
-          onChunkRead: (updated) => {
+          onChunkRead: (updated) => {       
             this.processingMessage = updated;
           },
           onCancel: () => {
             this.clear();
           },
-        });
+        }, this.host);
 
         // processing done.
         this.clear();

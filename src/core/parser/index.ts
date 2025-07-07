@@ -1,3 +1,4 @@
+import { ReactiveControllerHost } from 'lit';
 import { ChatResponseError, newListWithEntryAtIndex } from '../../utils/index.js';
 import { createReader, readStream } from '../stream/index.js';
 
@@ -6,14 +7,14 @@ export async function parseStreamedMessages({
   apiResponseBody,
   signal,
   onChunkRead: onVisit,
-  onCancel,
+  onCancel,  
 }: {
   chatEntry: ChatThreadEntry;
   apiResponseBody: ReadableStream<Uint8Array> | null;
   signal: AbortSignal;
   onChunkRead: (updated: ChatThreadEntry) => void;
-  onCancel: () => void;
-}) {
+  onCancel: () => void;  
+}, host: ReactiveControllerHost) {
   const reader = createReader(apiResponseBody);
   const chunks = readStream<BotResponseChunk | BotResponseError>(reader);
 
@@ -40,6 +41,16 @@ export async function parseStreamedMessages({
     if ('error' in chunk) {
       throw new ChatResponseError(chunk.message, chunk.statusCode);
     }
+
+    if(chunk.conversationId) {
+        const event = new CustomEvent('chat:conversation:start', {
+        detail: { conversationId: chunk.conversationId },
+        bubbles: true,
+        composed: true
+      });
+      (host as any).dispatchEvent(event);   
+      continue;
+    }    
 
     // content is filtered during the output streaming
     // https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/content-filter?tabs=javascrit

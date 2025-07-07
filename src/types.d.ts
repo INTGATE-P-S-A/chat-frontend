@@ -65,6 +65,7 @@ declare interface Message {
 }
 
 declare interface BotResponse {
+  conversationId?: string;
   choices: Array<{
     index: number;
     message: BotResponseMessage;
@@ -73,6 +74,7 @@ declare interface BotResponse {
 }
 
 declare interface BotResponseChunk {
+  conversationId?: string;
   choices: Array<{
     index: number;
     delta: Partial<BotResponseMessage>;
