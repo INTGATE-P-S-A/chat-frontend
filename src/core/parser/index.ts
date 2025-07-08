@@ -77,12 +77,32 @@ export async function parseStreamedMessages({
       chunkValue = chunkValue.replace(/\n\n/g, '<br/>');
     }
 
-    if(!buffering && chunkValue.includes('**')) {
-      console.log('Bold', chunkValue);
+    if(!buffering && chunkValue.includes('**')) {      
       buffering = true;
       chunkValue = chunkValue.replace('**', '<strong>');
       bufferingFinisher = '**';
       bufferingClosure = '</strong>';
+    }
+
+    if(!buffering && chunkValue.startsWith('#') && !chunkValue.startsWith('##')) {      
+      buffering = true;
+      chunkValue = chunkValue.replace('#', '<h1>');
+      bufferingFinisher = '\n';
+      bufferingClosure = '</h1>';
+    }
+
+    if(!buffering && chunkValue.startsWith('##') && !chunkValue.startsWith('###')) {      
+      buffering = true;
+      chunkValue = chunkValue.replace('##', '<h2>');
+      bufferingFinisher = '\n';
+      bufferingClosure = '</h2>';
+    }
+
+     if(!buffering && chunkValue.startsWith('###')) {      
+      buffering = true;
+      chunkValue = chunkValue.replace('###', '<h3>');
+      bufferingFinisher = '\n';
+      bufferingClosure = '</h3>';
     }
    
     if(!buffering){
