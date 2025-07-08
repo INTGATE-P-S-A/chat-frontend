@@ -93,7 +93,11 @@ export class ChatComponent extends LitElement {
   @property({ type: Boolean, attribute: 'data-hide-history', converter: (value) => value === 'true' })
   hideHistory: Boolean = false;
 
-  //--
+  @property({ type: Boolean, attribute: 'data-hide-delete-button', converter: (value) => value === 'true' })
+  hideDeleteButton: Boolean = false;
+
+  @property({ type: String, attribute: 'data-initial-messages', converter: (value) => JSON.parse(value || '[]')  })
+  initialMessages: ChatThreadEntry[] = [];
 
   @property({ type: String })
   currentQuestion = '';
@@ -159,6 +163,14 @@ export class ChatComponent extends LitElement {
       this.style.setProperty('--radius-base', this.customStyles.BorderRadius);
       this.style.setProperty('--border-base', this.customStyles.BorderWidth);
       this.style.setProperty('--font-base', this.customStyles.FontBaseSize);
+    }
+
+    // Handle initial messages from external source
+    if (changedProperties.has('initialMessages') && this.initialMessages.length > 0) {
+      console.log(this.initialMessages)
+      this.chatThread = [...this.initialMessages];
+      this.isChatStarted = true;
+      this.isDefaultPromptsEnabled = false;
     }
   }
   // Send the question to the Open AI API and render the answer in the chat
@@ -270,6 +282,13 @@ export class ChatComponent extends LitElement {
     this.chatHistoryController.saveChatHistory(this.chatThread);
     this.collapseAside(event);
     this.handleUserChatCancel(event);
+    
+    const resetEvent = new CustomEvent('chat:conversation:end', {
+      detail: true,
+      bubbles: true,
+      composed: true
+    });
+    this.dispatchEvent(resetEvent); 
   }
 
   // Show the default prompts when enabled
@@ -444,14 +463,7 @@ export class ChatComponent extends LitElement {
                 <div class="chat__header--thread">
                   ${!this.hideHistory && this.interactionModel === 'chat'
                     ? this.chatHistoryController.renderHistoryButton({ disabled: this.isDisabled })
-                    : ''}
-                  ${!this.hideHistory ? `<chat-action-button
-                    .label="${globalConfig.RESET_CHAT_BUTTON_TITLE}"
-                    actionId="chat-reset-button"
-                    @click="${this.resetCurrentChat}"
-                    .svgIcon="${iconDelete}"
-                  >
-                  </chat-action-button>` : ''}
+                    : ''}                 
                 </div>
                 ${this.chatHistoryController.showChatHistory
                   ? html`<div class="chat-history__container">
@@ -514,7 +526,7 @@ export class ChatComponent extends LitElement {
               ${this.renderChatOrCancelButton()}
               <button
                 title="${globalConfig.RESET_BUTTON_TITLE_TEXT}"
-                class="chatbox__button--reset"
+                class="chatbox__button--reset${this.isChatStarted ? ' started' : ''}"
                 .hidden="${!this.isResetInput}"
                 type="reset"
                 id="resetBtn"
@@ -523,6 +535,14 @@ export class ChatComponent extends LitElement {
               >
                 ${globalConfig.RESET_BUTTON_LABEL_TEXT}
               </button>
+               ${!this.hideDeleteButton && this.isChatStarted ? html`<button
+                    class="chatbox__button"
+                    .label="${globalConfig.RESET_CHAT_BUTTON_TITLE}"
+                    actionId="chat-reset-button"
+                    @click="${this.resetCurrentChat}"                    
+                  >
+                    ${unsafeSVG(iconDelete)}
+              </button>` : ''}
             </div>
 
             ${this.isDefaultPromptsEnabled

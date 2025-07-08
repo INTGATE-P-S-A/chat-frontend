@@ -206,7 +206,9 @@ export class ChatThreadComponent extends LitElement {
     return html`
       <ul class="chat__list" aria-live="assertive">
         ${this.chatThread.map(
-          (message) => html`
+          (message) => { 
+            console.log({message})
+            return html`
             <li class="chat__listItem ${message.isUserMessage ? 'user-message' : ''}">
               <div class="chat__txt ${message.isUserMessage ? 'user-message' : ''}">
                 ${message.isUserMessage ? '' : this.renderResponseActions(message)}                
@@ -218,7 +220,7 @@ export class ChatThreadComponent extends LitElement {
                 <span class="user">${message.isUserMessage ? 'You' : globalConfig.USER_IS_BOT}</span>
               </p>
             </li>
-          `,
+          `},
         )}
       </ul>
       <div class="chat__footer" id="chat-list-footer">

@@ -228,6 +228,9 @@ export const chatStyle = css`
     width: var(--d-base);
     cursor: pointer;
   }
+  .chatbox__button--reset.started{
+    right: 210px;
+  }
   .chatbox__input-container {
     display: flex;
     border: var(--border-thin) solid var(--c-black);
