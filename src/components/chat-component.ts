@@ -99,6 +99,12 @@ export class ChatComponent extends LitElement {
   @property({ type: String, attribute: 'data-initial-messages', converter: (value) => JSON.parse(value || '[]')  })
   initialMessages: ChatThreadEntry[] = [];
 
+  @property({ type: Boolean, attribute: 'data-websocket', converter: (value) => value === 'true' })
+  useWebSocket: boolean = false;
+
+  @property({ type: String, attribute: 'data-websocket-events', converter: (value) => JSON.parse(value || '{}') })
+  websocketEvents: { start?: string; chunk?: string; end?: string; sendMessage?: string } = {};
+
   @property({ type: String })
   currentQuestion = '';
 
@@ -171,6 +177,11 @@ export class ChatComponent extends LitElement {
       this.chatThread = [...this.initialMessages];
       this.isChatStarted = true;
       this.isDefaultPromptsEnabled = false;
+    }
+
+    // Configure WebSocket if enabled
+    if (changedProperties.has('useWebSocket') || changedProperties.has('websocketEvents')) {
+      this.chatController.configureWebSocket(this.useWebSocket, this.websocketEvents);
     }
   }
   // Send the question to the Open AI API and render the answer in the chat
@@ -252,6 +263,8 @@ export class ChatComponent extends LitElement {
         stream: this.useStream,
         headers: this.customHeaders,
       },
+      this.useWebSocket, // Pass WebSocket flag
+      this.apiUrl // Pass WebSocket URL (same as API URL)
     );
 
     if (this.interactionModel === 'chat') {

@@ -1,8 +1,11 @@
 import { type ReactiveController, type ReactiveControllerHost } from 'lit';
 import { getAPIResponse } from '../core/http/index.js';
+import { getWebSocketResponse, webSocketManager, type WebSocketApiOptions } from '../core/stream/websocket.js';
 import { parseStreamedMessages } from '../core/parser/index.js';
+import { parseStreamedMessagesFromWebSocket } from '../core/parser/websocket-parser.js';
 import { type ChatResponseError, getTimestamp, processText } from '../utils/index.js';
 import { globalConfig } from '../config/global-config.js';
+import { type Socket } from 'socket.io-client';
 
 export class ChatController implements ReactiveController {
   host: ReactiveControllerHost;
@@ -11,6 +14,7 @@ export class ChatController implements ReactiveController {
   private _isProcessingResponse: boolean = false;
   private _processingMessage: ChatThreadEntry | undefined = undefined;
   private _abortController: AbortController = new AbortController();
+  private _useWebSocket: boolean = false;
 
   get isAwaitingResponse() {
     return this._isAwaitingResponse;
@@ -60,12 +64,21 @@ export class ChatController implements ReactiveController {
     (this.host = host).addController(this);
   }
 
+  configureWebSocket(useWebSocket: boolean, websocketEvents: { start?: string; chunk?: string; end?: string; sendMessage?: string }) {
+    this._useWebSocket = useWebSocket;
+    webSocketManager.configure(websocketEvents);
+  }
+
   hostConnected() {
     // no-op
   }
 
   hostDisconnected() {
-    // no-op
+    this.disconnectWebSocket();
+  }
+
+  private disconnectWebSocket() {
+    webSocketManager.disconnect();
   }
 
   private clear() {
@@ -77,7 +90,74 @@ export class ChatController implements ReactiveController {
 
   reset() {
     this._processingMessage = undefined;
+    webSocketManager.conversationId = null;
+    this.disconnectWebSocket();
     this.clear();
+  }
+
+  private async processWebSocketResponse(socket: Socket) {
+    this.isProcessingResponse = true;
+
+    // Set up event listeners for WebSocket
+    if (webSocketManager.websocketEvents.start) {
+      socket.on(webSocketManager.websocketEvents.start, (data: { conversationId?: string }) => {
+        if (data.conversationId) {
+          webSocketManager.conversationId = data.conversationId;
+          
+          // Dispatch the same event that the parser would dispatch
+          const event = new CustomEvent('chat:conversation:start', {
+            detail: { conversationId: data.conversationId },
+            bubbles: true,
+            composed: true
+          });
+          (this.host as any).dispatchEvent(event);
+        }
+      });
+    }
+
+    // Listen for chunk events
+    if (webSocketManager.websocketEvents.chunk) {
+      socket.on(webSocketManager.websocketEvents.chunk, async (chunk: any) => {
+        if (this._processingMessage) {
+          try {
+            await parseStreamedMessagesFromWebSocket({
+              chatEntry: this._processingMessage,
+              chunk,
+              onChunkRead: (updated) => {
+                this.processingMessage = updated;
+              },
+              onCancel: () => {
+                this.clear();
+              },
+            }, this.host);
+          } catch (error) {
+            console.error('Error processing WebSocket chunk:', error);
+          }
+        }
+      });
+    }
+
+    // Listen for end event
+    if (webSocketManager.websocketEvents.end) {
+      socket.on(webSocketManager.websocketEvents.end, () => {
+        this.clear();
+      });
+    }
+
+    // Handle errors
+    socket.on('error', () => {
+      const chatError = {
+        message: globalConfig.API_ERROR_MESSAGE,
+      };
+
+      if (this.processingMessage) {
+        this.processingMessage = {
+          ...this.processingMessage,
+          error: chatError,
+        };
+      }
+      this.clear();
+    });
   }
 
   async processResponse(response: string | BotResponse, isUserMessage: boolean = false, useStream: boolean = false) {
@@ -149,7 +229,7 @@ export class ChatController implements ReactiveController {
     }
   }
 
-  async generateAnswer(requestOptions: ChatRequestOptions, httpOptions: ChatHttpOptions) {
+  async generateAnswer(requestOptions: ChatRequestOptions, httpOptions: ChatHttpOptions, useWebSocket?: boolean, websocketUrl?: string) {
     const { question } = requestOptions;
 
     if (question) {
@@ -167,16 +247,47 @@ export class ChatController implements ReactiveController {
         this.isAwaitingResponse = true;
         this.processingMessage = undefined;
 
-        // Pass the updated httpOptions with the new signal
-        const updatedHttpOptions = {
-          ...httpOptions,
-          signal: this._abortController.signal,
+        // Initialize processing message for both HTTP and WebSocket
+        this.processingMessage = {
+          id: crypto.randomUUID(),
+          text: [
+            {
+              value: '',
+              followingSteps: [],
+            },
+          ],
+          followupQuestions: [],
+          citations: [],
+          timestamp: getTimestamp(),
+          isUserMessage: false,
+          thoughts: undefined,
+          dataPoints: undefined,
         };
 
-        const response = (await getAPIResponse(requestOptions, updatedHttpOptions)) as BotResponse;
-        this.isAwaitingResponse = false;
+        if (useWebSocket && this._useWebSocket && websocketUrl) {
+          // Use WebSocket
+          const websocketOptions: WebSocketApiOptions = {
+            url: websocketUrl,
+            signal: this._abortController.signal,
+            websocketEvents: webSocketManager.websocketEvents,
+          };
 
-        await this.processResponse(response, false, httpOptions.stream);
+          const socket = await getWebSocketResponse(requestOptions, websocketOptions);
+          this.isAwaitingResponse = false;
+
+          await this.processWebSocketResponse(socket);
+        } else {
+          // Use HTTP
+          const updatedHttpOptions = {
+            ...httpOptions,
+            signal: this._abortController.signal,
+          };
+
+          const response = (await getAPIResponse(requestOptions, updatedHttpOptions)) as BotResponse;
+          this.isAwaitingResponse = false;
+
+          await this.processResponse(response, false, httpOptions.stream);
+        }
       } catch (error_: any) {
         const error = error_ as ChatResponseError;
         const chatError = {
@@ -202,5 +313,10 @@ export class ChatController implements ReactiveController {
 
   cancelRequest() {
     this._abortController.abort();
+    
+    // Cancel WebSocket connection if active
+    if (webSocketManager.socket && webSocketManager.isConnected) {
+      webSocketManager.cancel();
+    }
   }
 }
