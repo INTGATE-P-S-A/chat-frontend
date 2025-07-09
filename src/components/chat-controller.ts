@@ -170,28 +170,29 @@ export class ChatController implements ReactiveController {
             
 
     const updateChatWithMessageOrChunk = async (message: string | BotResponse, chunked: boolean) => {
-      this.processingMessage = {
-        id: crypto.randomUUID(),
-        text: [
-          {
-            value: chunked ? '' : (message as string),
-            followingSteps,
-          },
-        ],
-        followupQuestions,
-        citations: [...new Set(citations)],
-        timestamp: timestamp,
-        isUserMessage,
-        thoughts,
-        dataPoints,
-      };
+      if (chunked) {
+        // For HTTP streaming, create initial empty entry for parseStreamedMessages
+        const initialEntry: ChatThreadEntry = {
+          id: crypto.randomUUID(),
+          text: [
+            {
+              value: '',
+              followingSteps: [],
+            },
+          ],
+          followupQuestions: [],
+          citations: [],
+          timestamp: timestamp,
+          isUserMessage: false,
+          thoughts: undefined,
+          dataPoints: undefined,
+        };
 
-      if (chunked && this.processingMessage) {
         this.isProcessingResponse = true;
         this._abortController = new AbortController();
 
         await parseStreamedMessages({
-          chatEntry: this.processingMessage,
+          chatEntry: initialEntry,
           signal: this._abortController.signal,
           apiResponseBody: (message as unknown as Response).body,
           onChunkRead: (updated) => {       
@@ -204,6 +205,23 @@ export class ChatController implements ReactiveController {
 
         // processing done.
         this.clear();
+      } else {
+        // For non-streaming, create the message normally
+        this.processingMessage = {
+          id: crypto.randomUUID(),
+          text: [
+            {
+              value: (message as string),
+              followingSteps,
+            },
+          ],
+          followupQuestions,
+          citations: [...new Set(citations)],
+          timestamp: timestamp,
+          isUserMessage,
+          thoughts,
+          dataPoints,
+        };
       }
     };
 
@@ -247,24 +265,24 @@ export class ChatController implements ReactiveController {
         this.isAwaitingResponse = true;
         this.processingMessage = undefined;
 
-        // Initialize processing message for both HTTP and WebSocket
-        this.processingMessage = {
-          id: crypto.randomUUID(),
-          text: [
-            {
-              value: '',
-              followingSteps: [],
-            },
-          ],
-          followupQuestions: [],
-          citations: [],
-          timestamp: getTimestamp(),
-          isUserMessage: false,
-          thoughts: undefined,
-          dataPoints: undefined,
-        };
-
         if (useWebSocket && this._useWebSocket && websocketUrl) {
+          // Use WebSocket - initialize processing message for WebSocket
+          this.processingMessage = {
+            id: crypto.randomUUID(),
+            text: [
+              {
+                value: '',
+                followingSteps: [],
+              },
+            ],
+            followupQuestions: [],
+            citations: [],
+            timestamp: getTimestamp(),
+            isUserMessage: false,
+            thoughts: undefined,
+            dataPoints: undefined,
+          };
+
           // Use WebSocket
           const websocketOptions: WebSocketApiOptions = {
             url: websocketUrl,
@@ -277,7 +295,7 @@ export class ChatController implements ReactiveController {
 
           await this.processWebSocketResponse(socket);
         } else {
-          // Use HTTP
+          // Use HTTP - let processResponse handle message creation
           const updatedHttpOptions = {
             ...httpOptions,
             signal: this._abortController.signal,
