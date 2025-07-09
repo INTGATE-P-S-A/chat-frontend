@@ -1,5 +1,5 @@
 /* eslint-disable unicorn/template-indent */
-import { LitElement, html } from 'lit';
+import { LitElement, PropertyDeclaration, html } from 'lit';
 import DOMPurify from 'dompurify';
 import { customElement, property, query, state } from 'lit/decorators.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
@@ -173,7 +173,6 @@ export class ChatComponent extends LitElement {
 
     // Handle initial messages from external source
     if (changedProperties.has('initialMessages') && this.initialMessages.length > 0) {
-      console.log(this.initialMessages)
       this.chatThread = [...this.initialMessages];
       this.isChatStarted = true;
       this.isDefaultPromptsEnabled = false;
@@ -184,7 +183,12 @@ export class ChatComponent extends LitElement {
       this.chatController.configureWebSocket(this.useWebSocket, this.websocketEvents);
     }
   }
-  // Send the question to the Open AI API and render the answer in the chat
+
+  clearChat(){
+      this.chatThread = [];
+      this.isChatStarted = false;
+      this.isDefaultPromptsEnabled = true;
+  }
 
   setQuestionInputValue(value: string): void {
     this.questionInput.value = DOMPurify.sanitize(value || '');
