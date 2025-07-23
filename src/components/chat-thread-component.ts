@@ -206,8 +206,7 @@ export class ChatThreadComponent extends LitElement {
     return html`
       <ul class="chat__list" aria-live="assertive">
         ${this.chatThread.map(
-          (message) => { 
-            console.log({message})
+          (message) => {             
             return html`
             <li class="chat__listItem ${message.isUserMessage ? 'user-message' : ''}">
               <div class="chat__txt ${message.isUserMessage ? 'user-message' : ''}">

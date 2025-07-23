@@ -158,4 +158,41 @@ export const styles = css`
     padding: calc(var(--d-small) / 5);
     margin-left: 3px;
   }
+
+  .tool-entry {
+    margin: var(--d-base) 0;
+    padding: 10px;
+    background-color: var(--c-light-gray);
+    border-radius: var(--radius-base);
+    box-shadow: var(--shadow);
+    border: var(--border-thin) solid var(--c-accent-light);
+  }
+
+  .tool-name {
+    font-weight: bold;
+    color: var(--c-accent-dark);
+    margin-bottom: var(--d-small);
+  }
+
+  .tool-info {
+    font-size: var(--font-small);
+    color: var(--text-color);
+  }
+
+  .web-search-info {
+        
+  }
+
+  .web-search-info strong {
+    display: block;
+    font-weight: bold;
+    color: #3a3a3a;
+    margin-bottom: var(--d-small);
+  }
+
+  .web-search-result {
+    font-size: var(--font-small);
+    color: var(--text-color);
+    margin-bottom: var(--d-small);
+  }
 `;

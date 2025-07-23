@@ -121,6 +121,21 @@ export const chatStyle = css`
     transition: width 0.3s ease-in-out;
     max-height: 100vh;
   }
+  #chat-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  } 
+
+  #chat-container > .chat__container {
+    flex: 6;
+  }
+
+  #chat-container > #chat-form {
+    flex: 1;
+    position: relative;
+  }
+
   .chat__containerWrapper.aside-open {
     .chat__listItem {
       max-width: var(--width-wide);
@@ -130,6 +145,7 @@ export const chatStyle = css`
     display: grid;
     grid-template-columns: 1fr;
     gutter: var(--d-base);
+    height: 100%;
   }
   .chat__containerWrapper.aside-open {
     display: grid;
@@ -173,7 +189,7 @@ export const chatStyle = css`
     border-radius: var(--radius-base);
     background: linear-gradient(0deg, var(--c-base-gray) 0%, var(--c-base-gray) 75%, var(--c-base-gray) 100%);
     box-shadow: var(--shadow);
-    padding: var(--d-small) var(--d-small) var(--d-large);
+    padding: var(--d-small) var(--d-small) var(--d-small);
   }
   .form__label {
     display: block;
@@ -250,6 +266,21 @@ export const chatStyle = css`
   }
   .chatbox__input:focus-visible {
     outline: none;
+  }
+  .web-search__container {
+    padding: var(--d-small) 0;    
+  }
+  .web-search__label {
+    display: flex;
+    align-items: center;
+    gap: var(--d-xsmall);
+    font-size: var(--font-base);
+    color: var(--c-text);
+    cursor: pointer;
+  }
+  .web-search__checkbox {
+    margin: 0;
+    accent-color: var(--c-primary);
   }
   .aside__header {
     display: flex;

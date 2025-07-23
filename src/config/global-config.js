@@ -45,6 +45,9 @@ const globalConfig = {
   HIDE_CHAT_HISTORY_LABEL: 'Hide Chat History',
   CHAT_MAX_COUNT_TAG: '{MAX_CHAT_HISTORY}',
   CHAT_HISTORY_FOOTER_TEXT: 'Showing past {MAX_CHAT_HISTORY} conversations',
+  // Web Search Configuration
+  WEB_SEARCH_CHECKBOX_LABEL: 'Use web search',
+  WEB_SEARCH_CHECKBOX_ENABLED: true,
 };
 
 const teaserListTexts = {

@@ -12,7 +12,7 @@ export function processText(inputText: string, arrays: Array<Array<string> | Arr
   const findDashListItems = /^-\s*(.+)\n/gm;
   const findNextQuestions = /Next Questions:(.*?)$/s;
   const findQuestionsbyDoubleArrow = /<<([^<>]+)>>/g;
-  console.log('xxxxx');
+  
   // Find and process citations
   const citation: NonNullable<unknown> = {};
   let citations: Citation[] = [];

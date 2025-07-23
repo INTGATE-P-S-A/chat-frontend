@@ -1,6 +1,9 @@
 import { ReactiveControllerHost } from 'lit';
 import { ChatResponseError, newListWithEntryAtIndex } from '../../utils/index.js';
 import { createReader, readStream } from '../stream/index.js';
+import { createBufferState, processChunkWithBuffering } from './bufferer.js';
+import voucher_codes from 'voucher-code-generator';
+import { parseTool } from './toolsParser.js';
 
 export async function parseStreamedMessages({
   chatEntry,
@@ -17,15 +20,11 @@ export async function parseStreamedMessages({
 }, host: ReactiveControllerHost) {
   const reader = createReader(apiResponseBody);
   const chunks = readStream<BotResponseChunk | BotResponseError>(reader);
-
+  let startedCoding = false;
+  let coderId = null;
+  let citations: Citation[] = [];
   const streamedMessageRaw: string[] = [];
-  
-  
-  let buffering = false;
-  let bufferingFinisher: string | null = null;
-  let bufferingClosure: string | null = null;
-  let bufferText: string = '';
-
+  const bufferState = createBufferState();
   let textBlockIndex = 0;
 
   let updatedEntry = {
@@ -52,6 +51,25 @@ export async function parseStreamedMessages({
       continue;
     }    
 
+     if(chunk.tool) {  
+      try {
+        updatedEntry = updateTextEntry({ chunkValue: `<div class="tool-entry">
+          <div class="tool-name">Tool: ${chunk.tool.name}</div>
+          <div class="tool-info">${parseTool(chunk.tool)}</div>
+        </div>`, textBlockIndex, chatEntry: updatedEntry });      
+        onVisit(updatedEntry);
+      }catch(e){
+        console.log(e)
+      }
+       
+        continue;
+    }   
+
+    if(chunk.citations) {
+      citations = [ ...citations, ...chunk.citations ];      
+      continue;
+    }
+
     // content is filtered during the output streaming
     // https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/content-filter?tabs=javascrit
     if (chunk.choices[0].finish_reason === 'content_filter') {
@@ -73,61 +91,50 @@ export async function parseStreamedMessages({
 
     streamedMessageRaw.push(chunkValue);      
 
-    if(chunkValue.includes('\n\n')) {
-      chunkValue = chunkValue.replace(/\n\n/g, '<br/>');
-    }
-
-    if(!buffering && chunkValue.includes('**')) {      
-      buffering = true;
-      chunkValue = chunkValue.replace('**', '<strong>');
-      bufferingFinisher = '**';
-      bufferingClosure = '</strong>';
-    }
-
-    if(!buffering && chunkValue.startsWith('#') && !chunkValue.startsWith('##')) {      
-      buffering = true;
-      chunkValue = chunkValue.replace('#', '<h1>');
-      bufferingFinisher = '\n';
-      bufferingClosure = '</h1>';
-    }
-
-    if(!buffering && chunkValue.startsWith('##') && !chunkValue.startsWith('###')) {      
-      buffering = true;
-      chunkValue = chunkValue.replace('##', '<h2>');
-      bufferingFinisher = '\n';
-      bufferingClosure = '</h2>';
-    }
-
-     if(!buffering && chunkValue.startsWith('###')) {      
-      buffering = true;
-      chunkValue = chunkValue.replace('###', '<h3>');
-      bufferingFinisher = '\n';
-      bufferingClosure = '</h3>';
-    }
-   
-    if(!buffering){
-      updatedEntry = updateTextEntry({ chunkValue, textBlockIndex, chatEntry: updatedEntry });
+    // Process chunk with buffering
+    const { processedChunk, bufferState: updatedBufferState } = processChunkWithBuffering(chunkValue, bufferState, (bufferInfo, chunk) => {
+      if(bufferInfo.buffering && bufferInfo.bufferingClosure === '```') {   
+        const hoster = (host as any);
+        try {
+          const codeViewer: { updateRenderer: (text: string) => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[id="'+coderId+'"]');
+          if(codeViewer){            
+            codeViewer.updateRenderer(chunk);     
+          }    
+        } catch(e){
+          console.error(e);
+        }      
+      }
+    });  
+    
+    // Only update text entry when we have a processed chunk (either normal or completed buffering)
+    if (processedChunk !== null) {
+      if(startedCoding){
+        coderId = null;
+        startedCoding = false;      
+      }else{        
+        updatedEntry = updateTextEntry({ chunkValue: processedChunk, textBlockIndex, chatEntry: updatedEntry });
+      }
     }else{
-      if(bufferingFinisher && bufferingClosure && chunkValue.includes(bufferingFinisher)){
-        updatedEntry = updateTextEntry({ chunkValue: bufferText + chunkValue.replace(bufferingFinisher, bufferingClosure), textBlockIndex, chatEntry: updatedEntry });
-
-        bufferingFinisher = null;
-        bufferingClosure = null;
-        bufferText = '';
-        buffering = false;
-      }else{
-        bufferText += chunkValue;
-        console.log({bufferText});
-      }      
+      if(updatedBufferState.buffering && !startedCoding && updatedBufferState.bufferText.includes('\n')){
+        startedCoding = true;
+        coderId = voucher_codes.generate({
+          length: 10,
+          count: 1,
+          charset: 'alphanumeric',
+        })[0].toLowerCase();       
+        
+        updatedEntry = updateTextEntry({ chunkValue: '<code-viewer id="'+coderId+'">'+updatedBufferState.bufferText+'```</code-viewer>', textBlockIndex, chatEntry: updatedEntry });
+      }    
     }
     
-    const citations = parseCitations(streamedMessageRaw.join(''));
-    updatedEntry = updateCitationsEntry({ citations, chatEntry: updatedEntry });
+    updatedEntry = updateCitationsEntry({ citations: [], chatEntry: updatedEntry });
 
     onVisit(updatedEntry);
   }
 
-  console.log('Streamed message:', streamedMessageRaw.join(''));
+  updatedEntry = updateCitationsEntry({ citations, chatEntry: updatedEntry });
+
+    onVisit(updatedEntry);
 }
 
 // update the citations entry and wrap the citations in a sup tag

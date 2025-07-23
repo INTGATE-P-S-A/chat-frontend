@@ -47,6 +47,7 @@ export class ChatController implements ReactiveController {
           ...value,
         }
       : undefined;
+    
     this.host.requestUpdate();
   }
 

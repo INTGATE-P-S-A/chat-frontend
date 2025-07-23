@@ -46,11 +46,10 @@ export class CitationListComponent extends LitElement {
               <li class="items__listItem ${this.compareCitation(citation, this.selectedCitation) ? 'active' : ''}">
                 <a
                   class="items__link"
-                  href="#"
-                  data-testid="citation"
-                  @click="${(event: Event) => this.handleCitationClick(citation, event)}"
-                  >${citation.ref}. ${citation.text}</a
-                >
+                  href="${citation.text}"
+                  target="_blank"
+                  data-testid="citation"                  
+                  >${citation.ref}. ${citation.text}</a>
               </li>
             `,
           )}

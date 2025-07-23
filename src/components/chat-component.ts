@@ -108,6 +108,9 @@ export class ChatComponent extends LitElement {
   @property({ type: String })
   currentQuestion = '';
 
+  @property({ type: Boolean, attribute: 'data-web-search', converter: (value) => value === 'true' })
+  dataWebSearch: boolean = false;
+
   @query('#question-input')
   questionInput!: HTMLInputElement;
 
@@ -120,6 +123,9 @@ export class ChatComponent extends LitElement {
 
   @state()
   isResetInput = false;
+
+  @state()
+  useWebSearch = false;
 
   private chatController = new ChatController(this);
   private chatHistoryController = new ChatHistoryController(this);
@@ -150,13 +156,7 @@ export class ChatComponent extends LitElement {
     // Remove this block when not needed, considering that updated() is a LitElement lifecycle method
     // that may be used by other components if you update this code.
 
-    if (this.customTeasers && Object.keys(this.customTeasers).length > 0) {
-      teaserListTexts = this.customTeasers;
-    }
-
-    if (this.customConfig && Object.keys(this.customConfig).length > 0) {
-       globalConfig = {...mainConfig, ...this.customConfig};
-    }
+   this.overrideConfig();
 
     if (changedProperties.has('customStyles')) {
       this.style.setProperty('--c-accent-high', this.customStyles.AccentHigh);
@@ -176,11 +176,35 @@ export class ChatComponent extends LitElement {
       this.chatThread = [...this.initialMessages];
       this.isChatStarted = true;
       this.isDefaultPromptsEnabled = false;
+    }else{
+      // this.chatThread = [];
+      // this.isDefaultPromptsEnabled = true;
+      // this.isChatStarted = false;
     }
 
     // Configure WebSocket if enabled
     if (changedProperties.has('useWebSocket') || changedProperties.has('websocketEvents')) {
       this.chatController.configureWebSocket(this.useWebSocket, this.websocketEvents);
+    }
+  }
+
+  override connectedCallback(): void {
+    super.connectedCallback();
+
+    // Set useWebSearch from data-web-search attribute if present
+    if (this.dataWebSearch === true) {
+      this.useWebSearch = true;
+    }
+
+    this.overrideConfig(); 
+  }
+
+  overrideConfig(){
+    if (this.customConfig && Object.keys(this.customConfig).length > 0) {
+      globalConfig = {...mainConfig, ...this.customConfig};
+    }
+    if (this.customTeasers && Object.keys(this.customTeasers).length > 0) {
+      teaserListTexts = this.customTeasers;
     }
   }
 
@@ -216,6 +240,17 @@ export class ChatComponent extends LitElement {
       this.handleExpandAside();
       this.selectedAsideTab = 'tab-citations';
     }
+  }
+
+  handleWebSearchChange(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    this.useWebSearch = target.checked;
+    // Emit custom event for web search change
+    this.dispatchEvent(new CustomEvent('websearch-change', {
+      detail: { checked: this.useWebSearch },
+      bubbles: true,
+      composed: true
+    }));
   }
 
   getMessageContext(): Message[] {
@@ -257,6 +292,7 @@ export class ChatComponent extends LitElement {
         question,
         type: this.interactionModel,
         messages: this.getMessageContext(),
+        useWebSearch: this.useWebSearch,
       },
       {
         // use defaults
@@ -561,6 +597,21 @@ export class ChatComponent extends LitElement {
                     ${unsafeSVG(iconDelete)}
               </button>` : ''}
             </div>
+
+            ${globalConfig.WEB_SEARCH_CHECKBOX_ENABLED
+              ? html`<div class="web-search__container">
+                  <label class="web-search__label">
+                    <input
+                      type="checkbox"
+                      class="web-search__checkbox"
+                      .checked="${this.useWebSearch}"
+                      @change="${this.handleWebSearchChange}"
+                      ?disabled="${this.isDisabled}"
+                    />
+                    ${globalConfig.WEB_SEARCH_CHECKBOX_LABEL}
+                  </label>
+                </div>`
+              : ''}
 
             ${this.isDefaultPromptsEnabled
               ? ''

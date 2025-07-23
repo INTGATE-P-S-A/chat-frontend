@@ -74,6 +74,8 @@ declare interface BotResponse {
 }
 
 declare interface BotResponseChunk {
+  tool?: { name: string; data: Record<string, any> };
+  citations?: Citation[];
   conversationId?: string;
   choices: Array<{
     index: number;
