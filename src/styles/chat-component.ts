@@ -267,6 +267,12 @@ export const chatStyle = css`
   .chatbox__input:focus-visible {
     outline: none;
   }
+  .web-search__wrapper {
+    display: flex;
+    flex-direction: row;
+    gap: var(--d-base);
+    align-items: center;
+  }
   .web-search__container {
     padding: var(--d-small) 0;    
   }

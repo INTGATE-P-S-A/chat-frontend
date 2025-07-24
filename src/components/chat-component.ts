@@ -39,6 +39,8 @@ import './chat-action-button.js';
 import { type TabContent } from './tab-component.js';
 import { ChatController } from './chat-controller.js';
 import { ChatHistoryController } from './chat-history-controller.js';
+import { parseFullMessage } from '../core/parser/bufferer.js';
+import { parseTool } from '../core/parser/toolsParser.js';
 
 let teaserListTexts = configTeaserListTexts;
 let globalConfig = mainConfig;
@@ -111,6 +113,9 @@ export class ChatComponent extends LitElement {
   @property({ type: Boolean, attribute: 'data-web-search', converter: (value) => value === 'true' })
   dataWebSearch: boolean = false;
 
+  @property({ type: Boolean, attribute: 'data-deep-search', converter: (value) => value === 'true' })
+  dataDeepSearch: boolean = false;
+
   @query('#question-input')
   questionInput!: HTMLInputElement;
 
@@ -126,6 +131,9 @@ export class ChatComponent extends LitElement {
 
   @state()
   useWebSearch = false;
+
+  @state()
+  useDeepSearch = false;
 
   private chatController = new ChatController(this);
   private chatHistoryController = new ChatHistoryController(this);
@@ -173,7 +181,25 @@ export class ChatComponent extends LitElement {
 
     // Handle initial messages from external source
     if (changedProperties.has('initialMessages') && this.initialMessages.length > 0) {
-      this.chatThread = [...this.initialMessages];
+      this.chatThread = [
+        ...this.initialMessages.map((message) => {
+          let i = 0;
+          for(const msgTxt of message.text){
+            message.text[i].value = parseFullMessage(msgTxt.value);
+            i++;
+          }
+
+          if(message.tools){
+            for(const tool of message.tools){
+              message.text[message.text.length - 1].value = parseTool({ name: tool.toolName, data: tool.data }) + message.text[message.text.length - 1].value
+            }
+            
+          }
+
+          return message;
+        })
+      ];
+      console.log(this.chatThread);
       this.isChatStarted = true;
       this.isDefaultPromptsEnabled = false;
     }else{
@@ -190,10 +216,13 @@ export class ChatComponent extends LitElement {
 
   override connectedCallback(): void {
     super.connectedCallback();
-
-    // Set useWebSearch from data-web-search attribute if present
+    
     if (this.dataWebSearch === true) {
       this.useWebSearch = true;
+    }
+    
+    if (this.dataDeepSearch === true) {
+      this.useDeepSearch = true;
     }
 
     this.overrideConfig(); 
@@ -245,9 +274,20 @@ export class ChatComponent extends LitElement {
   handleWebSearchChange(event: Event): void {
     const target = event.target as HTMLInputElement;
     this.useWebSearch = target.checked;
-    // Emit custom event for web search change
+    
     this.dispatchEvent(new CustomEvent('websearch-change', {
       detail: { checked: this.useWebSearch },
+      bubbles: true,
+      composed: true
+    }));
+  }
+
+  handleDeepSearchChange(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    this.useDeepSearch = target.checked;
+    
+    this.dispatchEvent(new CustomEvent('deepsearch-change', {
+      detail: { checked: this.useDeepSearch },
       bubbles: true,
       composed: true
     }));
@@ -293,6 +333,7 @@ export class ChatComponent extends LitElement {
         type: this.interactionModel,
         messages: this.getMessageContext(),
         useWebSearch: this.useWebSearch,
+        useDeepSearch: this.useDeepSearch,
       },
       {
         // use defaults
@@ -599,17 +640,33 @@ export class ChatComponent extends LitElement {
             </div>
 
             ${globalConfig.WEB_SEARCH_CHECKBOX_ENABLED
-              ? html`<div class="web-search__container">
-                  <label class="web-search__label">
-                    <input
-                      type="checkbox"
-                      class="web-search__checkbox"
-                      .checked="${this.useWebSearch}"
-                      @change="${this.handleWebSearchChange}"
-                      ?disabled="${this.isDisabled}"
-                    />
-                    ${globalConfig.WEB_SEARCH_CHECKBOX_LABEL}
-                  </label>
+              ? html`<div class="web-search__wrapper">
+                  <div class="web-search__container">
+                    <label class="web-search__label">
+                      <input
+                        type="checkbox"
+                        class="web-search__checkbox"
+                        .checked="${this.useWebSearch}"
+                        @change="${this.handleWebSearchChange}"
+                        ?disabled="${this.isDisabled}"
+                      />
+                      ${globalConfig.WEB_SEARCH_CHECKBOX_LABEL}
+                    </label>
+                  </div>
+                  ${globalConfig.DEEP_SEARCH_CHECKBOX_ENABLED && this.useWebSearch
+                    ? html`<div class="web-search__container">
+                        <label class="web-search__label">
+                          <input
+                            type="checkbox"
+                            class="web-search__checkbox"
+                            .checked="${this.useDeepSearch}"
+                            @change="${this.handleDeepSearchChange}"
+                            ?disabled="${this.isDisabled}"
+                          />
+                          ${globalConfig.DEEP_SEARCH_CHECKBOX_LABEL}
+                        </label>
+                      </div>`
+                    : ''}
                 </div>`
               : ''}
 

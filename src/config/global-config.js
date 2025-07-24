@@ -48,6 +48,9 @@ const globalConfig = {
   // Web Search Configuration
   WEB_SEARCH_CHECKBOX_LABEL: 'Use web search',
   WEB_SEARCH_CHECKBOX_ENABLED: true,
+  // Deep Search Configuration
+  DEEP_SEARCH_CHECKBOX_LABEL: 'Use deep search',
+  DEEP_SEARCH_CHECKBOX_ENABLED: true,
 };
 
 const teaserListTexts = {

@@ -53,10 +53,7 @@ export async function parseStreamedMessages({
 
      if(chunk.tool) {  
       try {
-        updatedEntry = updateTextEntry({ chunkValue: `<div class="tool-entry">
-          <div class="tool-name">Tool: ${chunk.tool.name}</div>
-          <div class="tool-info">${parseTool(chunk.tool)}</div>
-        </div>`, textBlockIndex, chatEntry: updatedEntry });      
+        updatedEntry = updateTextEntry({ chunkValue: parseTool(chunk.tool), textBlockIndex, chatEntry: updatedEntry });      
         onVisit(updatedEntry);
       }catch(e){
         console.log(e)

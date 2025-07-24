@@ -16,6 +16,7 @@ declare interface ChatThreadEntry {
   id: string;
   text: ChatMessageText[];
   citations?: Citation[];
+  tools?: { toolName: string, data: any }[];
   followupQuestions?: string[];
   isUserMessage: boolean;
   timestamp: string;

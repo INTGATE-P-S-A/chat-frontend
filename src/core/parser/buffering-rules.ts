@@ -1,0 +1,122 @@
+import { BufferState } from './bufferer';
+import { 
+  BufferingRule,
+  H3HeaderRule,
+  H2HeaderRule,
+  H1HeaderRule,
+  CodeBlockRule,
+  BoldTextRule
+} from './rules';
+
+export class BufferingRuleManager {
+  private rules: BufferingRule[] = [];
+
+  constructor(customRules?: BufferingRule[]) {
+    if (customRules) {
+      this.rules = [...customRules];
+    } else {
+      this.initializeDefaultRules();
+    }
+    this.sortRulesByPriority();
+  }
+
+  private initializeDefaultRules(): void {
+    this.rules = [
+      new H3HeaderRule(),
+      new H2HeaderRule(),
+      new H1HeaderRule(),
+      new CodeBlockRule(),
+      new BoldTextRule()
+    ];
+  }
+
+  private sortRulesByPriority(): void {
+    this.rules.sort((a, b) => a.priority - b.priority);
+  }
+
+  /**
+   * Add a new rule to the manager
+   */
+  addRule(rule: BufferingRule): void {
+    this.rules.push(rule);
+    this.sortRulesByPriority();
+  }
+
+  /**
+   * Remove a rule by name
+   */
+  removeRule(name: string): boolean {
+    const index = this.rules.findIndex(rule => rule.name === name);
+    if (index !== -1) {
+      this.rules.splice(index, 1);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Process a chunk and apply the first matching buffering rule
+   */
+  processChunk(
+    chunk: string,
+    bufferState: BufferState
+  ): { processedChunk: string | null; bufferState: BufferState; ruleApplied?: string } | null {
+    if (bufferState.buffering) {
+      return null; // Already buffering, let the existing logic handle it
+    }
+
+    for (const rule of this.rules) {
+      if (rule.detect(chunk)) {
+        // Try to complete immediately if possible
+        const completeMatch = rule.tryCompleteMatch(chunk);
+        if (completeMatch) {
+          return {
+            processedChunk: chunk.replace(completeMatch.fullMatch, completeMatch.replacement),
+            bufferState,
+            ruleApplied: rule.name
+          };
+        }
+
+        // Start buffering
+        const bufferingResult = rule.startBuffering(chunk);
+        bufferState.buffering = true;
+        bufferState.bufferingFinisher = bufferingResult.finisher;
+        bufferState.bufferingClosure = bufferingResult.closure;
+        
+        // Special handling for code blocks
+        if (rule.name === 'code-block') {
+          bufferState.skipOne = true;
+        }
+
+        return {
+          processedChunk: null, // Will continue in buffering mode
+          bufferState,
+          ruleApplied: rule.name
+        };
+      }
+    }
+
+    return null; // No rule matched
+  }
+
+  /**
+   * Get all rule names for debugging
+   */
+  getRuleNames(): string[] {
+    return this.rules.map(rule => rule.name);
+  }
+
+  /**
+   * Get rule by name for debugging
+   */
+  getRule(name: string): BufferingRule | undefined {
+    return this.rules.find(rule => rule.name === name);
+  }
+
+  /**
+   * Get all rules (for advanced usage)
+   */
+  getAllRules(): BufferingRule[] {
+    return [...this.rules];
+  }
+}
