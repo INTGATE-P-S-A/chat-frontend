@@ -5,7 +5,8 @@ import {
   H2HeaderRule,
   H1HeaderRule,
   CodeBlockRule,
-  BoldTextRule
+  BoldTextRule,
+  LineBreakRule
 } from './rules';
 
 export class BufferingRuleManager {
@@ -26,7 +27,8 @@ export class BufferingRuleManager {
       new H2HeaderRule(),
       new H1HeaderRule(),
       new CodeBlockRule(),
-      new BoldTextRule()
+      new BoldTextRule(),
+      new LineBreakRule()
     ];
   }
 
@@ -66,9 +68,9 @@ export class BufferingRuleManager {
     }
 
     for (const rule of this.rules) {
-      if (rule.detect(chunk)) {
+      if (rule.detect(chunk, bufferState)) {
         // Try to complete immediately if possible
-        const completeMatch = rule.tryCompleteMatch(chunk);
+        const completeMatch = rule.tryCompleteMatch(chunk, bufferState);
         if (completeMatch) {
           return {
             processedChunk: chunk.replace(completeMatch.fullMatch, completeMatch.replacement),
@@ -78,7 +80,7 @@ export class BufferingRuleManager {
         }
 
         // Start buffering
-        const bufferingResult = rule.startBuffering(chunk);
+        const bufferingResult = rule.startBuffering(chunk, bufferState);
         bufferState.buffering = true;
         bufferState.bufferingFinisher = bufferingResult.finisher;
         bufferState.bufferingClosure = bufferingResult.closure;
@@ -86,10 +88,12 @@ export class BufferingRuleManager {
         // Special handling for code blocks
         if (rule.name === 'code-block') {
           bufferState.skipOne = true;
+          bufferState.insideCodeViewer = true;
+          bufferState.codeViewerDepth = (bufferState.codeViewerDepth || 0) + 1;
         }
 
         return {
-          processedChunk: null, // Will continue in buffering mode
+          processedChunk: bufferingResult.processedChunk, // Return the processed chunk immediately
           bufferState,
           ruleApplied: rule.name
         };

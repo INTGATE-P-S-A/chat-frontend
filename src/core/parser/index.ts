@@ -90,7 +90,7 @@ export async function parseStreamedMessages({
 
     // Process chunk with buffering
     const { processedChunk, bufferState: updatedBufferState } = processChunkWithBuffering(chunkValue, bufferState, (bufferInfo, chunk) => {
-      if(bufferInfo.buffering && bufferInfo.bufferingClosure === '```') {   
+      if(bufferInfo.buffering && bufferInfo.bufferingClosure === '</code-viewer>') {   
         const hoster = (host as any);
         try {
           const codeViewer: { updateRenderer: (text: string) => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[id="'+coderId+'"]');
@@ -105,14 +105,36 @@ export async function parseStreamedMessages({
     
     // Only update text entry when we have a processed chunk (either normal or completed buffering)
     if (processedChunk !== null) {
-      if(startedCoding){
+      // Check if buffering just completed for a code-viewer
+      const bufferingJustCompleted = startedCoding && !updatedBufferState.buffering;
+      
+      if(bufferingJustCompleted){
+        // Code-viewer just completed, reset state and process any remaining content
         coderId = null;
-        startedCoding = false;      
-      }else{        
+        startedCoding = false;
+        
+        // Process the chunk normally (it might contain content after the closing ```)
         updatedEntry = updateTextEntry({ chunkValue: processedChunk, textBlockIndex, chatEntry: updatedEntry });
+      }else{
+        // Check if this is the start of a code-viewer buffering
+        if(updatedBufferState.buffering && updatedBufferState.bufferingClosure === '</code-viewer>' && !startedCoding && processedChunk.includes('<code-viewer')){
+          startedCoding = true;
+          coderId = voucher_codes.generate({
+            length: 10,
+            count: 1,
+            charset: 'alphanumeric',
+          })[0].toLowerCase();
+          
+          // Add ID to the code-viewer tag
+          const updatedChunk = processedChunk.replace('<code-viewer', `<code-viewer id="${coderId}"`);
+          updatedEntry = updateTextEntry({ chunkValue: updatedChunk, textBlockIndex, chatEntry: updatedEntry });
+        } else {
+          updatedEntry = updateTextEntry({ chunkValue: processedChunk, textBlockIndex, chatEntry: updatedEntry });
+        }
       }
     }else{
-      if(updatedBufferState.buffering && !startedCoding && updatedBufferState.bufferText.includes('\n')){
+      // This case should now be rare since buffering rules return processedChunk immediately
+      if(updatedBufferState.buffering && !startedCoding && updatedBufferState.bufferingClosure === '</code-viewer>' && updatedBufferState.bufferText.includes('\n')){
         startedCoding = true;
         coderId = voucher_codes.generate({
           length: 10,
@@ -120,7 +142,9 @@ export async function parseStreamedMessages({
           charset: 'alphanumeric',
         })[0].toLowerCase();       
         
-        updatedEntry = updateTextEntry({ chunkValue: '<code-viewer id="'+coderId+'">'+updatedBufferState.bufferText+'```</code-viewer>', textBlockIndex, chatEntry: updatedEntry });
+        // Fallback for cases where processedChunk is null but we're buffering
+        const bufferContent = updatedBufferState.bufferText || '';
+        updatedEntry = updateTextEntry({ chunkValue: '<code-viewer id="'+coderId+'">'+bufferContent, textBlockIndex, chatEntry: updatedEntry });
       }    
     }
     

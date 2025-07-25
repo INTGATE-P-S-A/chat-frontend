@@ -6,6 +6,8 @@ export interface BufferState {
   bufferingClosure: string | null;
   bufferText: string;
   skipOne: boolean;
+  insideCodeViewer: boolean;
+  codeViewerDepth: number;
 }
 
 export interface MarkdownPattern {
@@ -28,17 +30,14 @@ export function createBufferState(): BufferState {
     bufferingClosure: null,
     bufferText: '',
     skipOne: false,
+    insideCodeViewer: false,
+    codeViewerDepth: 0,
   };
 }
 
 // Define markdown patterns with priority (higher priority = processed first)
+// Note: Code blocks are handled by CodeBlockRule, not here
 const MARKDOWN_PATTERNS: MarkdownPattern[] = [
-  {
-    pattern: /```[\s\S]*?```/g,
-    openTag: '<code-viewer>',
-    closeTag: '</code-viewer>',
-    priority: 1
-  },
   {
     pattern: /^### (.+)$/gm,
     openTag: '<h3>',
@@ -84,13 +83,7 @@ export function parseFullMessage(text: string): string {
   const sortedPatterns = [...MARKDOWN_PATTERNS].sort((a, b) => a.priority - b.priority);
   
   for (const { pattern, openTag, closeTag } of sortedPatterns) {
-    if (pattern.source.includes('```')) {
-      // Special handling for code blocks
-      processedText = processedText.replace(pattern, (match) => {
-        const content = match.replace(/```/g, '');
-        return `${openTag}${content}${closeTag}`;
-      });
-    } else if (pattern.source.includes('^#')) {
+    if (pattern.source.includes('^#')) {
       // Special handling for headers (capture group)
       processedText = processedText.replace(pattern, (_, content) => {
         return `${openTag}${content}${closeTag}`;
@@ -199,11 +192,6 @@ export function processChunkWithBuffering(
     }
   }
 
-  // Handle line breaks when not buffering (do this AFTER header checks)
-  if (!bufferState.buffering && processedChunk.includes('\n\n')) {
-    processedChunk = processedChunk.replace(/\n\n/g, '<br/>');
-  }
-
   // If not buffering, return the processed chunk immediately
   if (!bufferState.buffering) {
     return { processedChunk, bufferState };
@@ -217,18 +205,68 @@ export function processChunkWithBuffering(
 
     let finalChunk: string;
     
-    if (bufferState.bufferingFinisher === '```') {
-      finalChunk = `<code-viewer>${bufferState.bufferText + processedChunk}</code-viewer>`;
+    // Special handling for code block language detection
+    if (bufferState.bufferingClosure === '__TEMP_CODE_BLOCK_WAITING__') {
+      // We were waiting for a language after ```
+      const finisherIndex = processedChunk.indexOf(bufferState.bufferingFinisher);
+      const languageCandidate = processedChunk.substring(0, finisherIndex);
+      const textAfterFinisher = processedChunk.substring(finisherIndex);
+      
+      // Check if we have a valid language
+      const languageMatch = languageCandidate.match(/^(\w+)$/);
+      if (languageMatch) {
+        const language = languageMatch[1];
+        const ruleManager = new BufferingRuleManager();
+        const codeBlockRule = ruleManager.getRule('code-block') as any;
+        const normalizedLanguage = codeBlockRule ? codeBlockRule.normalizeLanguage(language) : language;
+        
+        // Now start proper code-viewer buffering
+        bufferState.bufferingFinisher = '```';
+        bufferState.bufferingClosure = '</code-viewer>';
+        bufferState.bufferText = `<code-viewer language="${normalizedLanguage}">`;
+        bufferState.insideCodeViewer = true;
+        bufferState.codeViewerDepth = (bufferState.codeViewerDepth || 0) + 1;
+        
+        // Continue buffering with the content after newline
+        bufferState.bufferText += textAfterFinisher;
+        return { processedChunk: null, bufferState };
+      } else {
+        // Not a valid language, treat as regular text
+        finalChunk = bufferState.bufferText + '```' + processedChunk;
+        bufferState.bufferingFinisher = null;
+        bufferState.bufferingClosure = null;
+        bufferState.bufferText = '';
+        bufferState.buffering = false;
+        bufferState.skipOne = false;
+        return { processedChunk: finalChunk, bufferState };
+      }
+    } else if (bufferState.bufferingFinisher === '\n') {
+      // Handle header completion with single newline
+      const finisherIndex = processedChunk.indexOf(bufferState.bufferingFinisher);
+      const contentBeforeFinisher = processedChunk.substring(0, finisherIndex);
+      const textAfterFinisher = processedChunk.substring(finisherIndex);
+      
+      finalChunk = bufferState.bufferText + contentBeforeFinisher + bufferState.bufferingClosure + textAfterFinisher;
     } else {
-      finalChunk = bufferState.bufferText + processedChunk.replace(bufferState.bufferingFinisher, bufferState.bufferingClosure);
+      // Handle other buffering types (including code blocks)
+      const finisherIndex = processedChunk.indexOf(bufferState.bufferingFinisher);
+      const contentBeforeFinisher = processedChunk.substring(0, finisherIndex);
+      const textAfterFinisher = processedChunk.substring(finisherIndex + bufferState.bufferingFinisher.length);
+      
+      finalChunk = bufferState.bufferText + contentBeforeFinisher + bufferState.bufferingClosure + textAfterFinisher;
     }
 
     // Reset buffer state
+    const wasCodeViewer = bufferState.bufferingClosure === '</code-viewer>';
     bufferState.bufferingFinisher = null;
     bufferState.bufferingClosure = null;
     bufferState.bufferText = '';
     bufferState.buffering = false;
     bufferState.skipOne = false;
+    if (wasCodeViewer) {
+      bufferState.codeViewerDepth = Math.max(0, (bufferState.codeViewerDepth || 1) - 1);
+      bufferState.insideCodeViewer = bufferState.codeViewerDepth > 0;
+    }
 
     return { processedChunk: finalChunk, bufferState };
   } else {

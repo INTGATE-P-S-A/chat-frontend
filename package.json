@@ -33,7 +33,10 @@
     "@types/dom-speech-recognition": "^0.0.4",
     "@types/dompurify": "^3.0.3",
     "@types/node": "^20.12.5",
+    "install": "^0.13.0",
+    "npm": "^11.5.1",
     "rimraf": "^5.0.1",
+    "ts-node": "^10.9.2",
     "typescript": "^5.2.2",
     "vite": "^4.4.5"
   }

@@ -12,9 +12,20 @@ const toolsParseList = {
         html += `<p class="web-search-result">
                 ${tool.data.results.items.length} results found</p>`;
 
-        html += '</div>';
+        html += '</div>';        
 
-        console.log(html);
+        return html;
+    },
+    rag: (tool: { name: string, data: { fileList: string[] } }): string => {        
+        let html = `<div class="rag-info">
+        <strong>Searching knowledge base...</strong>`;
+        html += `<ul>`
+
+        for (const file of tool.data.fileList) {
+            html += `<li>${file}</li>`;
+        }
+
+        html += '</ul></div>';        
 
         return html;
     }

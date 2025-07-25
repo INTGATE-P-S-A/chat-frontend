@@ -241,6 +241,7 @@ export class ChatComponent extends LitElement {
       this.chatThread = [];
       this.isChatStarted = false;
       this.isDefaultPromptsEnabled = true;
+      this.resetCurrentChat(new Event('clear-chat'));
   }
 
   setQuestionInputValue(value: string): void {

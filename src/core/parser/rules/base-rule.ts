@@ -15,9 +15,9 @@ export abstract class BufferingRule {
   abstract readonly name: string;
   abstract readonly priority: number;
 
-  abstract detect(chunk: string): boolean;
-  abstract tryCompleteMatch(chunk: string): CompleteMatchResult | null;
-  abstract startBuffering(chunk: string): BufferingResult;
+  abstract detect(chunk: string, bufferState?: any): boolean;
+  abstract tryCompleteMatch(chunk: string, bufferState?: any): CompleteMatchResult | null;
+  abstract startBuffering(chunk: string, bufferState?: any): BufferingResult;
 
   protected createCompleteMatch(
     fullMatch: string,
