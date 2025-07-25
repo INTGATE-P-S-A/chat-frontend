@@ -1,4 +1,4 @@
-import { BufferingRule, CompleteMatchResult, BufferingResult } from './base-rule';
+import { BufferingRule, CompleteMatchResult, BufferingResult, FullTextResult } from './base-rule';
 import { BufferState } from '../bufferer';
 
 export class CodeBlockRule extends BufferingRule {
@@ -18,41 +18,6 @@ export class CodeBlockRule extends BufferingRule {
   /**
    * Normalize and validate the detected language
    */
-  private normalizeLanguage(rawLanguage: string): string {
-    if (!rawLanguage) return 'plaintext';
-    
-    const normalized = rawLanguage.toLowerCase().trim();
-    
-    // Direct match
-    if (this.supportedLanguages.has(normalized)) {
-      return normalized;
-    }
-    
-    // Common aliases
-    const aliases: Record<string, string> = {
-      'node': 'javascript',
-      'js': 'javascript',
-      'ts': 'typescript',
-      'py': 'python',
-      'cs': 'csharp',
-      'c++': 'cpp',
-      'shell': 'bash',
-      'sh': 'bash',
-      'yml': 'yaml',
-      'md': 'markdown'
-    };
-    
-    if (aliases[normalized]) {
-      return aliases[normalized];
-    }
-    
-    // Default fallback - preserve the original if it's a valid identifier
-    if (/^[a-z][a-z0-9_-]*$/i.test(normalized)) {
-      return normalized;
-    }
-    
-    return 'plaintext';
-  }
 
   detect(chunk: string, bufferState?: BufferState): boolean {
     // Don't detect if we're already inside a code-viewer tag
@@ -214,5 +179,52 @@ export class CodeBlockRule extends BufferingRule {
       finisher: '```',
       closure: '</code-viewer>'
     };
+  }
+
+  protected getFullTextPattern(): FullTextResult {
+    return {
+      pattern: /```(\w+)?\n?([\s\S]*?)```/g,
+      replacement: (match: string, language: string, content: string) => {
+        const normalizedLanguage = language ? this.normalizeLanguage(language) : 'plaintext';
+        return `<code-viewer language="${normalizedLanguage}">${content}</code-viewer>`;
+      }
+    };
+  }
+
+  // Make normalizeLanguage accessible for the full text pattern
+  public normalizeLanguage(rawLanguage: string): string {
+    if (!rawLanguage) return 'plaintext';
+    
+    const normalized = rawLanguage.toLowerCase().trim();
+    
+    // Direct match
+    if (this.supportedLanguages.has(normalized)) {
+      return normalized;
+    }
+    
+    // Common aliases
+    const aliases: Record<string, string> = {
+      'node': 'javascript',
+      'js': 'javascript',
+      'ts': 'typescript',
+      'py': 'python',
+      'cs': 'csharp',
+      'c++': 'cpp',
+      'shell': 'bash',
+      'sh': 'bash',
+      'yml': 'yaml',
+      'md': 'markdown'
+    };
+    
+    if (aliases[normalized]) {
+      return aliases[normalized];
+    }
+    
+    // Default fallback - preserve the original if it's a valid identifier
+    if (/^[a-z][a-z0-9_-]*$/i.test(normalized)) {
+      return normalized;
+    }
+    
+    return 'plaintext';
   }
 }

@@ -1,4 +1,4 @@
-import { BufferingRule, CompleteMatchResult, BufferingResult } from './base-rule';
+import { BufferingRule, CompleteMatchResult, BufferingResult, FullTextResult } from './base-rule';
 import { BufferState } from '../bufferer';
 
 export class H1HeaderRule extends BufferingRule {
@@ -41,6 +41,13 @@ export class H1HeaderRule extends BufferingRule {
       processedChunk: chunk.replace(/(^|\n)#(\s*)/, '$1<h1>'),
       finisher: '\n',
       closure: '</h1>'
+    };
+  }
+
+  protected getFullTextPattern(): FullTextResult {
+    return {
+      pattern: /^# (.+)$/gm,
+      replacement: (match: string, content: string) => `<h1>${content}</h1>`
     };
   }
 }

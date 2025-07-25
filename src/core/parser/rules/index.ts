@@ -1,5 +1,5 @@
 // Base rule and interfaces
-export { BufferingRule, CompleteMatchResult, BufferingResult } from './base-rule';
+export { BufferingRule, CompleteMatchResult, BufferingResult, FullTextResult } from './base-rule';
 
 // Rule implementations
 export { H3HeaderRule } from './h3-header-rule';

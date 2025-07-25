@@ -1,4 +1,4 @@
-import { BufferingRule, CompleteMatchResult, BufferingResult } from './base-rule';
+import { BufferingRule, CompleteMatchResult, BufferingResult, FullTextResult } from './base-rule';
 import { BufferState } from '../bufferer';
 
 export class BoldTextRule extends BufferingRule {
@@ -19,6 +19,13 @@ export class BoldTextRule extends BufferingRule {
       processedChunk: chunk.replace('**', '<strong>'),
       finisher: '**',
       closure: '</strong>'
+    };
+  }
+
+  protected getFullTextPattern(): FullTextResult {
+    return {
+      pattern: /\*\*(.*?)\*\*/g,
+      replacement: (match: string, content: string) => `<strong>${content}</strong>`
     };
   }
 }

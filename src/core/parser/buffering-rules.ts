@@ -104,6 +104,20 @@ export class BufferingRuleManager {
   }
 
   /**
+   * Process full text using all rules (for non-streaming scenarios)
+   */
+  processFullText(text: string): string {
+    let processedText = text;
+    
+    // Process rules in priority order (lower number = higher priority)
+    for (const rule of this.rules) {
+      processedText = rule.processFullText(processedText);
+    }
+    
+    return processedText;
+  }
+
+  /**
    * Get all rule names for debugging
    */
   getRuleNames(): string[] {

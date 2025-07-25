@@ -1,4 +1,4 @@
-import { BufferingRule, CompleteMatchResult, BufferingResult } from './base-rule';
+import { BufferingRule, CompleteMatchResult, BufferingResult, FullTextResult } from './base-rule';
 import { BufferState } from '../bufferer';
 
 export class LineBreakRule extends BufferingRule {
@@ -27,5 +27,27 @@ export class LineBreakRule extends BufferingRule {
   startBuffering(_chunk: string): BufferingResult {
     // Line breaks should never buffer - they complete immediately
     throw new Error('LineBreakRule should never start buffering');
+  }
+
+  protected getFullTextPattern(): FullTextResult {
+    return {
+      pattern: /\n/g,
+      replacement: (match: string, offset: number, string: string) => {
+        // Don't replace newlines inside code-viewer tags
+        const beforeMatch = string.substring(0, offset);
+        const afterMatch = string.substring(offset);
+        
+        // Count open and closed code-viewer tags before this position
+        const openTags = (beforeMatch.match(/<code-viewer[^>]*>/g) || []).length;
+        const closeTags = (beforeMatch.match(/<\/code-viewer>/g) || []).length;
+        
+        // If we're inside a code-viewer tag, preserve the newline
+        if (openTags > closeTags) {
+          return '\n';
+        }
+        
+        return '<br/>';
+      }
+    };
   }
 }

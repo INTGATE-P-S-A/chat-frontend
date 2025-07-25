@@ -10,13 +10,6 @@ export interface BufferState {
   codeViewerDepth: number;
 }
 
-export interface MarkdownPattern {
-  pattern: RegExp;
-  openTag: string;
-  closeTag: string;
-  priority: number;
-}
-
 export interface ParseOptions {
   mode: 'full' | 'chunk' | 'chunked-full';
   chunkSize?: number;
@@ -35,41 +28,6 @@ export function createBufferState(): BufferState {
   };
 }
 
-// Define markdown patterns with priority (higher priority = processed first)
-// Note: Code blocks are handled by CodeBlockRule, not here
-const MARKDOWN_PATTERNS: MarkdownPattern[] = [
-  {
-    pattern: /^### (.+)$/gm,
-    openTag: '<h3>',
-    closeTag: '</h3>',
-    priority: 2
-  },
-  {
-    pattern: /^## (.+)$/gm,
-    openTag: '<h2>',
-    closeTag: '</h2>',
-    priority: 3
-  },
-  {
-    pattern: /^# (.+)$/gm,
-    openTag: '<h1>',
-    closeTag: '</h1>',
-    priority: 4
-  },
-  {
-    pattern: /\*\*(.*?)\*\*/g,
-    openTag: '<strong>',
-    closeTag: '</strong>',
-    priority: 5
-  },
-  {
-    pattern: /\n\n/g,
-    openTag: '<br/>',
-    closeTag: '',
-    priority: 6
-  }
-];
-
 /**
  * Parse full message text with all markdown elements
  * This function processes complete text and applies all markdown transformations
@@ -77,29 +35,9 @@ const MARKDOWN_PATTERNS: MarkdownPattern[] = [
 export function parseFullMessage(text: string): string {
   if (!text) return text;
   
-  let processedText = text;
-  
-  // Sort patterns by priority (lower number = higher priority)
-  const sortedPatterns = [...MARKDOWN_PATTERNS].sort((a, b) => a.priority - b.priority);
-  
-  for (const { pattern, openTag, closeTag } of sortedPatterns) {
-    if (pattern.source.includes('^#')) {
-      // Special handling for headers (capture group)
-      processedText = processedText.replace(pattern, (_, content) => {
-        return `${openTag}${content}${closeTag}`;
-      });
-    } else if (pattern.source.includes('\\*\\*')) {
-      // Special handling for bold text (capture group)
-      processedText = processedText.replace(pattern, (_, content) => {
-        return `${openTag}${content}${closeTag}`;
-      });
-    } else {
-      // Simple replacement for line breaks
-      processedText = processedText.replace(pattern, openTag);
-    }
-  }
-  
-  return processedText;
+  // Use the buffering rule manager to process full text
+  const ruleManager = new BufferingRuleManager();
+  return ruleManager.processFullText(text);
 }
 
 /**
