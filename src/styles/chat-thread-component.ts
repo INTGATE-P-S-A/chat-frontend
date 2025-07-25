@@ -41,7 +41,7 @@ export const styles = css`
   }
   .chat__listItem {
     max-width: var(--width-wide);
-    min-width: var(--width-base);
+    min-width: var(--width-base);    
     display: flex;
     flex-direction: column;
     height: auto;
@@ -62,6 +62,11 @@ export const styles = css`
     position: relative;
     box-shadow: var(--shadow);
     border: var(--border-thin) solid var(--c-light-gray);
+  }
+  .chat__txt loading-indicator {
+    position: absolute;
+    bottom: 0;
+    right: 0;
   }
   .chat__txt.error {
     border: var(--border-base) solid var(--error-color);

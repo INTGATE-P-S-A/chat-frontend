@@ -14,6 +14,7 @@ import iconQuestion from '../svg/bubblequestion-icon.svg?raw';
 
 import './citation-list.js';
 import './chat-action-button.js';
+import './loading-indicator.js';
 import { type ChatActionButton } from './chat-action-button.js';
 
 @customElement('chat-thread-component')
@@ -206,13 +207,17 @@ export class ChatThreadComponent extends LitElement {
     return html`
       <ul class="chat__list" aria-live="assertive">
         ${this.chatThread.map(
-          (message) => {             
+          (message, index) => {
+            const isLastMessage = index === this.chatThread.length - 1;
+            const showLoadingIndicator = this.isProcessingResponse && isLastMessage && !message.isUserMessage;
+            
             return html`
             <li class="chat__listItem ${message.isUserMessage ? 'user-message' : ''}">
               <div class="chat__txt ${message.isUserMessage ? 'user-message' : ''}">
                 ${message.isUserMessage ? '' : this.renderResponseActions(message)}                
                 ${message.text.map((textEntry) => this.renderTextEntry(textEntry))} ${this.renderCitation(message)}
                 ${this.renderFollowupQuestions(message)} ${message.error ? this.renderError(message.error) : ''}
+                ${showLoadingIndicator ? html`<loading-indicator label=""></loading-indicator>` : ''}
               </div>
               <p class="chat__txt--info">
                 <span class="timestamp">${message.timestamp}</span>,
