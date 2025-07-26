@@ -1,5 +1,6 @@
 import { BufferingRule, CompleteMatchResult, BufferingResult, FullTextResult } from './base-rule';
 import { BufferState } from '../bufferer';
+import voucher from 'voucher-code-generator';
 
 export class CodeBlockRule extends BufferingRule {
   readonly name = 'code-block';
@@ -67,7 +68,8 @@ export class CodeBlockRule extends BufferingRule {
       // Only create code-viewer if language is explicitly provided
       if (rawLanguage && rawLanguage.trim()) {
         const language = this.normalizeLanguage(rawLanguage);
-        const replacement = `<code-viewer language="${language}">${content}</code-viewer>`;
+        const codeId = voucher.generate({ count: 1 ,length:8 })[0].toLowerCase();
+        const replacement = `<code-viewer componentId="${codeId}" language="${language}">${content}</code-viewer>`;
         
         // Find the position of the match in the chunk
         const matchIndex = chunk.indexOf(fullMatch);
@@ -181,10 +183,10 @@ export class CodeBlockRule extends BufferingRule {
     };
   }
 
-  protected getFullTextPattern(): FullTextResult {
+  protected override getFullTextPattern(): FullTextResult {
     return {
       pattern: /```(\w+)?\n?([\s\S]*?)```/g,
-      replacement: (match: string, language: string, content: string) => {
+      replacement: (_match: string, language: string, content: string) => {
         const normalizedLanguage = language ? this.normalizeLanguage(language) : 'plaintext';
         return `<code-viewer language="${normalizedLanguage}">${content}</code-viewer>`;
       }

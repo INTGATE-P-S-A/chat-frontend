@@ -22,10 +22,10 @@ export class BoldTextRule extends BufferingRule {
     };
   }
 
-  protected getFullTextPattern(): FullTextResult {
+  protected override getFullTextPattern(): FullTextResult {
     return {
       pattern: /\*\*(.*?)\*\*/g,
-      replacement: (match: string, content: string) => `<strong>${content}</strong>`
+      replacement: (_match: string, language: string, content: string) => `<strong>${content}</strong>`
     };
   }
 }

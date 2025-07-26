@@ -147,36 +147,43 @@ export function processChunkWithBuffering(
     if (bufferState.bufferingClosure === '__TEMP_CODE_BLOCK_WAITING__') {
       // We were waiting for a language after ```
       const finisherIndex = processedChunk.indexOf(bufferState.bufferingFinisher);
-      const languageCandidate = processedChunk.substring(0, finisherIndex);
-      const textAfterFinisher = processedChunk.substring(finisherIndex);
       
-      // Check if we have a valid language
-      const languageMatch = languageCandidate.match(/^(\w+)$/);
-      if (languageMatch) {
-        const language = languageMatch[1];
-        const ruleManager = new BufferingRuleManager();
-        const codeBlockRule = ruleManager.getRule('code-block') as any;
-        const normalizedLanguage = codeBlockRule ? codeBlockRule.normalizeLanguage(language) : language;
+      if (finisherIndex >= 0) {
+        const languageCandidate = processedChunk.substring(0, finisherIndex);
+        const textAfterFinisher = processedChunk.substring(finisherIndex + 1); // Skip the newline
         
-        // Now start proper code-viewer buffering
-        bufferState.bufferingFinisher = '```';
-        bufferState.bufferingClosure = '</code-viewer>';
-        bufferState.bufferText = `<code-viewer language="${normalizedLanguage}">`;
-        bufferState.insideCodeViewer = true;
-        bufferState.codeViewerDepth = (bufferState.codeViewerDepth || 0) + 1;
-        
-        // Continue buffering with the content after newline
-        bufferState.bufferText += textAfterFinisher;
-        return { processedChunk: null, bufferState };
+        // Check if we have a valid language
+        const languageMatch = languageCandidate.match(/^(\w+)$/);
+        if (languageMatch) {
+          const language = languageMatch[1];
+          const ruleManager = new BufferingRuleManager();
+          const codeBlockRule = ruleManager.getRule('code-block') as any;
+          const normalizedLanguage = codeBlockRule ? codeBlockRule.normalizeLanguage(language) : language;
+          
+          // Now start proper code-viewer buffering
+          bufferState.bufferingFinisher = '```';
+          bufferState.bufferingClosure = '</code-viewer>';
+          bufferState.bufferText = `<code-viewer language="${normalizedLanguage}">`;
+          bufferState.insideCodeViewer = true;
+          bufferState.codeViewerDepth = (bufferState.codeViewerDepth || 0) + 1;
+          
+          // Continue buffering with the content after newline
+          bufferState.bufferText += textAfterFinisher;
+          return { processedChunk: null, bufferState };
+        } else {
+          // Not a valid language, treat as regular text
+          finalChunk = bufferState.bufferText + '```' + processedChunk;
+          bufferState.bufferingFinisher = null;
+          bufferState.bufferingClosure = null;
+          bufferState.bufferText = '';
+          bufferState.buffering = false;
+          bufferState.skipOne = false;
+          return { processedChunk: finalChunk, bufferState };
+        }
       } else {
-        // Not a valid language, treat as regular text
-        finalChunk = bufferState.bufferText + '```' + processedChunk;
-        bufferState.bufferingFinisher = null;
-        bufferState.bufferingClosure = null;
-        bufferState.bufferText = '';
-        bufferState.buffering = false;
-        bufferState.skipOne = false;
-        return { processedChunk: finalChunk, bufferState };
+        // No newline found yet, continue waiting and accumulate content
+        bufferState.bufferText += processedChunk;
+        return { processedChunk: null, bufferState };
       }
     } else if (bufferState.bufferingFinisher === '\n') {
       // Handle header completion with single newline

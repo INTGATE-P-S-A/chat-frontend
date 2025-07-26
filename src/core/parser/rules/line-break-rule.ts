@@ -29,20 +29,19 @@ export class LineBreakRule extends BufferingRule {
     throw new Error('LineBreakRule should never start buffering');
   }
 
-  protected getFullTextPattern(): FullTextResult {
+  override processFullText(text: string): string {
+    const fullTextResult = this.getFullTextPattern(true);
+    if (fullTextResult) {
+      return text.replace(fullTextResult.pattern, fullTextResult.replacement);
+    }
+    return text;
+  }
+
+  protected override getFullTextPattern(dontBreak = false): FullTextResult {
     return {
       pattern: /\n/g,
-      replacement: (match: string, offset: number, string: string) => {
-        // Don't replace newlines inside code-viewer tags
-        const beforeMatch = string.substring(0, offset);
-        const afterMatch = string.substring(offset);
-        
-        // Count open and closed code-viewer tags before this position
-        const openTags = (beforeMatch.match(/<code-viewer[^>]*>/g) || []).length;
-        const closeTags = (beforeMatch.match(/<\/code-viewer>/g) || []).length;
-        
-        // If we're inside a code-viewer tag, preserve the newline
-        if (openTags > closeTags) {
+      replacement: (_match: string, language: string, content: string) => {
+        if (dontBreak) {
           return '\n';
         }
         

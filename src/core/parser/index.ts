@@ -110,6 +110,17 @@ export async function parseStreamedMessages({
       
       if(bufferingJustCompleted){
         // Code-viewer just completed, reset state and process any remaining content
+        try {
+          // Stop code generation on the code-viewer component
+          const hoster = (host as any);
+          const codeViewer: { stopCodeGeneration: () => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[id="'+coderId+'"]');
+          if(codeViewer && typeof codeViewer.stopCodeGeneration === 'function'){            
+            codeViewer.stopCodeGeneration();     
+          }    
+        } catch(e){
+          console.error('Error stopping code generation:', e);
+        }
+        
         coderId = null;
         startedCoding = false;
         
@@ -128,6 +139,19 @@ export async function parseStreamedMessages({
           // Add ID to the code-viewer tag
           const updatedChunk = processedChunk.replace('<code-viewer', `<code-viewer id="${coderId}"`);
           updatedEntry = updateTextEntry({ chunkValue: updatedChunk, textBlockIndex, chatEntry: updatedEntry });
+          
+          // Start code generation on the code-viewer component
+          setTimeout(() => {
+            try {
+              const hoster = (host as any);
+              const codeViewer: { startCodeGeneration: () => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[id="'+coderId+'"]');
+              if(codeViewer && typeof codeViewer.startCodeGeneration === 'function'){            
+                codeViewer.startCodeGeneration();     
+              }    
+            } catch(e){
+              console.error('Error starting code generation:', e);
+            }
+          }, 100); // Small delay to ensure component is rendered
         } else {
           updatedEntry = updateTextEntry({ chunkValue: processedChunk, textBlockIndex, chatEntry: updatedEntry });
         }
@@ -145,6 +169,19 @@ export async function parseStreamedMessages({
         // Fallback for cases where processedChunk is null but we're buffering
         const bufferContent = updatedBufferState.bufferText || '';
         updatedEntry = updateTextEntry({ chunkValue: '<code-viewer id="'+coderId+'">'+bufferContent, textBlockIndex, chatEntry: updatedEntry });
+        
+        // Start code generation on the code-viewer component (fallback case)
+        setTimeout(() => {
+          try {
+            const hoster = (host as any);
+            const codeViewer: { startCodeGeneration: () => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[id="'+coderId+'"]');
+            if(codeViewer && typeof codeViewer.startCodeGeneration === 'function'){            
+              codeViewer.startCodeGeneration();     
+            }    
+          } catch(e){
+            console.error('Error starting code generation (fallback):', e);
+          }
+        }, 100); // Small delay to ensure component is rendered
       }    
     }
     

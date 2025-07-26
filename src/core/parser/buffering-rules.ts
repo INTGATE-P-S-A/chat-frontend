@@ -84,6 +84,7 @@ export class BufferingRuleManager {
         bufferState.buffering = true;
         bufferState.bufferingFinisher = bufferingResult.finisher;
         bufferState.bufferingClosure = bufferingResult.closure;
+        bufferState.bufferText = bufferState.bufferText || ''; // Initialize bufferText if not set
         
         // Special handling for code blocks
         if (rule.name === 'code-block') {
