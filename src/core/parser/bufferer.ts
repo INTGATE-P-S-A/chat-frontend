@@ -8,6 +8,9 @@ export interface BufferState {
   skipOne: boolean;
   insideCodeViewer: boolean;
   codeViewerDepth: number;
+  insideListViewer: boolean;
+  listViewerDepth: number;
+  linebreakProof: boolean;
 }
 
 export interface ParseOptions {
@@ -25,6 +28,9 @@ export function createBufferState(): BufferState {
     skipOne: false,
     insideCodeViewer: false,
     codeViewerDepth: 0,
+    insideListViewer: false,
+    listViewerDepth: 0,
+    linebreakProof: false,
   };
 }
 
@@ -178,6 +184,7 @@ export function processChunkWithBuffering(
           bufferState.bufferText = '';
           bufferState.buffering = false;
           bufferState.skipOne = false;
+          bufferState.linebreakProof = false;
           return { processedChunk: finalChunk, bufferState };
         }
       } else {
@@ -208,9 +215,14 @@ export function processChunkWithBuffering(
     bufferState.bufferText = '';
     bufferState.buffering = false;
     bufferState.skipOne = false;
+    bufferState.linebreakProof = false;
     if (wasCodeViewer) {
       bufferState.codeViewerDepth = Math.max(0, (bufferState.codeViewerDepth || 1) - 1);
       bufferState.insideCodeViewer = bufferState.codeViewerDepth > 0;
+      // Keep linebreakProof true if still inside code viewer
+      if (bufferState.insideCodeViewer) {
+        bufferState.linebreakProof = true;
+      }
     }
 
     return { processedChunk: finalChunk, bufferState };

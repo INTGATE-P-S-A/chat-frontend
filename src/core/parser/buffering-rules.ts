@@ -6,7 +6,9 @@ import {
   H1HeaderRule,
   CodeBlockRule,
   BoldTextRule,
-  LineBreakRule
+  LineBreakRule,
+  LinkRule,
+  ListRule
 } from './rules';
 
 export class BufferingRuleManager {
@@ -28,7 +30,9 @@ export class BufferingRuleManager {
       new H1HeaderRule(),
       new CodeBlockRule(),
       new BoldTextRule(),
-      new LineBreakRule()
+      new ListRule(),
+      new LineBreakRule(),
+      new LinkRule()
     ];
   }
 
@@ -68,6 +72,11 @@ export class BufferingRuleManager {
     }
 
     for (const rule of this.rules) {
+      // Skip line break rule if we're in a linebreakProof context (code-viewer or list-viewer)
+      if (rule.name === 'line-break' && bufferState.linebreakProof) {
+        continue;
+      }
+      
       if (rule.detect(chunk, bufferState)) {
         // Try to complete immediately if possible
         const completeMatch = rule.tryCompleteMatch(chunk, bufferState);
@@ -91,6 +100,14 @@ export class BufferingRuleManager {
           bufferState.skipOne = true;
           bufferState.insideCodeViewer = true;
           bufferState.codeViewerDepth = (bufferState.codeViewerDepth || 0) + 1;
+          bufferState.linebreakProof = true; // Code blocks are linebreak proof
+        }
+
+        // Special handling for lists
+        if (rule.name === 'list') {
+          bufferState.insideListViewer = true;
+          bufferState.listViewerDepth = (bufferState.listViewerDepth || 0) + 1;
+          bufferState.linebreakProof = true; // Lists are linebreak proof
         }
 
         return {

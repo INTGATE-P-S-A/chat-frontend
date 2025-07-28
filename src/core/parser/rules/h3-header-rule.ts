@@ -44,7 +44,7 @@ export class H3HeaderRule extends BufferingRule {
     };
   }
 
-  protected getFullTextPattern(): FullTextResult {
+  protected override getFullTextPattern(): FullTextResult {
     return {
       pattern: /^### (.+)$/gm,
       replacement: (match: string, content: string) => `<h3>${content}</h3>`

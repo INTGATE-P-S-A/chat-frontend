@@ -42,14 +42,14 @@ export class CitationListComponent extends LitElement {
         <ol class="items__list">
           ${this.label ? html`<h3 class="subheadline--small">${this.label}</h3>` : ''}
           ${citations.map(
-            (citation) => html`
+            (citation, index) => html`
               <li class="items__listItem ${this.compareCitation(citation, this.selectedCitation) ? 'active' : ''}">
                 <a
                   class="items__link"
                   href="${citation.text}"
                   target="_blank"
                   data-testid="citation"                  
-                  >${citation.ref}. ${citation.text}</a>
+                  >${index + 1}. ${citation.text}</a>
               </li>
             `,
           )}
