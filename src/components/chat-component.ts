@@ -1,5 +1,5 @@
 /* eslint-disable unicorn/template-indent */
-import { LitElement, PropertyDeclaration, html } from 'lit';
+import { LitElement, html } from 'lit';
 import DOMPurify from 'dompurify';
 import { customElement, property, query, state } from 'lit/decorators.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
@@ -151,6 +151,19 @@ export class ChatComponent extends LitElement {
   @state()
   selectedChatEntry: ChatThreadEntry | undefined = undefined;
 
+  // Progress tracking state
+  @state()
+  isShowingProgress = false;
+
+  @state()
+  progressPercentage = 0;
+
+  @state()
+  progressMessage = '';
+
+  @state()
+  progressStage = '';
+
   selectedAsideTab: 'tab-thought-process' | 'tab-support-context' | 'tab-citations' = 'tab-thought-process';
 
   // These are the chat bubbles that will be displayed in the chat
@@ -225,7 +238,33 @@ export class ChatComponent extends LitElement {
       this.useDeepSearch = true;
     }
 
+    // Add progress event listeners
+    this.addEventListener('chat:progress', this.handleProgressEvent.bind(this) as EventListener);
+
     this.overrideConfig(); 
+  }
+
+  /**
+   * Handle progress events from the parser
+   */
+  private handleProgressEvent(event: Event) {
+    const customEvent = event as CustomEvent;
+    const { stage, message, percentage } = customEvent.detail;
+    
+    this.progressStage = stage || '';
+    this.progressMessage = message || '';
+    this.progressPercentage = percentage || 0;
+    this.isShowingProgress = true;
+
+    // Hide progress when complete
+    if (percentage >= 100 || stage === 'complete') {
+      setTimeout(() => {
+        this.isShowingProgress = false;
+        this.progressPercentage = 0;
+        this.progressMessage = '';
+        this.progressStage = '';
+      }, 1000); // Keep visible for 1 second after completion
+    }
   }
 
   overrideConfig(){
@@ -577,7 +616,20 @@ export class ChatComponent extends LitElement {
               `
             : ''}
           ${this.chatController.isAwaitingResponse
-            ? html`<loading-indicator label="${globalConfig.LOADING_INDICATOR_TEXT}"></loading-indicator>`
+            ? this.isShowingProgress
+              ? html`<progress-bar 
+                  .progress="${this.progressPercentage}"
+                  .message="${this.progressMessage}"
+                  .stage="${this.progressStage}">
+                </progress-bar>`
+              : html`<loading-indicator label="${globalConfig.LOADING_INDICATOR_TEXT}"></loading-indicator>`
+            : ''}
+          ${!this.chatController.isAwaitingResponse && this.isShowingProgress
+            ? html`<progress-bar 
+                .progress="${this.progressPercentage}"
+                .message="${this.progressMessage}"
+                .stage="${this.progressStage}">
+              </progress-bar>`
             : ''}
           <!-- Teaser List with Default Prompts -->
           <div class="chat__container">

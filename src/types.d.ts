@@ -74,10 +74,21 @@ declare interface BotResponse {
   object: 'chat.completion';
 }
 
+declare interface ProgressChunk {
+  stage?: string;
+  message?: string;
+  details?: {
+    percentage?: number;
+    [key: string]: any;
+  };
+}
+
 declare interface BotResponseChunk {
   tool?: { name: string; data: Record<string, any> };
   citations?: Citation[];
   conversationId?: string;
+  status?: string;
+  progress?: ProgressChunk;
   choices: Array<{
     index: number;
     delta: Partial<BotResponseMessage>;

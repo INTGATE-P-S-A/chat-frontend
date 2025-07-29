@@ -51,6 +51,26 @@ export async function parseStreamedMessagesFromWebSocket({
     return;
   }
 
+  // Handle rws_progress status for progress updates
+  if (chunk.status === 'rws_progress') {
+    const { progress } = chunk;
+    if (progress) {
+      // Dispatch progress event to chat component
+      const event = new CustomEvent('chat:progress', {
+        detail: {
+          stage: progress.stage || '',
+          message: progress.message || '',
+          percentage: progress.details?.percentage || 0,
+          details: progress.details
+        },
+        bubbles: true,
+        composed: true
+      });
+      (host as any).dispatchEvent(event);
+    }
+    return;
+  }
+
   let chunkValue = chunk.content ?? chunk.delta?.content ?? '';
 
   if (chunkValue === '') {

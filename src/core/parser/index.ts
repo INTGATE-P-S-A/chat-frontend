@@ -41,6 +41,10 @@ export async function parseStreamedMessages({
       throw new ChatResponseError(chunk.message, chunk.statusCode);
     }
 
+    if(chunk.progress && chunk.status !== 'rws_progress'){
+      continue;
+    }
+
     if(chunk.conversationId) {
         const event = new CustomEvent('chat:conversation:start', {
         detail: { conversationId: chunk.conversationId },
@@ -64,6 +68,27 @@ export async function parseStreamedMessages({
 
     if(chunk.citations) {
       citations = [ ...citations, ...chunk.citations ];      
+      continue;
+    }
+
+    // Handle rws_progress status for progress updates
+    if (chunk.status === 'rws_progress') {
+      if (chunk.progress) {
+        const progress = chunk.progress as ProgressChunk;
+
+        // Dispatch progress event to chat component
+        const event = new CustomEvent('chat:progress', {
+          detail: {
+            stage: progress.stage || '',
+            message: progress.message || '',
+            percentage: progress.details?.percentage || 0,
+            details: progress.details
+          },
+          bubbles: true,
+          composed: true
+        });
+        (host as any).dispatchEvent(event);
+      }
       continue;
     }
 
