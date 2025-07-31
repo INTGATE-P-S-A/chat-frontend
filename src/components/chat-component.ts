@@ -288,9 +288,39 @@ export class ChatComponent extends LitElement {
     this.currentQuestion = this.questionInput.value;
   }
 
+  /**
+   * Public method to set input field value from external sources
+   * Can be called via DOM query: document.querySelector('chat-component').setInputValue('text')
+   * @param value - The text to set or append to the input field
+   * @param append - If true, appends to existing value; if false, replaces the value (default: false)
+   */
+  public setInputValue(value: string, append: boolean = false): void {
+    if (append) {
+      const currentValue = this.questionInput.value || '';
+      const newValue = currentValue + value;
+      this.setQuestionInputValue(newValue);
+    } else {
+      this.setQuestionInputValue(value);
+    }
+    this.handleOnInputChange();
+  }
+
   handleVoiceInput(event: CustomEvent): void {
     event?.preventDefault();
     this.setQuestionInputValue(event?.detail?.input);
+  }
+
+  handleRecordingStateChange(event: CustomEvent): void {
+    event?.preventDefault();
+    const { isRecording } = event.detail;
+    
+    // Dispatch recording state change event for external listeners
+    const recordingStateEvent = new CustomEvent('recording-state-change', {
+      detail: { isRecording },
+      bubbles: true,
+      composed: true
+    });
+    this.dispatchEvent(recordingStateEvent);
   }
 
   handleQuestionInputClick(event: CustomEvent): void {

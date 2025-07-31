@@ -20,59 +20,20 @@ export class VoiceInputButton extends LitElement {
   @state()
   enableVoiceListening = false;
 
-  speechRecognition: SpeechRecognition | undefined = undefined;
-
-  initializeSpeechRecognition(): void {
-    if (this.showVoiceInput && this.recognitionSvc) {
-      this.speechRecognition = new this.recognitionSvc();
-
-      if (!this.speechRecognition) {
-        return; // no speech support found so do nothing
-      }
-
-      this.speechRecognition.continuous = true;
-      this.speechRecognition.lang = 'en-US';
-
-      this.speechRecognition.onresult = (event) => {
-        let input = '';
-        for (const result of event.results) {
-          input += `${result[0].transcript}`;
-        }
-
-        // dispatch event
-        const voiceInputEvent = new CustomEvent('on-voice-input', {
-          detail: {
-            input,
-          },
-          bubbles: true,
-          composed: true,
-        });
-        this.dispatchEvent(voiceInputEvent);
-      };
-
-      this.speechRecognition.addEventListener('error', (event) => {
-        if (this.speechRecognition) {
-          this.speechRecognition.stop();
-          console.log(`Speech recognition error detected: ${event.error} - ${event.message}`);
-        }
-      });
-    }
-  }
-
   handleVoiceInput(event: Event): void {
     event.preventDefault();
-    if (!this.speechRecognition) {
-      this.initializeSpeechRecognition();
-    }
-
-    if (this.speechRecognition) {
-      this.enableVoiceListening = !this.enableVoiceListening;
-      if (this.enableVoiceListening) {
-        this.speechRecognition.start();
-      } else {
-        this.speechRecognition.stop();
-      }
-    }
+    
+    this.enableVoiceListening = !this.enableVoiceListening;
+    
+    // Dispatch recording state event
+    const recordingEvent = new CustomEvent('on-recording-state-change', {
+      detail: {
+        isRecording: this.enableVoiceListening,
+      },
+      bubbles: true,
+      composed: true,
+    });
+    this.dispatchEvent(recordingEvent);
   }
 
   renderVoiceButton() {
