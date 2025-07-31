@@ -26,7 +26,7 @@ export class VoiceInputButton extends LitElement {
     this.enableVoiceListening = !this.enableVoiceListening;
     
     // Dispatch recording state event
-    const recordingEvent = new CustomEvent('on-recording-state-change', {
+    const recordingEvent = new CustomEvent('chat:audio:record', {
       detail: {
         isRecording: this.enableVoiceListening,
       },
