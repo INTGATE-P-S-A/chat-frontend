@@ -150,11 +150,22 @@ export class CodeBlockRule extends BufferingRule {
           detectedLanguage = potentialLanguage[1];
           codeContent = ''; // No code content yet, waiting for newline + code
         } else {
-          // Check if we have language followed by content without newline (edge case)
-          const languageWithoutNewline = contentAfterBackticks.match(/^(\w+)(.*)$/);
-          if (languageWithoutNewline && this.supportedLanguages.has(languageWithoutNewline[1].toLowerCase())) {
-            detectedLanguage = languageWithoutNewline[1];
-            codeContent = languageWithoutNewline[2];
+          // Check if we have partial language text that might continue in next chunk
+          const partialLanguage = contentAfterBackticks.match(/^([a-zA-Z]+)$/);
+          if (partialLanguage && contentAfterBackticks.length <= 15) {
+            // This could be a partial language name, start language-waiting mode
+            return {
+              processedChunk: contentBefore,
+              finisher: '\n', // Wait for newline that should complete the language + start code
+              closure: `__TEMP_CODE_BLOCK_LANG_WAITING__${partialLanguage[1]}__` // Include partial language
+            };
+          } else {
+            // Check if we have language followed by content without newline (edge case)
+            const languageWithoutNewline = contentAfterBackticks.match(/^(\w+)(.*)$/);
+            if (languageWithoutNewline && this.supportedLanguages.has(languageWithoutNewline[1].toLowerCase())) {
+              detectedLanguage = languageWithoutNewline[1];
+              codeContent = languageWithoutNewline[2];
+            }
           }
         }
       }
@@ -173,7 +184,8 @@ export class CodeBlockRule extends BufferingRule {
 
     // Create opening tag with detected language
     const language = this.normalizeLanguage(detectedLanguage);
-    const openTag = `<code-viewer language="${language}">`;
+    const codeId = voucher.generate({ count: 1, length: 8 })[0].toLowerCase();
+    const openTag = `<code-viewer componentId="${codeId}" language="${language}">`;
     
     // Return content before backticks as processed chunk, start buffering from code content
     return {
@@ -181,6 +193,74 @@ export class CodeBlockRule extends BufferingRule {
       finisher: '```',
       closure: '</code-viewer>'
     };
+  }
+
+  /**
+   * Handle continuation of buffering when we're waiting for language completion
+   */
+  continueBuffering(chunk: string, currentBuffer: string, finisher: string, closure: string): BufferingResult | null {
+    // Handle language-waiting mode
+    if (closure.startsWith('__TEMP_CODE_BLOCK_WAITING__')) {
+      // Extract any partial language from the closure
+      const partialLanguageMatch = closure.match(/__TEMP_CODE_BLOCK_LANG_WAITING__([a-zA-Z]+)__/);
+      const partialLanguage = partialLanguageMatch ? partialLanguageMatch[1] : '';
+      
+      // Look for language completion in the current chunk
+      let languageText = partialLanguage + chunk;
+      
+      // Find the newline that marks end of language
+      const newlineIndex = languageText.indexOf('\n');
+      if (newlineIndex !== -1) {
+        const completeLanguage = languageText.substring(0, newlineIndex);
+        const codeContent = languageText.substring(newlineIndex + 1);
+        
+        // Validate that we have a reasonable language name
+        if (/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(completeLanguage) && completeLanguage.length <= 20) {
+          const language = this.normalizeLanguage(completeLanguage);
+          const codeId = voucher.generate({ count: 1, length: 8 })[0].toLowerCase();
+          const openTag = `<code-viewer componentId="${codeId}" language="${language}">`;
+          
+          // Switch to normal code buffering mode
+          return {
+            processedChunk: currentBuffer + openTag + codeContent,
+            finisher: '```',
+            closure: '</code-viewer>'
+          };
+        } else {
+          // Invalid language, treat as plaintext
+          const codeId = voucher.generate({ count: 1, length: 8 })[0].toLowerCase();
+          const openTag = `<code-viewer componentId="${codeId}" language="plaintext">`;
+          
+          return {
+            processedChunk: currentBuffer + openTag + languageText,
+            finisher: '```',
+            closure: '</code-viewer>'
+          };
+        }
+      } else {
+        // Still waiting for newline, continue accumulating language
+        if (languageText.length > 25) {
+          // Too long to be a language, treat as plaintext and include everything as code
+          const codeId = voucher.generate({ count: 1, length: 8 })[0].toLowerCase();
+          const openTag = `<code-viewer componentId="${codeId}" language="plaintext">`;
+          
+          return {
+            processedChunk: currentBuffer + openTag + languageText,
+            finisher: '```',
+            closure: '</code-viewer>'
+          };
+        }
+        
+        // Continue waiting, update the partial language in closure
+        return {
+          processedChunk: currentBuffer,
+          finisher: '\n',
+          closure: `__TEMP_CODE_BLOCK_LANG_WAITING__${languageText}__`
+        };
+      }
+    }
+    
+    return null; // Not handled by this rule, let parent handle
   }
 
   protected override getFullTextPattern(): FullTextResult {

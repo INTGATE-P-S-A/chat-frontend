@@ -11,6 +11,8 @@ import { chatEntryToString } from '../utils/index.js';
 import iconSuccess from '../svg/success-icon.svg?raw';
 import iconCopyToClipboard from '../svg/copy-icon.svg?raw';
 import iconQuestion from '../svg/bubblequestion-icon.svg?raw';
+import megaphoneSvg from '../svg/megaphone.svg?raw';
+import downloadSvg from '../svg/download.svg?raw';
 
 import './citation-list.js';
 import './chat-action-button.js';
@@ -199,6 +201,20 @@ export class ChatThreadComponent extends LitElement {
     return '';
   }
 
+  speak(event: Event, message: ChatThreadEntry, download = false){
+    event.preventDefault();
+
+    const speakEvent = new CustomEvent(download ? 'chat:download' : 'chat:speak', {
+      detail: {
+        message: message.text.map((textEntry) => textEntry.value).join(' '),
+      },
+      bubbles: true,
+      composed: true,
+    });
+    
+    this.dispatchEvent(speakEvent);
+  }
+
   renderError(error: { message: string }) {
     return html`<p class="chat__txt error">${error.message}</p>`;
   }
@@ -222,6 +238,8 @@ export class ChatThreadComponent extends LitElement {
               <p class="chat__txt--info">
                 <span class="timestamp">${message.timestamp}</span>,
                 <span class="user">${message.isUserMessage ? 'You' : globalConfig.USER_IS_BOT}</span>
+                ${message.isUserMessage ? '' : html`<button @click="${(event) => this.speak(event, message)}" class="speech-button" aria-label="Read out loud">${unsafeSVG(megaphoneSvg)}</button>`}
+                ${message.isUserMessage ? '' : html`<button @click="${(event) => this.speak(event, message, true)}" class="speech-button" aria-label="Read out loud">${unsafeSVG(downloadSvg)}</button>`}
               </p>
             </li>
           `},

@@ -242,6 +242,13 @@ export class ChatComponent extends LitElement {
     this.addEventListener('chat:progress', this.handleProgressEvent.bind(this) as EventListener);
 
     this.overrideConfig(); 
+
+     const ev = new CustomEvent('chat-component-connected', {
+      detail: true,
+      bubbles: true,
+      composed: true
+    });
+    this.dispatchEvent(ev);
   }
 
   /**

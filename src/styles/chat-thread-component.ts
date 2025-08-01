@@ -200,4 +200,17 @@ export const styles = css`
     color: var(--text-color);
     margin-bottom: var(--d-small);
   }
+  .speech-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    margin-left: var(--d-xsmall);
+
+    svg {
+      width: 20px;
+      height: 20px;
+      fill: var(--c-accent-dark); 
+    }
+  }
 `;
