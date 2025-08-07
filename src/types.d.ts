@@ -19,7 +19,7 @@ declare interface ChatThreadEntry {
   tools?: { toolName: string, data: any }[];
   followupQuestions?: string[];
   isUserMessage: boolean;
-  timestamp: string;
+  timestamp: number;
   error?: {
     message: string;
   };

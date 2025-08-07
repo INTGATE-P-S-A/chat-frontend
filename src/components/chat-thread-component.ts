@@ -247,7 +247,7 @@ export class ChatThreadComponent extends LitElement {
               
               ${message.isUserMessage ? html`
                 <div class="message-avatar">
-                  <img src="assets/images/avatar.jpg" alt="User" style="width: 32px; height: 32px; border-radius: 50%;">
+                  <img src="/assets/images/avatar.jpg" alt="User" style="width: 32px; height: 32px; border-radius: 50%;">
                 </div>
               ` : ''}
             </li>
