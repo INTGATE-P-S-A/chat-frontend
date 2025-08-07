@@ -2,6 +2,8 @@
 // We keep it in this util file because we may not need it once we introduce
 // a new response format with TypeChat or a similar component
 
+import { LitElement } from "lit";
+
 // Let's give the response a type so we can use it in the component
 
 export function processText(inputText: string, arrays: Array<Array<string> | Array<Citation>>): ProcessTextReturn {  
@@ -73,14 +75,10 @@ export function cleanUpFollowUp(followUpList: string[]): string[] {
 
 // Get the current timestamp to display with the chat message
 export function getTimestamp() {
-  return new Date().toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: 'numeric',
-    hour12: true,
-  });
+  return new Date().getTime();
 }
 
-export function chatEntryToString(entry: ChatThreadEntry) {
+export function chatEntryToString(entry: ChatThreadEntry) {  
   const message = entry.text
     .map((textEntry) => textEntry.value + '\n\n' + textEntry.followingSteps?.map((s, i) => `${i + 1}.` + s).join('\n'))
     .join('\n\n')
@@ -101,4 +99,19 @@ export class ChatResponseError extends Error {
 
 export function newListWithEntryAtIndex<T>(list: T[], index: number, entry: T) {
   return [...list.slice(0, index), entry, ...list.slice(index + 1)];
+}
+
+
+export async function addIconSheet(this: LitElement) {
+    if(this.shadowRoot){
+      const cssText = await fetch('/assets/css/simple-line-icons.css').then(res => res.text());
+
+       const cssSheet = new CSSStyleSheet();
+       await cssSheet.replace(cssText);
+
+      this.shadowRoot.adoptedStyleSheets = [
+        cssSheet,
+        ...this.shadowRoot.adoptedStyleSheets,
+      ];      
+    }    
 }

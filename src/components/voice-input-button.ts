@@ -6,6 +6,7 @@ import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 
 import iconMicOff from '../svg/mic-icon.svg?raw';
 import iconMicOn from '../svg/mic-record-on-icon.svg?raw';
+import { addIconSheet } from '../utils/index.js';
 
 @customElement('voice-input-button')
 export class VoiceInputButton extends LitElement {
@@ -19,6 +20,12 @@ export class VoiceInputButton extends LitElement {
 
   @state()
   enableVoiceListening = false;
+
+  override async connectedCallback() {
+    super.connectedCallback();
+
+    await addIconSheet.bind(this)();
+  }
 
   handleVoiceInput(event: Event): void {
     event.preventDefault();
@@ -45,7 +52,7 @@ export class VoiceInputButton extends LitElement {
         class="${this.enableVoiceListening ? 'recording' : 'not-recording'}"
         @click="${this.handleVoiceInput}"
       >
-        ${this.enableVoiceListening ? unsafeSVG(iconMicOn) : unsafeSVG(iconMicOff)}
+        ${this.enableVoiceListening ? html`<i class="simple-icon-microphone"></i><i class="simple-icon-close"></i>` : html`<i class="simple-icon-microphone"></i>`}
       </button>
     `;
   }

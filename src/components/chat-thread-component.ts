@@ -11,8 +11,7 @@ import { chatEntryToString } from '../utils/index.js';
 import iconSuccess from '../svg/success-icon.svg?raw';
 import iconCopyToClipboard from '../svg/copy-icon.svg?raw';
 import iconQuestion from '../svg/bubblequestion-icon.svg?raw';
-import megaphoneSvg from '../svg/megaphone.svg?raw';
-import downloadSvg from '../svg/download.svg?raw';
+
 
 import './citation-list.js';
 import './chat-action-button.js';
@@ -46,8 +45,7 @@ export class ChatThreadComponent extends LitElement {
 
   // Copy response to clipboard
   copyResponseToClipboard(entry: ChatThreadEntry): void {
-    const response = chatEntryToString(entry);
-
+    const response = chatEntryToString(entry);    
     navigator.clipboard.writeText(response);
     this.isResponseCopied = true;
   }
@@ -110,14 +108,14 @@ export class ChatThreadComponent extends LitElement {
         <div class="chat__header--button">
           ${this.actionButtons.map(
             (actionButton) => html`
-              <chat-action-button
-                .label="${actionButton.label}"
-                .svgIcon="${actionButton.svgIcon}"
-                .isDisabled="${actionButton.isDisabled}"
-                .actionId="${actionButton.id}"
-                @click="${(event) => this.actionButtonClicked(actionButton, entry, event)}"
-              ></chat-action-button>
-            `,
+                <chat-action-button
+                  .label="${actionButton.label}"
+                  .svgIcon="${actionButton.svgIcon}"
+                  .isDisabled="${actionButton.isDisabled}"
+                  .actionId="${actionButton.id}"
+                  @click="${(event) => this.actionButtonClicked(actionButton, entry, event)}"
+                ></chat-action-button>
+              `,
           )}
           <chat-action-button
             .label="${globalConfig.COPY_RESPONSE_BUTTON_LABEL_TEXT}"
@@ -125,9 +123,9 @@ export class ChatThreadComponent extends LitElement {
             .isDisabled="${this.isDisabled}"
             actionId="copy-to-clipboard"
             .tooltip="${this.isResponseCopied
-              ? globalConfig.COPIED_SUCCESSFULLY_MESSAGE
-              : globalConfig.COPY_RESPONSE_BUTTON_LABEL_TEXT}"
-            @click="${this.copyResponseToClipboard}"
+        ? globalConfig.COPIED_SUCCESSFULLY_MESSAGE
+        : globalConfig.COPY_RESPONSE_BUTTON_LABEL_TEXT}"
+            @click="${() => this.copyResponseToClipboard(entry)}"
           ></chat-action-button>
         </div>
       </header>
@@ -141,8 +139,8 @@ export class ChatThreadComponent extends LitElement {
       entries.push(html`
         <ol class="items__list steps">
           ${textEntry.followingSteps.map(
-            (followingStep) => html` <li class="items__listItem--step">${unsafeHTML(followingStep)}</li> `,
-          )}
+        (followingStep) => html` <li class="items__listItem--step">${unsafeHTML(followingStep)}</li> `,
+      )}
         </ol>
       `);
     }
@@ -162,7 +160,7 @@ export class ChatThreadComponent extends LitElement {
             .label="${globalConfig.CITATIONS_LABEL}"
             .selectedCitation=${this.selectedCitation}
             @on-citation-click="${(event: CustomEvent) =>
-              this.handleCitationClick(event.detail.citation, entry, event)}"
+          this.handleCitationClick(event.detail.citation, entry, event)}"
           ></citation-list>
         </div>
       `;
@@ -181,7 +179,7 @@ export class ChatThreadComponent extends LitElement {
           ${unsafeSVG(iconQuestion)}
           <ul class="items__list followup">
             ${followupQuestions.map(
-              (followupQuestion) => html`
+        (followupQuestion) => html`
                 <li class="items__listItem--followup">
                   <a
                     class="items__link"
@@ -192,58 +190,69 @@ export class ChatThreadComponent extends LitElement {
                   >
                 </li>
               `,
-            )}
+      )}
           </ul>
         </div>
       `;
     }
 
     return '';
-  }
-
-  speak(event: Event, message: ChatThreadEntry, download = false){
-    event.preventDefault();
-
-    const speakEvent = new CustomEvent(download ? 'chat:download' : 'chat:speak', {
-      detail: {
-        message: message.text.map((textEntry) => textEntry.value).join(' '),
-      },
-      bubbles: true,
-      composed: true,
-    });
-    
-    this.dispatchEvent(speakEvent);
-  }
+  }  
 
   renderError(error: { message: string }) {
     return html`<p class="chat__txt error">${error.message}</p>`;
+  }
+
+  private formatTo24Hour(timestamp) {
+    console.log({timestamp});
+    const date = new Date(timestamp);
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    return `${hours}:${minutes.toString().padStart(2, '0')}`;
   }
 
   override render() {
     return html`
       <ul class="chat__list" aria-live="assertive">
         ${this.chatThread.map(
-          (message, index) => {
-            const isLastMessage = index === this.chatThread.length - 1;
-            const showLoadingIndicator = this.isProcessingResponse && isLastMessage && !message.isUserMessage;
-            
-            return html`
-            <li class="chat__listItem ${message.isUserMessage ? 'user-message' : ''}">
-              <div class="chat__txt ${message.isUserMessage ? 'user-message' : ''}">
-                ${message.isUserMessage ? '' : this.renderResponseActions(message)}                
-                ${message.text.map((textEntry) => this.renderTextEntry(textEntry))} ${this.renderCitation(message)}
-                ${this.renderFollowupQuestions(message)} ${message.error ? this.renderError(message.error) : ''}
-                ${showLoadingIndicator ? html`<loading-indicator label=""></loading-indicator>` : ''}
+      (message, index) => {
+        const isLastMessage = index === this.chatThread.length - 1;
+        const showLoadingIndicator = this.isProcessingResponse && isLastMessage && !message.isUserMessage;
+
+        return html`
+            <li class="chat__listItem ${message.isUserMessage ? 'user-message' : 'ai-message'}">
+              ${!message.isUserMessage ? html`
+                <div class="message-avatar">
+                  <div class="ai-avatar">AI</div>
+                </div>
+              ` : ''}
+              
+              <div class="message-content">
+                <div class="chat__txt ${message.isUserMessage ? 'user-message' : ''}">
+                  ${message.text.map((textEntry) => this.renderTextEntry(textEntry))} 
+                  ${this.renderCitation(message)}
+                  ${this.renderFollowupQuestions(message)} 
+                  ${message.error ? this.renderError(message.error) : ''}
+                  ${showLoadingIndicator ? html`<loading-indicator label=""></loading-indicator>` : ''}
+                </div>
+                <div class="chat__txt--footer">
+                  <div class="chat__txt--info">
+                    <span class="timestamp">${this.formatTo24Hour(message.timestamp)}</span>                 
+                  </div>
+                  <div class="chat__response-actions">                  
+                    ${message.isUserMessage ? '' : this.renderResponseActions(message)}                
+                  </div>
+                </div>
               </div>
-              <p class="chat__txt--info">
-                <span class="timestamp">${message.timestamp}</span>,
-                <span class="user">${message.isUserMessage ? 'You' : globalConfig.USER_IS_BOT}</span>
-                ${message.isUserMessage ? '' : html`<button @click="${(event) => this.speak(event, message)}" class="speech-button" aria-label="Read out loud">${unsafeSVG(megaphoneSvg)}</button>`}
-                ${message.isUserMessage ? '' : html`<button @click="${(event) => this.speak(event, message, true)}" class="speech-button" aria-label="Read out loud">${unsafeSVG(downloadSvg)}</button>`}
-              </p>
+              
+              ${message.isUserMessage ? html`
+                <div class="message-avatar">
+                  <img src="assets/images/avatar.jpg" alt="User" style="width: 32px; height: 32px; border-radius: 50%;">
+                </div>
+              ` : ''}
             </li>
           `},
-        )}
+    )}
       </ul>
       <div class="chat__footer" id="chat-list-footer">
         <!-- Do not delete this element. It is used for auto-scrolling -->

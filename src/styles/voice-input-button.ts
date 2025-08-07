@@ -1,30 +1,37 @@
 import { css } from 'lit';
 
 export const styles = css`
+
   button {
-    color: var(--text-color);
-    font-weight: bold;
-    margin-left: 8px;
+    color: var(--alt_blu);
+    font-weight: bold;    
     background: transparent;
     transition: background 0.3s ease-in-out;
     box-shadow: none;
     border: none;
-    cursor: pointer;
-    width: var(--d-xlarge);
+    cursor: pointer;      
+    width: 100%;
     height: 100%;
+    padding: 0;
   }
   button:hover,
-  button:focus {
-    background: var(--c-secondary);
+  {    
+    color: #fff;
+  }
+  :host(:hover) button{
+    color: #fff;
   }
   button:hover svg,
   button:focus svg {
     opacity: 0.8;
   }
   .not-recording svg {
-    fill: var(--c-black);
+    color: var(--alt_blu);
   }
   .recording svg {
-    fill: var(--red);
+    
+  }
+  .simple-icon-close{
+    font-size: 10px;
   }
 `;

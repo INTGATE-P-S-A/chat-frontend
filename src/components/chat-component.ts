@@ -12,7 +12,7 @@ import {
 } from '../config/global-config.js';
 import { chatStyle } from '../styles/chat-component.js';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
-import { chatEntryToString, newListWithEntryAtIndex } from '../utils/index.js';
+import { chatEntryToString, newListWithEntryAtIndex, addIconSheet } from '../utils/index.js';
 
 // TODO: allow host applications to customize these icons
 
@@ -23,6 +23,8 @@ import iconSend from '../svg/send-icon.svg?raw';
 import iconClose from '../svg/close-icon.svg?raw';
 import iconLogo from '../svg/branding/brand-logo.svg?raw';
 import iconUp from '../svg/chevron-up-icon.svg?raw';
+import megaphoneSvg from '../svg/megaphone.svg?raw';
+import downloadSvg from '../svg/download.svg?raw';
 
 // import only necessary components to reduce bundle size
 import './link-icon.js';
@@ -98,7 +100,7 @@ export class ChatComponent extends LitElement {
   @property({ type: Boolean, attribute: 'data-hide-delete-button', converter: (value) => value === 'true' })
   hideDeleteButton: Boolean = false;
 
-  @property({ type: String, attribute: 'data-initial-messages', converter: (value) => JSON.parse(value || '[]')  })
+  @property({ type: String, attribute: 'data-initial-messages', converter: (value) => JSON.parse(value || '[]') })
   initialMessages: ChatThreadEntry[] = [];
 
   @property({ type: Boolean, attribute: 'data-websocket', converter: (value) => value === 'true' })
@@ -177,7 +179,7 @@ export class ChatComponent extends LitElement {
     // Remove this block when not needed, considering that updated() is a LitElement lifecycle method
     // that may be used by other components if you update this code.
 
-   this.overrideConfig();
+    this.overrideConfig();
 
     if (changedProperties.has('customStyles')) {
       this.style.setProperty('--c-accent-high', this.customStyles.AccentHigh);
@@ -193,27 +195,27 @@ export class ChatComponent extends LitElement {
     }
 
     // Handle initial messages from external source
-    if (changedProperties.has('initialMessages') && this.initialMessages.length > 0) {      
+    if (changedProperties.has('initialMessages') && this.initialMessages.length > 0) {
       this.chatThread = this.initialMessages.map((message) => {
-          let i = 0;
-          for(const msgTxt of message.text){
-            message.text[i].value = parseFullMessage(msgTxt.value);
-            i++;
+        let i = 0;
+        for (const msgTxt of message.text) {
+          message.text[i].value = parseFullMessage(msgTxt.value);
+          i++;
+        }
+
+        if (message.tools) {
+          for (const tool of message.tools) {
+            message.text[message.text.length - 1].value = parseTool({ name: tool.toolName, data: tool.data }) + message.text[message.text.length - 1].value
           }
 
-          if(message.tools){
-            for(const tool of message.tools){
-              message.text[message.text.length - 1].value = parseTool({ name: tool.toolName, data: tool.data }) + message.text[message.text.length - 1].value
-            }
-            
-          }
+        }
 
-          return message;
-      });      
-      
+        return message;
+      });
+
       this.isChatStarted = true;
-      this.isDefaultPromptsEnabled = false;      
-    }else{
+      this.isDefaultPromptsEnabled = false;
+    } else {
       // this.chatThread = [];
       // this.isDefaultPromptsEnabled = true;
       // this.isChatStarted = false;
@@ -225,13 +227,15 @@ export class ChatComponent extends LitElement {
     }
   }
 
-  override connectedCallback(): void {
+  override async connectedCallback() {
     super.connectedCallback();
-    
+
+    await addIconSheet.bind(this)();
+
     if (this.dataWebSearch === true) {
       this.useWebSearch = true;
     }
-    
+
     if (this.dataDeepSearch === true) {
       this.useDeepSearch = true;
     }
@@ -241,9 +245,9 @@ export class ChatComponent extends LitElement {
 
     console.log('yoyoy')
 
-    this.overrideConfig(); 
+    this.overrideConfig();
 
-     const ev = new CustomEvent('chat-component-connected', {
+    const ev = new CustomEvent('chat-component-connected', {
       detail: true,
       bubbles: true,
       composed: true
@@ -257,7 +261,7 @@ export class ChatComponent extends LitElement {
   private handleProgressEvent(event: Event) {
     const customEvent = event as CustomEvent;
     const { stage, message, percentage } = customEvent.detail;
-    
+
     this.progressStage = stage || '';
     this.progressMessage = message || '';
     this.progressPercentage = percentage || 0;
@@ -274,20 +278,20 @@ export class ChatComponent extends LitElement {
     }
   }
 
-  overrideConfig(){
+  overrideConfig() {
     if (this.customConfig && Object.keys(this.customConfig).length > 0) {
-      globalConfig = {...mainConfig, ...this.customConfig};
+      globalConfig = { ...mainConfig, ...this.customConfig };
     }
     if (this.customTeasers && Object.keys(this.customTeasers).length > 0) {
       teaserListTexts = this.customTeasers;
     }
   }
 
-  clearChat(){
-      this.chatThread = [];
-      this.isChatStarted = false;
-      this.isDefaultPromptsEnabled = true;
-      this.resetCurrentChat(new Event('clear-chat'), true);
+  clearChat() {
+    this.chatThread = [];
+    this.isChatStarted = false;
+    this.isDefaultPromptsEnabled = true;
+    this.resetCurrentChat(new Event('clear-chat'), true);
   }
 
   setQuestionInputValue(value: string): void {
@@ -320,7 +324,7 @@ export class ChatComponent extends LitElement {
   handleRecordingStateChange(event: CustomEvent): void {
     event?.preventDefault();
     const { isRecording } = event.detail;
-    
+
     // Dispatch recording state change event for external listeners
     const recordingStateEvent = new CustomEvent('recording-state-change', {
       detail: { isRecording },
@@ -351,7 +355,7 @@ export class ChatComponent extends LitElement {
   handleWebSearchChange(event: Event): void {
     const target = event.target as HTMLInputElement;
     this.useWebSearch = target.checked;
-    
+
     this.dispatchEvent(new CustomEvent('websearch-change', {
       detail: { checked: this.useWebSearch },
       bubbles: true,
@@ -362,7 +366,7 @@ export class ChatComponent extends LitElement {
   handleDeepSearchChange(event: Event): void {
     const target = event.target as HTMLInputElement;
     this.useDeepSearch = target.checked;
-    
+
     this.dispatchEvent(new CustomEvent('deepsearch-change', {
       detail: { checked: this.useDeepSearch },
       bubbles: true,
@@ -453,17 +457,17 @@ export class ChatComponent extends LitElement {
     this.chatHistoryController.saveChatHistory(this.chatThread);
     this.collapseAside(event);
     this.handleUserChatCancel(event);
-    
-    console.log({forced});
 
-    if(!forced){
+    console.log({ forced });
+
+    if (!forced) {
       const resetEvent = new CustomEvent('chat:conversation:end', {
         detail: true,
         bubbles: true,
         composed: true
       });
-      this.dispatchEvent(resetEvent); 
-    }    
+      this.dispatchEvent(resetEvent);
+    }
   }
 
   // setConvo(id: string | null){
@@ -508,13 +512,13 @@ export class ChatComponent extends LitElement {
 
   renderChatOrCancelButton() {
     const submitChatButton = html`<button
-      class="chatbox__button"
+      class="chatbox__button chatbox_submit"
       data-testid="submit-question-button"
       @click="${this.handleUserChatSubmit}"
       title="${globalConfig.CHAT_BUTTON_LABEL_TEXT}"
       ?disabled="${this.isDisabled}"
     >
-      ${unsafeSVG(iconSend)}
+      <i class="simple-icon-paper-plane"></i>
     </button>`;
     const cancelChatButton = html`<button
       class="chatbox__button"
@@ -522,7 +526,7 @@ export class ChatComponent extends LitElement {
       @click="${this.handleUserChatCancel}"
       title="${globalConfig.CHAT_CANCEL_BUTTON_LABEL_TEXT}"
     >
-      ${unsafeSVG(iconCancel)}
+      <i class="simple-icon-close"></i>
     </button>`;
 
     return this.chatController.isProcessingResponse ? cancelChatButton : submitChatButton;
@@ -551,13 +555,13 @@ export class ChatComponent extends LitElement {
       </div>
       <div slot="tab-support-context" class="tab-component__content">
         ${entry && entry.dataPoints
-          ? html` <teaser-list-component
+        ? html` <teaser-list-component
               .alwaysRow="${true}"
               .teasers="${entry.dataPoints.map((d) => {
-                return { description: d };
-              })}"
+          return { description: d };
+        })}"
             ></teaser-list-component>`
-          : ''}
+        : ''}
       </div>
       ${entry && entry.citations
         ? html`
@@ -569,10 +573,10 @@ export class ChatComponent extends LitElement {
                 @on-citation-click="${this.handleCitationClick}"
               ></citation-list>
               ${this.selectedCitation
-                ? html`<document-previewer
+            ? html`<document-previewer
                     url="${this.apiUrl}/content/${this.selectedCitation.text}"
                   ></document-previewer>`
-                : ''}
+            : ''}
             </div>
           `
         : ''}
@@ -583,6 +587,16 @@ export class ChatComponent extends LitElement {
     if (event.detail?.id === 'chat-show-thought-process') {
       this.selectedChatEntry = event.detail?.chatThreadEntry;
       this.handleExpandAside(event);
+    }
+
+    if (event.detail?.id === 'speak') {
+      this.selectedChatEntry = event.detail?.chatThreadEntry;
+      this.speak(event, this.selectedChatEntry as ChatThreadEntry);
+    }
+
+    if (event.detail?.id === 'download-speech') {
+      this.selectedChatEntry = event.detail?.chatThreadEntry;
+      this.speak(event, this.selectedChatEntry as ChatThreadEntry, true);
     }
   }
 
@@ -600,14 +614,40 @@ export class ChatComponent extends LitElement {
     }
   }
 
+  private speak(event: Event, message: ChatThreadEntry, download = false) {
+    event.preventDefault();
+
+    const speakEvent = new CustomEvent(download ? 'chat:download' : 'chat:speak', {
+      detail: {
+        message: message.text.map((textEntry) => textEntry.value).join(' '),
+      },
+      bubbles: true,
+      composed: true,
+    });
+
+    this.dispatchEvent(speakEvent);
+  }
+
   renderChatThread(chatThread: ChatThreadEntry[]) {
     return html`<chat-thread-component
       .chatThread="${chatThread}"
       .actionButtons="${[
+        // {
+        //   id: 'chat-show-thought-process',
+        //   label: globalConfig.SHOW_THOUGH_PROCESS_BUTTON_LABEL_TEXT,
+        //   svgIcon: iconLightBulb,
+        //   isDisabled: this.isShowingThoughtProcess,
+        // },
         {
-          id: 'chat-show-thought-process',
-          label: globalConfig.SHOW_THOUGH_PROCESS_BUTTON_LABEL_TEXT,
-          svgIcon: iconLightBulb,
+          id: 'speak',
+          label: globalConfig.SPEAK_BUTTON_LABEL_TEXT,
+          svgIcon: megaphoneSvg,
+          isDisabled: this.isShowingThoughtProcess,
+        },
+        {
+          id: 'download-speech',
+          label: globalConfig.DOWNLOAD_SPEECH_BUTTON_LABEL_TEXT,
+          svgIcon: downloadSvg,
           isDisabled: this.isShowingThoughtProcess,
         },
       ] as any}"
@@ -629,148 +669,150 @@ export class ChatComponent extends LitElement {
       <div id="overlay" class="overlay"></div>
       <section id="chat__containerWrapper" class="chat__containerWrapper">
         ${this.isCustomBranding && !this.isChatStarted
-          ? html` <chat-stage
+        ? html` <chat-stage
               svgIcon="${iconLogo}"
               pagetitle="${globalConfig.BRANDING_HEADLINE}"
               url="${globalConfig.BRANDING_URL}"
             >
             </chat-stage>`
-          : ''}
+        : ''}
         <section class="chat__container" id="chat-container">
           ${this.isChatStarted
-            ? html`
+        ? html`
                 <div class="chat__header--thread">
                   ${!this.hideHistory && this.interactionModel === 'chat'
-                    ? this.chatHistoryController.renderHistoryButton({ disabled: this.isDisabled })
-                    : ''}                 
+            ? this.chatHistoryController.renderHistoryButton({ disabled: this.isDisabled })
+            : ''}                 
                 </div>
                 ${this.chatHistoryController.showChatHistory
-                  ? html`<div class="chat-history__container">
+            ? html`<div class="chat-history__container">
                       ${this.renderChatThread(this.chatHistoryController.chatHistory)}
                       <div class="chat-history__footer">
                         ${unsafeSVG(iconUp)}
                         ${globalConfig.CHAT_HISTORY_FOOTER_TEXT.replace(
-                          globalConfig.CHAT_MAX_COUNT_TAG,
-                          MAX_CHAT_HISTORY,
-                        )}
+              globalConfig.CHAT_MAX_COUNT_TAG,
+              MAX_CHAT_HISTORY,
+            )}
                         ${unsafeSVG(iconUp)}
                       </div>
                     </div>`
-                  : ''}
+            : ''}
                 ${this.renderChatThread(this.chatThread)}
               `
-            : ''}
+        : ''}
           ${this.chatController.isAwaitingResponse
-            ? this.isShowingProgress
-              ? html`<progress-bar 
+        ? this.isShowingProgress
+          ? html`<progress-bar 
                   .progress="${this.progressPercentage}"
                   .message="${this.progressMessage}"
                   .stage="${this.progressStage}">
                 </progress-bar>`
-              : html`<loading-indicator label="${globalConfig.LOADING_INDICATOR_TEXT}"></loading-indicator>`
-            : ''}
+          : html`<loading-indicator label="${globalConfig.LOADING_INDICATOR_TEXT}"></loading-indicator>`
+        : ''}
           ${!this.chatController.isAwaitingResponse && this.isShowingProgress
-            ? html`<progress-bar 
+        ? html`<progress-bar 
                 .progress="${this.progressPercentage}"
                 .message="${this.progressMessage}"
                 .stage="${this.progressStage}">
               </progress-bar>`
-            : ''}
-          <!-- Teaser List with Default Prompts -->
-          <div class="chat__container">
-            <!-- Conditionally render default prompts based on isDefaultPromptsEnabled -->
+        : ''}
+       
+         
+           
             ${this.isDefaultPromptsEnabled
-              ? html`
+        ? html`<div class="chat__container">
                   <teaser-list-component
                     .heading="${this.interactionModel === 'chat'
-                      ? teaserListTexts.HEADING_CHAT
-                      : teaserListTexts.HEADING_ASK}"
+            ? teaserListTexts.HEADING_CHAT
+            : teaserListTexts.HEADING_ASK}"
                     .clickable="${true}"
                     .actionLabel="${teaserListTexts.TEASER_CTA_LABEL}"
                     @teaser-click="${this.handleQuestionInputClick}"
                     .teasers="${teaserListTexts.DEFAULT_PROMPTS}"
                   ></teaser-list-component>
-                `
-              : ''}
-          </div>
+                </div>`
+        : ''}
+        
           <form
             id="chat-form"
             class="form__container ${this.inputPosition === 'sticky' ? 'form__container-sticky' : ''}"
           >
-            <div class="chatbox__container container-col container-row">
-              <div class="chatbox__input-container display-flex-grow container-row">
+            <div class="chatbox__container">
+              <div class="chatbox__input-container">
                 <input
-                  class="chatbox__input display-flex-grow"
+                  class="chatbox__input"
                   data-testid="question-input"
                   id="question-input"
                   placeholder="${globalConfig.CHAT_INPUT_PLACEHOLDER}"
                   aria-labelledby="chatbox-label"
-                  id="chatbox"
                   name="chatbox"
                   type="text"
-                  :value=""
                   ?disabled="${this.isDisabled}"
                   autocomplete="off"
                   @keyup="${this.handleOnInputChange}"
                 />
-                ${this.isResetInput ? '' : html`<voice-input-button @on-voice-input="${this.handleVoiceInput}" />`}
-              </div>
-              ${this.renderChatOrCancelButton()}
-              <button
-                title="${globalConfig.RESET_BUTTON_TITLE_TEXT}"
-                class="chatbox__button--reset${this.isChatStarted ? ' started' : ''}"
-                .hidden="${!this.isResetInput}"
-                type="reset"
-                id="resetBtn"
-                title="Clear input"
-                @click="${this.resetInputField}"
-              >
-                ${globalConfig.RESET_BUTTON_LABEL_TEXT}
-              </button>
-               ${!this.hideDeleteButton && this.isChatStarted ? html`<button
-                    class="chatbox__button"
-                    .label="${globalConfig.RESET_CHAT_BUTTON_TITLE}"
-                    actionId="chat-reset-button"
-                    @click="${this.resetCurrentChat}"                    
+                <div class="input-group-append">
+                  ${this.isResetInput ? html`<button
+                    title="${globalConfig.RESET_BUTTON_TITLE_TEXT}"
+                    class="chatbox__button btn-outline-danger chat-reset${this.isChatStarted ? ' started' : ''}"
+                    type="reset"
+                    id="resetBtn"
+                    @click="${this.resetInputField}"
                   >
-                    ${unsafeSVG(iconDelete)}
-              </button>` : ''}
+                    <i class="simple-icon-ban"></i>
+                  </button>` : ''}
+                  ${this.renderChatOrCancelButton()}
+                  ${this.isResetInput ? '' : html`<voice-input-button @on-voice-input="${this.handleVoiceInput}" class="chatbox__button btn-outline-secondary" />`}
+                  ${!this.hideDeleteButton && this.isChatStarted ? html`<button
+                        class="chatbox__button btn-outline-danger"
+                        .label="${globalConfig.RESET_CHAT_BUTTON_TITLE}"
+                        actionId="chat-reset-button"
+                        @click="${this.resetCurrentChat}"
+                        title="${globalConfig.RESET_CHAT_BUTTON_TITLE}"
+                      >
+                        ${unsafeSVG(iconDelete)}
+                  </button>` : ''}
+                </div>
+              </div>
+              
             </div>
 
             ${globalConfig.WEB_SEARCH_CHECKBOX_ENABLED
-              ? html`<div class="web-search__wrapper">
+        ? html`<div class="web-search__wrapper">
                   <div class="web-search__container">
-                    <label class="web-search__label">
-                      <input
-                        type="checkbox"
-                        class="web-search__checkbox"
-                        .checked="${this.useWebSearch}"
-                        @change="${this.handleWebSearchChange}"
-                        ?disabled="${this.isDisabled}"
-                      />
+                    <input
+                      type="checkbox"
+                      class="web-search__checkbox"
+                      id="web-search-checkbox"
+                      .checked="${this.useWebSearch}"
+                      @change="${this.handleWebSearchChange}"
+                      ?disabled="${this.isDisabled}"
+                    />
+                    <label class="web-search__label" for="web-search-checkbox">
                       ${globalConfig.WEB_SEARCH_CHECKBOX_LABEL}
                     </label>
                   </div>
                   ${globalConfig.DEEP_SEARCH_CHECKBOX_ENABLED && this.useWebSearch
-                    ? html`<div class="web-search__container">
-                        <label class="web-search__label">
-                          <input
-                            type="checkbox"
-                            class="web-search__checkbox"
-                            .checked="${this.useDeepSearch}"
-                            @change="${this.handleDeepSearchChange}"
-                            ?disabled="${this.isDisabled}"
-                          />
+            ? html`<div class="web-search__container">
+                        <input
+                          type="checkbox"
+                          class="web-search__checkbox"
+                          id="deep-search-checkbox"
+                          .checked="${this.useDeepSearch}"
+                          @change="${this.handleDeepSearchChange}"
+                          ?disabled="${this.isDisabled}"
+                        />
+                        <label class="web-search__label" for="deep-search-checkbox">
                           ${globalConfig.DEEP_SEARCH_CHECKBOX_LABEL}
                         </label>
                       </div>`
-                    : ''}
+            : ''}
                 </div>`
-              : ''}
+        : ''}
 
             ${this.isDefaultPromptsEnabled
-              ? ''
-              : html`<div class="chat__containerFooter">
+        ? ''
+        : html`<div class="chat__containerFooter">
                   <button type="button" @click="${this.showDefaultPrompts}" class="defaults__span button">
                     ${globalConfig.DISPLAY_DEFAULT_PROMPTS_BUTTON}
                   </button>
@@ -778,7 +820,7 @@ export class ChatComponent extends LitElement {
           </form>
         </section>
         ${this.isShowingThoughtProcess
-          ? html`
+        ? html`
               <aside class="aside" data-testid="aside-thought-process">
                 <div class="aside__header">
                   <chat-action-button
@@ -792,7 +834,7 @@ export class ChatComponent extends LitElement {
                 ${this.renderChatEntryTabContent(this.selectedChatEntry as ChatThreadEntry)}
               </aside>
             `
-          : ''}
+        : ''}
       </section>
     `;
   }

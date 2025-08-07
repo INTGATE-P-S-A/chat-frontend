@@ -24,6 +24,8 @@ const globalConfig = {
   FOLLOW_UP_QUESTIONS_LABEL_TEXT: 'You can also ask...',
   SHOW_THOUGH_PROCESS_BUTTON_LABEL_TEXT: 'Show thought process',
   HIDE_THOUGH_PROCESS_BUTTON_LABEL_TEXT: 'Hide thought process',
+  SPEAK_BUTTON_LABEL_TEXT: 'Read the response',
+  DOWNLOAD_SPEECH_BUTTON_LABEL_TEXT: 'Download voice response',
   LOADING_INDICATOR_TEXT: 'Please wait. We are searching and generating an answer...',
   LOADING_TEXT: 'Loading...',
   // API ERROR HANDLING IN UI

@@ -12,7 +12,7 @@ export const styles = css`
     align-items: center;
     margin-left: 5px;
     opacity: 1;
-    padding: var(--d-xsmall);
+    padding: 2px;
     transition: all 0.3s ease-in-out;
     position: relative;
     cursor: pointer;
@@ -26,7 +26,7 @@ export const styles = css`
     transition: all 0.3s ease-out 0s;
     position: absolute;
     text-align: right;
-    top: -80%;
+    top: -135%;
     background: var(--c-accent-dark);
     color: var(--c-white);
     opacity: 0;
@@ -50,8 +50,8 @@ export const styles = css`
   svg {
     fill: currentColor;
     padding: var(--d-xsmall);
-    width: var(--d-base);
-    height: var(--d-base);
+    width: 15px;
+    height: 15px;
   }
   button:hover > span,
   button:focus > span {

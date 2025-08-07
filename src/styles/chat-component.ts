@@ -125,15 +125,29 @@ export const chatStyle = css`
     height: 100%;
     display: flex;
     flex-direction: column;
+  }
+  
+  /* Chat header styling */
+  .chat-header {
+    padding: 1rem;
+    border-bottom: 1px solid #e3e6f0;
+    background: #f8f9fc;
+    border-radius: 0.35rem 0.35rem 0 0;
   } 
 
   #chat-container > .chat__container {
-    flex: 6;
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    background: #f8f9fc;
   }
 
   #chat-container > #chat-form {
-    flex: 1;
-    position: relative;
+    margin-top: 1rem;
+    padding: 1rem;
+    background: white;
+    border: 1px solid #e3e6f0;
+    border-radius: 0.35rem;
   }
 
   .chat__containerWrapper.aside-open {
@@ -179,114 +193,274 @@ export const chatStyle = css`
     }
   }
   .form__container {
-    margin-top: var(--d-large);
-    padding: var(--d-small);
+    margin-bottom: 0;
   }
   .form__container-sticky {
-    position: sticky;
-    bottom: 0;
+    position: relative;
+    bottom: auto;
     z-index: 1;
-    border-radius: var(--radius-base);
-    background: linear-gradient(0deg, var(--c-base-gray) 0%, var(--c-base-gray) 75%, var(--c-base-gray) 100%);
-    box-shadow: var(--shadow);
-    padding: var(--d-small) var(--d-small) var(--d-small);
+    border-radius: 0.35rem;
+    background: white;
+    box-shadow: none;
+    padding: 0;
+    border: 1px solid #e3e6f0;
   }
   .form__label {
     display: block;
     padding: var(-d-xsmall) 0;
     font-size: var(--font-small);
   }
+  .chatbox__button svg {
+    fill: currentColor;
+    width: 1em;
+    height: 1em;
+    vertical-align: -0.125em;
+  }
+  
+  /* Button focus and disabled states */
   .chatbox__button:disabled,
   .chatbox__input:disabled {
-    opacity: 0.5;
+    opacity: 0.65;
     cursor: not-allowed;
-  }
-  .chatbox__button svg {
-    fill: var(--c-accent-high);
-    width: calc(var(--d-base) + var(--d-xsmall));
   }
   .chatbox__container {
     position: relative;
-    height: 50px;
+    height: auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    width: 100%;
   }
-  .chatbox__button {
-    background: var(--c-white);
+  
+  /* Input group styling like Bootstrap */
+  .chatbox__input-container {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    width: 100%;
+   
+    background: white;
+  }
+  
+  .chatbox__input-container:focus-within {
+    outline: none;    
+  }
+  
+  .chatbox__input {
+    position: relative;
+    flex: 1 1 auto;
+    width: 1%;
+    min-width: 0;
+    background: transparent;
+    color: #212529;
     border: none;
-    color: var(--text-color);
-    font-weight: bold;
+    padding: 0.5rem 0.75rem;
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.5;
+    background-clip: padding-box;
+    border-radius: 0.375rem 0 0 0.375rem;
+    border: 1px solid #ced4da;
+    // border-radius: 0.375rem;
+  }
+  
+  .chatbox__input:focus {
+    outline: 0;
+    box-shadow: none;
+    border-color: var(--primary-color);    
+  }
+  
+  .chatbox__input::placeholder {
+    color: #6c757d;
+    opacity: 1;
+  }
+  
+  /* Input group append styling */
+  .input-group-append {
+    display: flex;
+    margin-left: -1px;
+  }
+  
+  .input-group-append .chatbox__button {
+    position: relative;
+    z-index: 2;
+    margin-left: 0;
+    border-radius: 0;
+  }
+  
+  .input-group-append .chatbox__button:first-child {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+  }
+  
+  .input-group-append .chatbox__button:last-child {
+    border-top-right-radius: 0.375rem;
+    border-bottom-right-radius: 0.375rem;
+  }
+  
+  .input-group-append .chatbox__button:not(:last-child) {
+    border-right: 0;
+  }
+  /* Button styles for different variants */
+  .chatbox__button {
+    display: inline-block;
+    font-weight: 400;
+    line-height: 1.5;
+    color: #fff;
+    text-align: center;
+    text-decoration: none;
+    vertical-align: middle;
     cursor: pointer;
-    border-radius: 4px;
-    margin-left: 8px;
-    width: calc(var(--d-large) + var(--d-xlarge));
-    box-shadow: var(--shadow);
-    transition: background 0.3s ease-in-out;
+    user-select: none;
+    background-color: var(--primary-color);
+    border: 1px solid var(--primary-color);    
+    font-size: 1rem;
+    border-radius: 0;
+    flex: 1 1 auto;
+    padding: 0px 10px;
   }
-  .chatbox__button:hover,
+  
+  .chatbox__button:hover {
+    color: #fff;
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+  }
+  
   .chatbox__button:focus {
-    background: var(--c-secondary);
+    color: #fff;
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);    
   }
-  .chatbox__button:hover svg,
-  .chatbox__button:focus svg {
-    opacity: 0.8;
+  
+  .chatbox__button:disabled {
+    pointer-events: none;
+    opacity: 0.65;
   }
+  
+  /* Button variants */
+  .chatbox__button.btn-outline-secondary {
+    color: var(--alt_blu);
+    border-color: var(--alt_blu);
+    background-color: transparent;
+  }
+  
+  .chatbox__button.btn-outline-secondary:hover {
+    color: #fff;
+    background-color: var(--alt_blu);
+    border-color: var(--alt_blu);
+  }
+  
+  .chatbox__button.btn-outline-danger {
+    color: #dc3545;
+    border-color: #dc3545;
+    background-color: transparent;
+  }
+  
+  .chatbox__button.btn-outline-danger:hover {
+    color: #fff;
+    background-color: #dc3545;
+    border-color: #dc3545;
+  }
+  
   .chatbox__button--reset {
     position: absolute;
     right: 115px;
     top: 15px;
-    background: transparent;
-    border: none;
-    color: gray;
-    background: var(--c-accent-dark);
-    border-radius: 50%;
-    color: var(--c-white);
-    font-weight: bold;
-    height: 20px;
-    width: var(--d-base);
+    background: #dc3545;
+    border: 1px solid #dc3545;
+    color: white;
+    border-radius: 0.375rem;
+    font-weight: normal;
+    height: auto;
+    width: auto;
+    padding: 0.375rem 0.75rem;
     cursor: pointer;
   }
+  
   .chatbox__button--reset.started{
     right: 210px;
   }
-  .chatbox__input-container {
-    display: flex;
-    border: var(--border-thin) solid var(--c-black);
-    background: var(--c-white);
-    border-radius: 4px;
-  }
-  .chatbox__input-container:focus-within {
-    outline: -webkit-focus-ring-color auto 1px;
-  }
-  .chatbox__input {
-    background: transparent;
-    color: var(--text-color);
-    border: none;
-    padding: var(--d-small);
-    flex: 1 1 auto;
-    font-size: 1rem;
-  }
-  .chatbox__input:focus-visible {
-    outline: none;
-  }
+  /* Chat options styling like Bootstrap form-check */
   .web-search__wrapper {
     display: flex;
-    flex-direction: row;
-    gap: var(--d-base);
-    align-items: center;
+    gap: 1rem;
+    margin-top: 0.5rem;
   }
+  
   .web-search__container {
-    padding: var(--d-small) 0;    
+    padding: 0;
+    margin-bottom: 0.125rem;
+    min-height: 1.5rem;
+    position: relative;
+    display: block;
   }
-  .web-search__label {
-    display: flex;
-    align-items: center;
-    gap: var(--d-xsmall);
-    font-size: var(--font-base);
-    color: var(--c-text);
+  
+  .web-search__checkbox {
+    position: absolute;
+    top: 0.25rem;
+    left: 0;
+    z-index: 2;
+    width: 1em;
+    height: 1em;
+    margin: 0;
+    opacity: 0;
     cursor: pointer;
   }
-  .web-search__checkbox {
-    margin: 0;
-    accent-color: var(--c-primary);
+  
+  .web-search__label {
+    display: inline-block;
+    font-size: 0.875rem;
+    color: #6c757d;
+    cursor: pointer;
+    padding-left: 1.5rem;
+    margin-bottom: 0;
+    position: relative;
+  }
+  
+  .web-search__label::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block;
+    width: 1em;
+    height: 1em;
+    pointer-events: none;
+    background-color: #fff;
+    border: 1px solid #adb5bd;
+    border-radius: 0.25em;
+  }
+  
+  .web-search__label::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block;
+    width: 1em;
+    height: 1em;
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: 0.5em 0.5em;
+    opacity: 0;
+    transition: opacity 0.15s ease-in-out;
+  }
+  
+  .web-search__checkbox:checked ~ .web-search__label::before {
+    color: #fff;
+    border-color: #0d6efd;
+    background-color: #0d6efd;
+  }
+  
+  .web-search__checkbox:checked ~ .web-search__label::after {
+    opacity: 1;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'/%3e%3c/svg%3e");
+  }
+  
+  .web-search__checkbox:focus ~ .web-search__label::before {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
   }
   .aside__header {
     display: flex;
