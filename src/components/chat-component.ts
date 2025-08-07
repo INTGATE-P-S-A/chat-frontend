@@ -193,9 +193,8 @@ export class ChatComponent extends LitElement {
     }
 
     // Handle initial messages from external source
-    if (changedProperties.has('initialMessages') && this.initialMessages.length > 0) {
-      this.chatThread = [
-        ...this.initialMessages.map((message) => {
+    if (changedProperties.has('initialMessages') && this.initialMessages.length > 0) {      
+      this.chatThread = this.initialMessages.map((message) => {
           let i = 0;
           for(const msgTxt of message.text){
             message.text[i].value = parseFullMessage(msgTxt.value);
@@ -210,11 +209,10 @@ export class ChatComponent extends LitElement {
           }
 
           return message;
-        })
-      ];
-      console.log(this.chatThread);
+      });      
+      
       this.isChatStarted = true;
-      this.isDefaultPromptsEnabled = false;
+      this.isDefaultPromptsEnabled = false;      
     }else{
       // this.chatThread = [];
       // this.isDefaultPromptsEnabled = true;
@@ -240,6 +238,8 @@ export class ChatComponent extends LitElement {
 
     // Add progress event listeners
     this.addEventListener('chat:progress', this.handleProgressEvent.bind(this) as EventListener);
+
+    console.log('yoyoy')
 
     this.overrideConfig(); 
 
@@ -287,7 +287,7 @@ export class ChatComponent extends LitElement {
       this.chatThread = [];
       this.isChatStarted = false;
       this.isDefaultPromptsEnabled = true;
-      this.resetCurrentChat(new Event('clear-chat'));
+      this.resetCurrentChat(new Event('clear-chat'), true);
   }
 
   setQuestionInputValue(value: string): void {
@@ -442,7 +442,7 @@ export class ChatComponent extends LitElement {
   }
 
   // Reset the chat and show the default prompts
-  resetCurrentChat(event: Event): void {
+  resetCurrentChat(event: Event, forced = false): void {
     this.isChatStarted = false;
     this.chatThread = [];
     this.isDisabled = false;
@@ -454,13 +454,21 @@ export class ChatComponent extends LitElement {
     this.collapseAside(event);
     this.handleUserChatCancel(event);
     
-    const resetEvent = new CustomEvent('chat:conversation:end', {
-      detail: true,
-      bubbles: true,
-      composed: true
-    });
-    this.dispatchEvent(resetEvent); 
+    console.log({forced});
+
+    if(!forced){
+      const resetEvent = new CustomEvent('chat:conversation:end', {
+        detail: true,
+        bubbles: true,
+        composed: true
+      });
+      this.dispatchEvent(resetEvent); 
+    }    
   }
+
+  // setConvo(id: string | null){
+  //   this.overrides = {...this.overrides, conversationId: id};
+  // }
 
   // Show the default prompts when enabled
   showDefaultPrompts(event: Event): void {
