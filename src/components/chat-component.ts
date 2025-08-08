@@ -249,6 +249,7 @@ export class ChatComponent extends LitElement {
       
       if(this.showCode && this.showCode.id === theEvent.detail.id){
         this.collapseAside(event);
+        return
       }
 
       this.handleExpandAside(event, theEvent.detail);

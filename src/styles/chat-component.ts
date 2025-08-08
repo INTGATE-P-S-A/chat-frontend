@@ -41,8 +41,10 @@ export const chatStyle = css`
     --d-large: 30px;
     --d-xlarge: 50px;
     --shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    width: 100vw;
-    display: block;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
     padding: var(--d-base);
     color: var(--c-text);
   }
@@ -122,9 +124,10 @@ export const chatStyle = css`
     max-height: 100vh;
   }
   #chat-container {
-    height: 100%;
+    height: 57%;
     display: flex;
     flex-direction: column;
+    flex: 1;
   }
   
   /* Chat header styling */
@@ -137,9 +140,11 @@ export const chatStyle = css`
 
   #chat-container > .chat__container {
     flex: 1;
-    overflow-y: auto;
-    padding: 1rem;
+    overflow: hidden;
+    padding: 0;
     background: #f8f9fc;
+    display: flex;
+    flex-direction: column;
   }
 
   #chat-container > #chat-form {
@@ -148,6 +153,7 @@ export const chatStyle = css`
     background: white;
     border: 1px solid #e3e6f0;
     border-radius: 0.35rem;
+    flex-shrink: 0;
   }
 
   .chat__containerWrapper.aside-open {
@@ -160,6 +166,7 @@ export const chatStyle = css`
     grid-template-columns: 1fr;
     gutter: var(--d-base);
     height: 100%;
+    flex: 1;
   }
   .chat__containerWrapper.aside-open {
     display: grid;
@@ -169,6 +176,8 @@ export const chatStyle = css`
       "aside";
     grid-column-gap: var(--d-base);
     grid-row-gap: var(--d-base);
+    height: 100%;
+    flex: 1;
 
     @media (min-width: 1024px) {
       grid-template-columns: 1fr 50%;

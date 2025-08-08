@@ -1,6 +1,12 @@
 import { css } from 'lit';
 
 export const styles = css`
+  :host {
+    display: block;
+    height: 100%;
+    width: 100%;
+  }
+  
   ul {
     margin-block-start: 0;
     margin-block-end: 0;
@@ -27,14 +33,6 @@ export const styles = css`
   }
   .chat__header--button {
     margin-right: var(--d-base);
-  }
-  .chat__list {
-    color: var(--text-color);
-    display: flex;
-    flex-direction: column;
-    list-style-position: inside;
-    padding-inline-start: 0;    
-    padding: 1rem;
   }
   .chat__footer {
     width: 100%;
@@ -266,16 +264,33 @@ export const styles = css`
     border: 1px solid #e3e6f0;
     border-radius: 0.35rem;
     background: #f8f9fc;
+    height: 100%;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }  
   .chat-topic {    
     padding: 1rem;
     border-bottom: 1px solid #e3e6f0;
     background: #f8f9fc;
     border-radius: 0.35rem 0.35rem 0 0;
+    flex-shrink: 0;
   }  
   .chat-topic h5 {  
     margin: 0;
     font-size: 1.1rem;
     color: #000;
+  }
+  .chat__list {
+    color: var(--text-color);
+    display: flex;
+    flex-direction: column;
+    list-style-position: inside;
+    padding-inline-start: 0;    
+    padding: 1rem;
+    flex: 1;
+    overflow-y: auto;
+    background: white;
   }  
 `;
