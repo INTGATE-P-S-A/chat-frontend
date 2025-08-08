@@ -142,7 +142,7 @@ export class ChatComponent extends LitElement {
 
   // Is showing thought process panel
   @state()
-  isShowingThoughtProcess = false;
+  showCode: { code: string, id: string, language: string } | null = null;
 
   @state()
   isDefaultPromptsEnabled: boolean = globalConfig.IS_DEFAULT_PROMPTS_ENABLED && !this.isChatStarted;
@@ -244,6 +244,16 @@ export class ChatComponent extends LitElement {
     // Add progress event listeners
     this.addEventListener('chat:progress', this.handleProgressEvent.bind(this) as EventListener);
 
+    this.addEventListener('code:show', (event) => {
+      const theEvent: CustomEvent<{code: string, id: string, language: string}> = event as CustomEvent<{code: string, id: string, language: string}>;      
+      
+      if(this.showCode && this.showCode.id === theEvent.detail.id){
+        this.collapseAside(event);
+      }
+
+      this.handleExpandAside(event, theEvent.detail);
+    });
+
     this.overrideConfig();
 
     const ev = new CustomEvent('chat-component-connected', {
@@ -342,7 +352,7 @@ export class ChatComponent extends LitElement {
     event?.preventDefault();
     this.selectedCitation = event?.detail?.citation;
 
-    if (!this.isShowingThoughtProcess) {
+    if (!this.showCode) {
       if (event?.detail?.chatThreadEntry) {
         this.selectedChatEntry = event?.detail?.chatThreadEntry;
       }
@@ -490,9 +500,10 @@ export class ChatComponent extends LitElement {
   }
 
   // show thought process aside
-  handleExpandAside(event: Event | undefined = undefined): void {
+  handleExpandAside(event: Event | undefined = undefined, code: { id: string, code: string, language: string } | null = null): void {
     event?.preventDefault();
-    this.isShowingThoughtProcess = true;
+    this.showCode = code;
+    console.log(this.showCode);
     this.selectedAsideTab = 'tab-thought-process';
     this.shadowRoot?.querySelector('#overlay')?.classList.add('active');
     this.shadowRoot?.querySelector('#chat__containerWrapper')?.classList.add('aside-open');
@@ -501,7 +512,7 @@ export class ChatComponent extends LitElement {
   // hide thought process aside
   collapseAside(event: Event): void {
     event.preventDefault();
-    this.isShowingThoughtProcess = false;
+    this.showCode = null;
     this.selectedCitation = undefined;
     this.shadowRoot?.querySelector('#chat__containerWrapper')?.classList.remove('aside-open');
     this.shadowRoot?.querySelector('#overlay')?.classList.remove('active');
@@ -679,13 +690,13 @@ export class ChatComponent extends LitElement {
           id: 'speak',
           label: globalConfig.SPEAK_BUTTON_LABEL_TEXT,
           svgIcon: megaphoneSvg,
-          isDisabled: this.isShowingThoughtProcess,
+          isDisabled: false,
         },
         {
           id: 'download-speech',
           label: globalConfig.DOWNLOAD_SPEECH_BUTTON_LABEL_TEXT,
           svgIcon: downloadSvg,
-          isDisabled: this.isShowingThoughtProcess,
+          isDisabled: false,
         },
       ] as any}"
       .isDisabled="${this.isDisabled}"
@@ -852,20 +863,11 @@ export class ChatComponent extends LitElement {
         ? ''
         : ''}
           </form>
-        </section>
-        ${this.isShowingThoughtProcess
+        </section>        
+        ${this.showCode?.id
         ? html`
               <aside class="aside" data-testid="aside-thought-process">
-                <div class="aside__header">
-                  <chat-action-button
-                    .label="${globalConfig.HIDE_THOUGH_PROCESS_BUTTON_LABEL_TEXT}"
-                    actionId="chat-hide-thought-process"
-                    @click="${this.collapseAside}"
-                    .svgIcon="${iconClose}"
-                  >
-                  </chat-action-button>
-                </div>
-                ${this.renderChatEntryTabContent(this.selectedChatEntry as ChatThreadEntry)}
+                <code-screen language="${this.showCode.language}" componentId=${this.showCode.id}>${this.showCode.code}</code-screen>
               </aside>
             `
         : ''}
