@@ -164,19 +164,33 @@ export const chatStyle = css`
   .chat__containerWrapper.aside-open {
     display: grid;
     grid-template-columns: 1fr;
+    grid-template-areas: 
+      "chat"
+      "aside";
     grid-column-gap: var(--d-base);
     grid-row-gap: var(--d-base);
 
     @media (min-width: 1024px) {
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr 50%;
+      grid-template-areas: "chat aside";
     }
   }
+  .chat__containerWrapper.aside-open .chat__container {
+    grid-area: chat;
+  }
   .chat__containerWrapper.aside-open .aside {
+    grid-area: aside;
     width: 100%;
     border-left: var(--border-thin) solid var(--c-light-gray);
+    max-width: 600px;
+    min-width: 400px;
 
     @media (max-width: 1024px) {
       width: var(--width-base);
+      max-width: none;
+      min-width: auto;
+      border-left: none;
+      border-top: var(--border-thin) solid var(--c-light-gray);
     }
   }
   @media (max-width: 1024px) {
