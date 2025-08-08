@@ -56,6 +56,17 @@ declare interface RequestOverrides {
   prompt_template_prefix?: string;
   prompt_template_suffix?: string;
   suggest_followup_questions?: boolean;
+
+  selectedModel?: any;
+  aiProvider?: any;
+  avatar?: string;
+  language?: string;
+  knowledge?: string[];
+  conversationId?: string;
+  conversationTitle?: string;
+  userId?: string;
+  webSearchEnabled?: boolean;
+  deepSearchEnabled?: boolean;
 }
 
 declare type MessageRole = 'system' | 'user' | 'assistant' | 'function';

@@ -203,8 +203,8 @@ export class ChatThreadComponent extends LitElement {
     return html`<p class="chat__txt error">${error.message}</p>`;
   }
 
-  private formatTo24Hour(timestamp) {
-    console.log({timestamp});
+  private formatTo24Hour(timestamp: number): string
+  {    
     const date = new Date(timestamp);
     const hours = date.getHours();
     const minutes = date.getMinutes();

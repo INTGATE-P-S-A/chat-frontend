@@ -196,6 +196,7 @@ export class ChatComponent extends LitElement {
 
     // Handle initial messages from external source
     if (changedProperties.has('initialMessages') && this.initialMessages.length > 0) {
+      this.chatThread = [];
       this.chatThread = this.initialMessages.map((message) => {
         let i = 0;
         for (const msgTxt of message.text) {
@@ -456,9 +457,7 @@ export class ChatComponent extends LitElement {
     // clean up the current session content from the history too
     this.chatHistoryController.saveChatHistory(this.chatThread);
     this.collapseAside(event);
-    this.handleUserChatCancel(event);
-
-    console.log({ forced });
+    this.handleUserChatCancel(event);    
 
     if (!forced) {
       const resetEvent = new CustomEvent('chat:conversation:end', {
@@ -628,7 +627,7 @@ export class ChatComponent extends LitElement {
     this.dispatchEvent(speakEvent);
   }
 
-  renderChatThread(chatThread: ChatThreadEntry[]) {
+  renderChatThread(chatThread: ChatThreadEntry[]) {    
     return html`<chat-thread-component
       .chatThread="${chatThread}"
       .actionButtons="${[
@@ -664,10 +663,11 @@ export class ChatComponent extends LitElement {
   }
 
   // Render the chat component as a web component
-  override render() {
+  override render() {    
     return html`
       <div id="overlay" class="overlay"></div>
       <section id="chat__containerWrapper" class="chat__containerWrapper">
+      <div id="chat__title">${this.overrides.conversationTitle}</div>
         ${this.isCustomBranding && !this.isChatStarted
         ? html` <chat-stage
               svgIcon="${iconLogo}"

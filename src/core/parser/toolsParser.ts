@@ -4,8 +4,7 @@ interface GResults {
 }
 
 const toolsParseList = {
-    webSearch: (tool: { name: string, data: { searchQuery: string, results: GResults } }): string => {
-        console.log({ tool })
+    webSearch: (tool: { name: string, data: { searchQuery: string, results: GResults } }): string => {        
         let html = `<div class="web-search-info">
         <strong>Searching web for "${tool.data.searchQuery}"...</strong>`;
 
