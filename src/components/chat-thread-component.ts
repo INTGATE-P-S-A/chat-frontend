@@ -34,6 +34,9 @@ export class ChatThreadComponent extends LitElement {
   @property({ type: Boolean })
   isProcessingResponse = false;
 
+  @property({ type: String })
+  conversationTitle;
+
   @state()
   isResponseCopied = false;
 
@@ -213,47 +216,55 @@ export class ChatThreadComponent extends LitElement {
 
   override render() {
     return html`
+    <div id="chat__thread-container">
+      <div class="chat-topic">
+        <h5>
+          <i class="iconsminds-speach-bubble-9" style="margin-right: 0.5rem;"></i>
+          ${this.conversationTitle}
+        </h5>
+      </div>
       <ul class="chat__list" aria-live="assertive">
         ${this.chatThread.map(
-      (message, index) => {
-        const isLastMessage = index === this.chatThread.length - 1;
-        const showLoadingIndicator = this.isProcessingResponse && isLastMessage && !message.isUserMessage;
+          (message, index) => {
+            const isLastMessage = index === this.chatThread.length - 1;
+            const showLoadingIndicator = this.isProcessingResponse && isLastMessage && !message.isUserMessage;
 
-        return html`
-            <li class="chat__listItem ${message.isUserMessage ? 'user-message' : 'ai-message'}">
-              ${!message.isUserMessage ? html`
-                <div class="message-avatar">
-                  <div class="ai-avatar">AI</div>
-                </div>
-              ` : ''}
-              
-              <div class="message-content">
-                <div class="chat__txt ${message.isUserMessage ? 'user-message' : ''}">
-                  ${message.text.map((textEntry) => this.renderTextEntry(textEntry))} 
-                  ${this.renderCitation(message)}
-                  ${this.renderFollowupQuestions(message)} 
-                  ${message.error ? this.renderError(message.error) : ''}
-                  ${showLoadingIndicator ? html`<loading-indicator label=""></loading-indicator>` : ''}
-                </div>
-                <div class="chat__txt--footer">
-                  <div class="chat__txt--info">
-                    <span class="timestamp">${this.formatTo24Hour(message.timestamp)}</span>                 
+            return html`
+                <li class="chat__listItem ${message.isUserMessage ? 'user-message' : 'ai-message'}">
+                  ${!message.isUserMessage ? html`
+                    <div class="message-avatar">
+                      <div class="ai-avatar">AI</div>
+                    </div>
+                  ` : ''}
+                  
+                  <div class="message-content">
+                    <div class="chat__txt ${message.isUserMessage ? 'user-message' : ''}">
+                      ${message.text.map((textEntry) => this.renderTextEntry(textEntry))} 
+                      ${this.renderCitation(message)}
+                      ${this.renderFollowupQuestions(message)} 
+                      ${message.error ? this.renderError(message.error) : ''}
+                      ${showLoadingIndicator ? html`<loading-indicator label=""></loading-indicator>` : ''}
+                    </div>
+                    <div class="chat__txt--footer">
+                      <div class="chat__txt--info">
+                        <span class="timestamp">${this.formatTo24Hour(message.timestamp)}</span>                 
+                      </div>
+                      <div class="chat__response-actions">                  
+                        ${message.isUserMessage ? '' : this.renderResponseActions(message)}                
+                      </div>
+                    </div>
                   </div>
-                  <div class="chat__response-actions">                  
-                    ${message.isUserMessage ? '' : this.renderResponseActions(message)}                
-                  </div>
-                </div>
-              </div>
-              
-              ${message.isUserMessage ? html`
-                <div class="message-avatar">
-                  <img src="/assets/images/avatar.jpg" alt="User" style="width: 32px; height: 32px; border-radius: 50%;">
-                </div>
-              ` : ''}
-            </li>
-          `},
-    )}
-      </ul>
+                  
+                  ${message.isUserMessage ? html`
+                    <div class="message-avatar">
+                      <img src="/assets/images/avatar.jpg" alt="User" style="width: 32px; height: 32px; border-radius: 50%;">
+                    </div>
+                  ` : ''}
+                </li>
+              `},
+          )}
+        </ul>
+      </div>
       <div class="chat__footer" id="chat-list-footer">
         <!-- Do not delete this element. It is used for auto-scrolling -->
       </div>

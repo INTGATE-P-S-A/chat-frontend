@@ -104,13 +104,19 @@ export function newListWithEntryAtIndex<T>(list: T[], index: number, entry: T) {
 
 export async function addIconSheet(this: LitElement) {
     if(this.shadowRoot){
-      const cssText = await fetch('/assets/css/simple-line-icons.css').then(res => res.text());
+      const simpleIconsText = await fetch('/assets/css/simple-line-icons.css').then(res => res.text());
 
-       const cssSheet = new CSSStyleSheet();
-       await cssSheet.replace(cssText);
+      const simpleIconsSheet = new CSSStyleSheet();
+      await simpleIconsSheet.replace(simpleIconsText);
+
+      const iconsmindsText = await fetch('/assets/css/iconsminds.css').then(res => res.text());
+
+      const iconsmindsSheet = new CSSStyleSheet();
+      await iconsmindsSheet.replace(iconsmindsText);
 
       this.shadowRoot.adoptedStyleSheets = [
-        cssSheet,
+        simpleIconsSheet,
+        iconsmindsSheet,
         ...this.shadowRoot.adoptedStyleSheets,
       ];      
     }    

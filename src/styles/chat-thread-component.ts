@@ -33,12 +33,8 @@ export const styles = css`
     display: flex;
     flex-direction: column;
     list-style-position: inside;
-    padding-inline-start: 0;
+    padding-inline-start: 0;    
     padding: 1rem;
-    margin: 0;
-    border: 1px solid #e3e6f0;
-    border-radius: 0.35rem;
-    background: #f8f9fc;
   }
   .chat__footer {
     width: 100%;
@@ -265,4 +261,21 @@ export const styles = css`
       fill: var(--c-accent-dark); 
     }
   }
+  #chat__thread-container {    
+    margin: 0;
+    border: 1px solid #e3e6f0;
+    border-radius: 0.35rem;
+    background: #f8f9fc;
+  }  
+  .chat-topic {    
+    padding: 1rem;
+    border-bottom: 1px solid #e3e6f0;
+    background: #f8f9fc;
+    border-radius: 0.35rem 0.35rem 0 0;
+  }  
+  .chat-topic h5 {  
+    margin: 0;
+    font-size: 1.1rem;
+    color: #000;
+  }  
 `;

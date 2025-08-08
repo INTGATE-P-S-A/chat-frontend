@@ -35,6 +35,10 @@ export class CodeBlockRule extends BufferingRule {
     if (chunk.includes('<code-viewer') && !chunk.includes('</code-viewer>')) {
       return false;
     }
+
+    if(chunk.endsWith('```')) {      
+      return true;
+    }
     
     // Detect ``` at the beginning of a line or after whitespace 
     // Language might come in the same chunk or in subsequent chunks

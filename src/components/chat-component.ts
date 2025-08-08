@@ -244,8 +244,6 @@ export class ChatComponent extends LitElement {
     // Add progress event listeners
     this.addEventListener('chat:progress', this.handleProgressEvent.bind(this) as EventListener);
 
-    console.log('yoyoy')
-
     this.overrideConfig();
 
     const ev = new CustomEvent('chat-component-connected', {
@@ -457,7 +455,7 @@ export class ChatComponent extends LitElement {
     // clean up the current session content from the history too
     this.chatHistoryController.saveChatHistory(this.chatThread);
     this.collapseAside(event);
-    this.handleUserChatCancel(event);    
+    this.handleUserChatCancel(event);
 
     if (!forced) {
       const resetEvent = new CustomEvent('chat:conversation:end', {
@@ -627,9 +625,49 @@ export class ChatComponent extends LitElement {
     this.dispatchEvent(speakEvent);
   }
 
-  renderChatThread(chatThread: ChatThreadEntry[]) {    
+  /**
+   * Debug method to check slot content - can be called from browser console
+   */
+  public debugSlotContent() {
+    console.log('=== LIT COMPONENT SLOT DEBUG METHOD ===');
+
+    const modelSelectSlot = this.shadowRoot?.querySelector('slot[name="model_select"]');
+    console.log('Model select slot:', modelSelectSlot);
+
+    if (modelSelectSlot) {
+      const slot = modelSelectSlot as HTMLSlotElement;
+      console.log('Slot innerHTML:', slot.innerHTML);
+      console.log('Slot textContent:', slot.textContent);
+      console.log('Assigned nodes:', slot.assignedNodes());
+      console.log('Assigned elements:', slot.assignedElements());
+
+      // Check if there are any nodes with slot="model_select" in the light DOM
+      const lightDOMSlotContent = this.querySelector('[slot="model_select"]');
+      console.log('Light DOM slot content:', lightDOMSlotContent);
+    }
+
+    // Check all slots
+    const allSlots = this.shadowRoot?.querySelectorAll('slot');
+    console.log('All slots:', allSlots);
+
+    // Check light DOM content
+    console.log('Light DOM innerHTML:', this.innerHTML);
+    console.log('All slotted content:', this.querySelectorAll('[slot]'));
+
+    console.log('=== END DEBUG METHOD ===');
+
+    return {
+      modelSelectSlot,
+      allSlots,
+      lightDOMContent: this.innerHTML,
+      shadowDOMContent: this.shadowRoot?.innerHTML
+    };
+  }
+
+  renderChatThread(chatThread: ChatThreadEntry[]) {
     return html`<chat-thread-component
       .chatThread="${chatThread}"
+      .conversationTitle="${this.overrides.conversationTitle}"
       .actionButtons="${[
         // {
         //   id: 'chat-show-thought-process',
@@ -663,11 +701,11 @@ export class ChatComponent extends LitElement {
   }
 
   // Render the chat component as a web component
-  override render() {    
+  override render() {
     return html`
       <div id="overlay" class="overlay"></div>
-      <section id="chat__containerWrapper" class="chat__containerWrapper">
-      <div id="chat__title">${this.overrides.conversationTitle}</div>
+      <section id="chat__containerWrapper" class="chat__containerWrapper">      
+      <div id="chat__title"></div>
         ${this.isCustomBranding && !this.isChatStarted
         ? html` <chat-stage
               svgIcon="${iconLogo}"
@@ -679,7 +717,7 @@ export class ChatComponent extends LitElement {
         <section class="chat__container" id="chat-container">
           ${this.isChatStarted
         ? html`
-                <div class="chat__header--thread">
+                <div class="chat__header--thread">                 
                   ${!this.hideHistory && this.interactionModel === 'chat'
             ? this.chatHistoryController.renderHistoryButton({ disabled: this.isDisabled })
             : ''}                 
@@ -812,11 +850,7 @@ export class ChatComponent extends LitElement {
 
             ${this.isDefaultPromptsEnabled
         ? ''
-        : html`<div class="chat__containerFooter">
-                  <button type="button" @click="${this.showDefaultPrompts}" class="defaults__span button">
-                    ${globalConfig.DISPLAY_DEFAULT_PROMPTS_BUTTON}
-                  </button>
-                </div>`}
+        : ''}
           </form>
         </section>
         ${this.isShowingThoughtProcess
