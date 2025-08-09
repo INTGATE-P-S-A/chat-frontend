@@ -152,11 +152,13 @@ export function processChunkWithBuffering(
     // Special handling for code block language detection
     if (bufferState.bufferingClosure === '__TEMP_CODE_BLOCK_WAITING__') {
       // We were waiting for a language after ```
-      const finisherIndex = processedChunk.indexOf(bufferState.bufferingFinisher);
+      // Accumulate content until we find a newline
+      const combinedContent = bufferState.bufferText + processedChunk;
+      const finisherIndex = combinedContent.indexOf(bufferState.bufferingFinisher);
       
       if (finisherIndex >= 0) {
-        const languageCandidate = processedChunk.substring(0, finisherIndex);
-        const textAfterFinisher = processedChunk.substring(finisherIndex + 1); // Skip the newline
+        const languageCandidate = combinedContent.substring(0, finisherIndex);
+        const textAfterFinisher = combinedContent.substring(finisherIndex + 1); // Skip the newline
         
         // Check if we have a valid language
         const languageMatch = languageCandidate.match(/^(\w+)$/);
@@ -166,29 +168,106 @@ export function processChunkWithBuffering(
           const codeBlockRule = ruleManager.getRule('code-block') as any;
           const normalizedLanguage = codeBlockRule ? codeBlockRule.normalizeLanguage(language) : language;
           
-          // Now start proper code-viewer buffering
+          // Generate a unique ID for the code-viewer using voucher
+          const voucher = require('voucher-code-generator');
+          const codeId = voucher.generate({ count: 1, length: 8 })[0].toLowerCase();
+          
+          // NOW create the code-viewer tag and start proper buffering
+          const openTag = `<code-viewer componentId="${codeId}" language="${normalizedLanguage}">`;
           bufferState.bufferingFinisher = '```';
           bufferState.bufferingClosure = '</code-viewer>';
-          bufferState.bufferText = `<code-viewer language="${normalizedLanguage}">`;
           bufferState.insideCodeViewer = true;
           bufferState.codeViewerDepth = (bufferState.codeViewerDepth || 0) + 1;
           
-          // Continue buffering with the content after newline
-          bufferState.bufferText += textAfterFinisher;
-          return { processedChunk: null, bufferState };
+          // Return the opening tag and start buffering the code content
+          finalChunk = openTag + textAfterFinisher;
+          bufferState.bufferText = ''; // Reset buffer since we're outputting the tag now
+          
+          // Reset buffering state since we're outputting content
+          bufferState.buffering = false;
+          bufferState.skipOne = false;
+          bufferState.linebreakProof = true; // Code blocks are linebreak proof
+          
+          return { processedChunk: finalChunk, bufferState };
         } else {
-          // Not a valid language, treat as regular text
-          finalChunk = bufferState.bufferText + '```' + processedChunk;
-          bufferState.bufferingFinisher = null;
-          bufferState.bufferingClosure = null;
+          // Not a valid language, treat as plaintext
+          const voucher = require('voucher-code-generator');
+          const codeId = voucher.generate({ count: 1, length: 8 })[0].toLowerCase();
+          
+          const openTag = `<code-viewer componentId="${codeId}" language="plaintext">`;
+          bufferState.bufferingFinisher = '```';
+          bufferState.bufferingClosure = '</code-viewer>';
+          bufferState.insideCodeViewer = true;
+          bufferState.codeViewerDepth = (bufferState.codeViewerDepth || 0) + 1;
+          
+          // Treat the languageCandidate as code content
+          finalChunk = openTag + languageCandidate + textAfterFinisher;
           bufferState.bufferText = '';
           bufferState.buffering = false;
           bufferState.skipOne = false;
-          bufferState.linebreakProof = false;
+          bufferState.linebreakProof = true;
+          
           return { processedChunk: finalChunk, bufferState };
         }
       } else {
         // No newline found yet, continue waiting and accumulate content
+        bufferState.bufferText += processedChunk;
+        return { processedChunk: null, bufferState };
+      }
+    } else if (bufferState.bufferingClosure && bufferState.bufferingClosure.startsWith('__TEMP_CODE_BLOCK_LANG_WAITING__')) {
+      // Handle partial language accumulation
+      const partialLanguageMatch = bufferState.bufferingClosure.match(/__TEMP_CODE_BLOCK_LANG_WAITING__([a-zA-Z]+)__/);
+      const partialLanguage = partialLanguageMatch ? partialLanguageMatch[1] : '';
+      
+      const combinedLanguage = partialLanguage + bufferState.bufferText + processedChunk;
+      const finisherIndex = combinedLanguage.indexOf(bufferState.bufferingFinisher);
+      
+      if (finisherIndex >= 0) {
+        const completeLanguage = combinedLanguage.substring(0, finisherIndex);
+        const textAfterFinisher = combinedLanguage.substring(finisherIndex + 1);
+        
+        if (/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(completeLanguage) && completeLanguage.length <= 20) {
+          const codeBlockRule = ruleManager.getRule('code-block') as any;
+          const normalizedLanguage = codeBlockRule ? codeBlockRule.normalizeLanguage(completeLanguage) : completeLanguage;
+          
+          const voucher = require('voucher-code-generator');
+          const codeId = voucher.generate({ count: 1, length: 8 })[0].toLowerCase();
+          
+          // Create the code-viewer tag and output it immediately
+          const openTag = `<code-viewer componentId="${codeId}" language="${normalizedLanguage}">`;
+          finalChunk = openTag + textAfterFinisher;
+          
+          bufferState.bufferingFinisher = '```';
+          bufferState.bufferingClosure = '</code-viewer>';
+          bufferState.insideCodeViewer = true;
+          bufferState.codeViewerDepth = (bufferState.codeViewerDepth || 0) + 1;
+          bufferState.bufferText = '';
+          bufferState.buffering = false;
+          bufferState.skipOne = false;
+          bufferState.linebreakProof = true;
+          
+          return { processedChunk: finalChunk, bufferState };
+        } else {
+          // Invalid language, treat as plaintext
+          const voucher = require('voucher-code-generator');
+          const codeId = voucher.generate({ count: 1, length: 8 })[0].toLowerCase();
+          
+          const openTag = `<code-viewer componentId="${codeId}" language="plaintext">`;
+          finalChunk = openTag + combinedLanguage;
+          
+          bufferState.bufferingFinisher = '```';
+          bufferState.bufferingClosure = '</code-viewer>';
+          bufferState.insideCodeViewer = true;
+          bufferState.codeViewerDepth = (bufferState.codeViewerDepth || 0) + 1;
+          bufferState.bufferText = '';
+          bufferState.buffering = false;
+          bufferState.skipOne = false;
+          bufferState.linebreakProof = true;
+          
+          return { processedChunk: finalChunk, bufferState };
+        }
+      } else {
+        // Still waiting for newline, continue accumulating
         bufferState.bufferText += processedChunk;
         return { processedChunk: null, bufferState };
       }
@@ -228,14 +307,34 @@ export function processChunkWithBuffering(
     return { processedChunk: finalChunk, bufferState };
   } else {
     // Continue buffering
-    bufferState.bufferText += processedChunk;
+    // For code-viewer buffering, ensure we only pass plain text content
+    let textToBuffer = processedChunk;
+    if (bufferState.bufferingClosure === '</code-viewer>') {
+      // Extract plain text content for code-viewer
+      textToBuffer = extractPlainTextForCodeViewer(processedChunk);
+    }
+    
+    bufferState.bufferText += textToBuffer;
     
     if(!bufferState.skipOne){
-      duringBuffering(bufferState, processedChunk);
+      // For code-viewer updates, pass the plain text chunk to updateRenderer
+      duringBuffering(bufferState, bufferState.bufferingClosure === '</code-viewer>' ? textToBuffer : processedChunk);
     }
     bufferState.skipOne = false;
     return { processedChunk: null, bufferState };
   }
+}
+
+/**
+ * Extract plain text content for code-viewer components
+ * This ensures only text content is passed, no HTML tags
+ */
+function extractPlainTextForCodeViewer(content: string): string {
+  if (!content) return content;
+  
+  // For code blocks, we want to preserve all text as-is for proper display
+  // The code-viewer component will handle proper escaping and highlighting
+  return content;
 }
 
 // Usage examples:

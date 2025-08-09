@@ -21,7 +21,7 @@ export async function parseStreamedMessages({
   const reader = createReader(apiResponseBody);
   const chunks = readStream<BotResponseChunk | BotResponseError>(reader);
   let startedCoding = false;
-  let coderId = null;
+  let coderId: string | null = null;
   let citations: Citation[] = [];
   const streamedMessageRaw: string[] = [];
   const bufferState = createBufferState();
@@ -118,12 +118,13 @@ export async function parseStreamedMessages({
       if(bufferInfo.buffering && bufferInfo.bufferingClosure === '</code-viewer>') {   
         const hoster = (host as any);
         try {
-          const codeViewer: { updateRenderer: (text: string) => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[id="'+coderId+'"]');
-          if(codeViewer){            
+          // Use componentId instead of id to find the code-viewer
+          const codeViewer: { updateRenderer: (text: string) => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[componentId="'+coderId+'"]');
+          if(codeViewer && typeof codeViewer.updateRenderer === 'function'){            
             codeViewer.updateRenderer(chunk);     
           }    
         } catch(e){
-          console.error(e);
+          console.error('Error updating code-viewer:', e);
         }      
       }
     });  
@@ -138,7 +139,7 @@ export async function parseStreamedMessages({
         try {
           // Stop code generation on the code-viewer component
           const hoster = (host as any);
-          const codeViewer: { stopCodeGeneration: () => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[id="'+coderId+'"]');
+          const codeViewer: { stopCodeGeneration: () => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[componentId="'+coderId+'"]');
           if(codeViewer && typeof codeViewer.stopCodeGeneration === 'function'){            
             codeViewer.stopCodeGeneration();     
           }    
@@ -155,21 +156,27 @@ export async function parseStreamedMessages({
         // Check if this is the start of a code-viewer buffering
         if(updatedBufferState.buffering && updatedBufferState.bufferingClosure === '</code-viewer>' && !startedCoding && processedChunk.includes('<code-viewer')){
           startedCoding = true;
-          coderId = voucher_codes.generate({
-            length: 10,
-            count: 1,
-            charset: 'alphanumeric',
-          })[0].toLowerCase();
           
-          // Add ID to the code-viewer tag
-          const updatedChunk = processedChunk.replace('<code-viewer', `<code-viewer id="${coderId}"`);
-          updatedEntry = updateTextEntry({ chunkValue: updatedChunk, textBlockIndex, chatEntry: updatedEntry });
+          // Extract the componentId from the generated code-viewer tag
+          const componentIdMatch = processedChunk.match(/componentId="([^"]+)"/);
+          if(componentIdMatch) {
+            coderId = componentIdMatch[1];
+          } else {
+            // Fallback: generate a new ID if not found
+            coderId = voucher_codes.generate({
+              length: 10,
+              count: 1,
+              charset: 'alphanumeric',
+            })[0].toLowerCase();
+          }
+          
+          updatedEntry = updateTextEntry({ chunkValue: processedChunk, textBlockIndex, chatEntry: updatedEntry });
           
           // Start code generation on the code-viewer component
           setTimeout(() => {
             try {
               const hoster = (host as any);
-              const codeViewer: { startCodeGeneration: () => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[id="'+coderId+'"]');
+              const codeViewer: { startCodeGeneration: () => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[componentId="'+coderId+'"]');
               if(codeViewer && typeof codeViewer.startCodeGeneration === 'function'){            
                 codeViewer.startCodeGeneration();     
               }    
@@ -193,13 +200,13 @@ export async function parseStreamedMessages({
         
         // Fallback for cases where processedChunk is null but we're buffering
         const bufferContent = updatedBufferState.bufferText || '';
-        updatedEntry = updateTextEntry({ chunkValue: '<code-viewer id="'+coderId+'">'+bufferContent, textBlockIndex, chatEntry: updatedEntry });
+        updatedEntry = updateTextEntry({ chunkValue: '<code-viewer componentId="'+coderId+'">'+bufferContent, textBlockIndex, chatEntry: updatedEntry });
         
         // Start code generation on the code-viewer component (fallback case)
         setTimeout(() => {
           try {
             const hoster = (host as any);
-            const codeViewer: { startCodeGeneration: () => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[id="'+coderId+'"]');
+            const codeViewer: { startCodeGeneration: () => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[componentId="'+coderId+'"]');
             if(codeViewer && typeof codeViewer.startCodeGeneration === 'function'){            
               codeViewer.startCodeGeneration();     
             }    

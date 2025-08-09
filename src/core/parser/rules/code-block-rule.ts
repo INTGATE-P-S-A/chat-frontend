@@ -36,13 +36,8 @@ export class CodeBlockRule extends BufferingRule {
       return false;
     }
 
-    if(chunk.endsWith('```')) {      
-      return true;
-    }
-    
-    // Detect ``` at the beginning of a line or after whitespace 
-    // Language might come in the same chunk or in subsequent chunks
-    return /(?:^|\s)```/.test(chunk);
+    // Detect ``` - this can appear at any position in the chunk
+    return chunk.includes('```');
   }
 
   tryCompleteMatch(chunk: string, bufferState?: BufferState): CompleteMatchResult | null {
@@ -121,9 +116,9 @@ export class CodeBlockRule extends BufferingRule {
       };
     }
 
-    // Extract content before the opening ``` (look for ``` at start of line or after whitespace)
-    const backtickMatch = chunk.match(/(?:^|\s)(```)/);
-    if (!backtickMatch) {
+    // Find the position of ``` in the chunk
+    const backtickIndex = chunk.indexOf('```');
+    if (backtickIndex === -1) {
       return {
         processedChunk: chunk,
         finisher: '',
@@ -131,7 +126,6 @@ export class CodeBlockRule extends BufferingRule {
       };
     }
     
-    const backtickIndex = chunk.indexOf(backtickMatch[1]);
     const contentBefore = chunk.substring(0, backtickIndex);
     const contentAfterBackticks = chunk.substring(backtickIndex + 3);
     
@@ -151,8 +145,12 @@ export class CodeBlockRule extends BufferingRule {
         const potentialLanguage = contentAfterBackticks.match(/^(\w+)$/);
         if (potentialLanguage && contentAfterBackticks.length <= 20) {
           // This is likely a language waiting for newline in next chunk
-          detectedLanguage = potentialLanguage[1];
-          codeContent = ''; // No code content yet, waiting for newline + code
+          // Start buffering in language-waiting mode
+          return {
+            processedChunk: contentBefore,
+            finisher: '\n', // Wait for newline
+            closure: `__TEMP_CODE_BLOCK_LANG_WAITING__${potentialLanguage[1]}__`
+          };
         } else {
           // Check if we have partial language text that might continue in next chunk
           const partialLanguage = contentAfterBackticks.match(/^([a-zA-Z]+)$/);
@@ -175,10 +173,9 @@ export class CodeBlockRule extends BufferingRule {
       }
     }
 
-    // Handle case where ``` appears at the end of chunk with no language yet
-    // We'll use a special buffering mode to wait for the language in the next chunk
+    // Handle case where ``` appears with no content after (waiting for language in next chunk)
     if (!detectedLanguage) {
-      // Start special "language-waiting" buffering mode
+      // Start special "language-waiting" buffering mode - DO NOT CREATE CODE-VIEWER TAG YET
       return {
         processedChunk: contentBefore,
         finisher: '\n', // Wait for newline that should come after language
@@ -186,23 +183,37 @@ export class CodeBlockRule extends BufferingRule {
       };
     }
 
-    // Create opening tag with detected language
+    // ONLY create opening tag if we have BOTH language AND newline detected in this chunk
     const language = this.normalizeLanguage(detectedLanguage);
     const codeId = voucher.generate({ count: 1, length: 8 })[0].toLowerCase();
     const openTag = `<code-viewer componentId="${codeId}" language="${language}">`;
     
     // Return content before backticks as processed chunk, start buffering from code content
+    // Make sure we only include plain text content inside the code-viewer tag
+    const plainTextContent = this.extractPlainText(codeContent);
     return {
-      processedChunk: contentBefore + openTag + codeContent,
+      processedChunk: contentBefore + openTag + plainTextContent,
       finisher: '```',
       closure: '</code-viewer>'
     };
   }
 
   /**
+   * Extract plain text content from potentially HTML-containing text
+   * This ensures only text content is passed inside code-viewer tags
+   */
+  private extractPlainText(content: string): string {
+    if (!content) return content;
+    
+    // For code blocks, we want to preserve all text as-is, including any HTML-like content
+    // The code-viewer component will handle proper escaping and display
+    return content;
+  }
+
+  /**
    * Handle continuation of buffering when we're waiting for language completion
    */
-  continueBuffering(chunk: string, currentBuffer: string, finisher: string, closure: string): BufferingResult | null {
+  continueBuffering(chunk: string, currentBuffer: string, _finisher: string, closure: string): BufferingResult | null {
     // Handle language-waiting mode
     if (closure.startsWith('__TEMP_CODE_BLOCK_WAITING__')) {
       // Extract any partial language from the closure
@@ -224,9 +235,10 @@ export class CodeBlockRule extends BufferingRule {
           const codeId = voucher.generate({ count: 1, length: 8 })[0].toLowerCase();
           const openTag = `<code-viewer componentId="${codeId}" language="${language}">`;
           
-          // Switch to normal code buffering mode
+          // Switch to normal code buffering mode - ensure only plain text content
+          const plainTextContent = this.extractPlainText(codeContent);
           return {
-            processedChunk: currentBuffer + openTag + codeContent,
+            processedChunk: currentBuffer + openTag + plainTextContent,
             finisher: '```',
             closure: '</code-viewer>'
           };
@@ -235,8 +247,9 @@ export class CodeBlockRule extends BufferingRule {
           const codeId = voucher.generate({ count: 1, length: 8 })[0].toLowerCase();
           const openTag = `<code-viewer componentId="${codeId}" language="plaintext">`;
           
+          const plainTextContent = this.extractPlainText(languageText);
           return {
-            processedChunk: currentBuffer + openTag + languageText,
+            processedChunk: currentBuffer + openTag + plainTextContent,
             finisher: '```',
             closure: '</code-viewer>'
           };
@@ -248,8 +261,9 @@ export class CodeBlockRule extends BufferingRule {
           const codeId = voucher.generate({ count: 1, length: 8 })[0].toLowerCase();
           const openTag = `<code-viewer componentId="${codeId}" language="plaintext">`;
           
+          const plainTextContent = this.extractPlainText(languageText);
           return {
-            processedChunk: currentBuffer + openTag + languageText,
+            processedChunk: currentBuffer + openTag + plainTextContent,
             finisher: '```',
             closure: '</code-viewer>'
           };
