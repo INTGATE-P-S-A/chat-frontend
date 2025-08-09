@@ -11,6 +11,7 @@ export interface BufferState {
   insideListViewer: boolean;
   listViewerDepth: number;
   linebreakProof: boolean;
+  partialClosing?: string; // For tracking partial closing sequences like ` or ``
 }
 
 export interface ParseOptions {
@@ -31,6 +32,7 @@ export function createBufferState(): BufferState {
     insideListViewer: false,
     listViewerDepth: 0,
     linebreakProof: false,
+    partialClosing: undefined,
   };
 }
 
@@ -141,11 +143,126 @@ export function processChunkWithBuffering(
     return { processedChunk, bufferState };
   }
 
-  // Handle buffering completion
-  if (bufferState.bufferingFinisher && 
-      bufferState.bufferingClosure && 
-      processedChunk.includes(bufferState.bufferingFinisher) && 
-      !bufferState.skipOne) {
+  // Handle buffering completion - with support for partial closing sequences
+  if (bufferState.bufferingFinisher && bufferState.bufferingClosure) {
+    
+    // Special case for code-viewer: need to handle partial ``` detection
+    if (bufferState.bufferingClosure === '</code-viewer>' && bufferState.bufferingFinisher === '```') {
+      // Build the partial + chunk content to check
+      let partialPlusChunk = '';
+      
+      if (bufferState.partialClosing) {
+        partialPlusChunk = bufferState.partialClosing + processedChunk;
+      } else {
+        partialPlusChunk = processedChunk;
+      }
+      
+      // Check if the partial + chunk creates a complete ``` anywhere
+      if (partialPlusChunk.includes('```')) {
+        console.log('BUFFERER: DETECTED CLOSING ``` - ENDING CODE BLOCK');
+        console.log('BUFFERER: DETECTED CLOSING ``` - ENDING CODE BLOCK');
+        // Found complete ``` - END THE CODE BLOCK immediately without calling duringBuffering
+        const finisherIndex = partialPlusChunk.indexOf('```');
+        const beforeFinisher = partialPlusChunk.substring(0, finisherIndex);
+        const afterFinisher = partialPlusChunk.substring(finisherIndex + 3);
+        
+        // The final text is just the buffer (don't include the partial bits)
+        let finalText = bufferState.bufferText;
+        
+        // If there was content before the ``` in the partial+chunk, add it to final text
+        if (beforeFinisher && !bufferState.partialClosing) {
+          finalText += beforeFinisher;
+        }
+        
+        let finalChunk = finalText + '</code-viewer>';
+        
+        // Handle any content after the closing ```
+        if (afterFinisher) {
+          const remainingResult = processChunkWithBuffering(afterFinisher, {
+            ...bufferState,
+            buffering: false,
+            bufferingClosure: null,
+            bufferingFinisher: null,
+            bufferText: '',
+            skipOne: false,
+            partialClosing: undefined,
+            linebreakProof: bufferState.insideCodeViewer && bufferState.codeViewerDepth > 1
+          }, duringBuffering);
+          
+          if (remainingResult.processedChunk) {
+            finalChunk += remainingResult.processedChunk;
+          }
+          
+          Object.assign(bufferState, remainingResult.bufferState);
+        }
+
+        // Reset buffer state
+        bufferState.bufferingFinisher = null;
+        bufferState.bufferingClosure = null;
+        bufferState.bufferText = '';
+        bufferState.buffering = false;
+        bufferState.skipOne = false;
+        bufferState.linebreakProof = false;
+        bufferState.partialClosing = undefined;
+        
+        bufferState.codeViewerDepth = Math.max(0, (bufferState.codeViewerDepth || 1) - 1);
+        bufferState.insideCodeViewer = bufferState.codeViewerDepth > 0;
+        if (bufferState.insideCodeViewer) {
+          bufferState.linebreakProof = true;
+        }
+
+        return { processedChunk: finalChunk, bufferState };
+      } else {
+        // No complete ``` found yet, check if we have a new partial sequence
+        // We need to check if current content ends with potential partial sequences
+        const fullCurrentContent = bufferState.bufferText + partialPlusChunk;
+        
+        let newPartialMatch = '';
+        
+        // Check for partial sequences at the very end: ` or ``
+        if (fullCurrentContent.endsWith('``')) {
+          newPartialMatch = '``';
+        } else if (fullCurrentContent.endsWith('`')) {
+          newPartialMatch = '`';
+        }
+        
+        if (newPartialMatch) {
+          // Found new partial sequence at end
+          const contentBeforePartial = fullCurrentContent.substring(0, fullCurrentContent.length - newPartialMatch.length);
+          
+          // The buffer should contain everything except the partial sequence
+          const bufferTextLength = bufferState.bufferText.length;
+          if (contentBeforePartial.length >= bufferTextLength) {
+            // Some content from this chunk should be added to buffer
+            const contentToAdd = contentBeforePartial.substring(bufferTextLength);
+            if (contentToAdd) {
+              const textToBuffer = extractPlainTextForCodeViewer(contentToAdd);
+              bufferState.bufferText += textToBuffer;
+              duringBuffering(bufferState, textToBuffer);
+            }
+          }
+          
+          bufferState.partialClosing = newPartialMatch;
+          return { processedChunk: null, bufferState };
+        } else {
+          // No partial sequence detected, process content normally
+          // If we had a partial sequence from before, it's not completing - include it as content
+          let contentToProcess = processedChunk;
+          if (bufferState.partialClosing) {
+            contentToProcess = bufferState.partialClosing + processedChunk;
+            bufferState.partialClosing = undefined;
+          }
+          
+          const textToBuffer = extractPlainTextForCodeViewer(contentToProcess);
+          bufferState.bufferText += textToBuffer;
+          duringBuffering(bufferState, textToBuffer);
+          return { processedChunk: null, bufferState };
+        }
+      }
+    }
+    
+    // Handle other types of buffering (non-code-viewer) - original logic
+    if (processedChunk.includes(bufferState.bufferingFinisher)) {
 
     let finalChunk: string;
     
@@ -183,8 +300,8 @@ export function processChunkWithBuffering(
           finalChunk = openTag + textAfterFinisher;
           bufferState.bufferText = ''; // Reset buffer since we're outputting the tag now
           
-          // Reset buffering state since we're outputting content
-          bufferState.buffering = false;
+          // CONTINUE BUFFERING until we find the closing ```
+          bufferState.buffering = true;
           bufferState.skipOne = false;
           bufferState.linebreakProof = true; // Code blocks are linebreak proof
           
@@ -203,7 +320,7 @@ export function processChunkWithBuffering(
           // Treat the languageCandidate as code content
           finalChunk = openTag + languageCandidate + textAfterFinisher;
           bufferState.bufferText = '';
-          bufferState.buffering = false;
+          bufferState.buffering = true;  // Continue buffering until closing ```
           bufferState.skipOne = false;
           bufferState.linebreakProof = true;
           
@@ -279,7 +396,7 @@ export function processChunkWithBuffering(
       
       finalChunk = bufferState.bufferText + contentBeforeFinisher + bufferState.bufferingClosure + textAfterFinisher;
     } else {
-      // Handle other buffering types (including code blocks)
+      // Handle other buffering types
       const finisherIndex = processedChunk.indexOf(bufferState.bufferingFinisher);
       const contentBeforeFinisher = processedChunk.substring(0, finisherIndex);
       const textAfterFinisher = processedChunk.substring(finisherIndex + bufferState.bufferingFinisher.length);
@@ -298,31 +415,44 @@ export function processChunkWithBuffering(
     if (wasCodeViewer) {
       bufferState.codeViewerDepth = Math.max(0, (bufferState.codeViewerDepth || 1) - 1);
       bufferState.insideCodeViewer = bufferState.codeViewerDepth > 0;
-      // Keep linebreakProof true if still inside code viewer
       if (bufferState.insideCodeViewer) {
         bufferState.linebreakProof = true;
       }
     }
 
     return { processedChunk: finalChunk, bufferState };
-  } else {
-    // Continue buffering
-    // For code-viewer buffering, ensure we only pass plain text content
-    let textToBuffer = processedChunk;
-    if (bufferState.bufferingClosure === '</code-viewer>') {
-      // Extract plain text content for code-viewer
-      textToBuffer = extractPlainTextForCodeViewer(processedChunk);
     }
-    
-    bufferState.bufferText += textToBuffer;
-    
-    if(!bufferState.skipOne){
-      // For code-viewer updates, pass the plain text chunk to updateRenderer
-      duringBuffering(bufferState, bufferState.bufferingClosure === '</code-viewer>' ? textToBuffer : processedChunk);
-    }
-    bufferState.skipOne = false;
-    return { processedChunk: null, bufferState };
   }
+
+  // Continue buffering - BUT NOT if we're about to close a code-viewer with ```
+  if (bufferState.bufferingClosure === '</code-viewer>') {
+    // Check if this chunk contains ``` which should close the code block
+    let partialPlusChunk = '';
+    if (bufferState.partialClosing) {
+      partialPlusChunk = bufferState.partialClosing + processedChunk;
+    } else {
+      partialPlusChunk = processedChunk;
+    }
+    
+    // If this chunk contains ```, DO NOT call duringBuffering - the closing logic above should have handled it
+    if (partialPlusChunk.includes('```')) {
+      console.log('ERROR: ``` detected in fallback logic - this should have been handled above!');
+      return { processedChunk: null, bufferState };
+    }
+  }
+  
+  let textToBuffer = processedChunk;
+  if (bufferState.bufferingClosure === '</code-viewer>') {
+    textToBuffer = extractPlainTextForCodeViewer(processedChunk);
+  }
+  
+  bufferState.bufferText += textToBuffer;
+  
+  if (!bufferState.skipOne) {
+    duringBuffering(bufferState, bufferState.bufferingClosure === '</code-viewer>' ? textToBuffer : processedChunk);
+  }
+  bufferState.skipOne = false;
+  return { processedChunk: null, bufferState };
 }
 
 /**
