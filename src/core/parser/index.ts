@@ -112,41 +112,15 @@ export async function parseStreamedMessages({
 
     streamedMessageRaw.push(chunkValue);      
 
-    // Check if we're about to close a code block before processing
-    let codeBlockEnding = false;
-    if (bufferState.buffering && bufferState.bufferingClosure === '</code-viewer>' && bufferState.bufferingFinisher === '```') {
-      // Check if this chunk would complete a ``` sequence (including partial sequences)
-      let partialPlusChunk = '';
-      
-      if (bufferState.partialClosing) {
-        partialPlusChunk = bufferState.partialClosing + chunkValue;
-      } else {
-        partialPlusChunk = chunkValue;
-      }
-      
-      // Check if the partial + chunk creates a complete ```
-      if (partialPlusChunk.includes('```')) {
-        codeBlockEnding = true;
-        // Stop code generation immediately
-        try {
-          const hoster = (host as any);
-          const codeViewer: { stopCodeGeneration: () => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[componentId="'+coderId+'"]');
-          if(codeViewer && typeof codeViewer.stopCodeGeneration === 'function'){            
-            codeViewer.stopCodeGeneration();     
-          }    
-        } catch(e){
-          console.error('Error stopping code generation:', e);
-        }
-      }
-    }
+    // Store previous buffering state to detect completion
+    const wasBufferingCodeViewer = bufferState.buffering && bufferState.bufferingClosure === '</code-viewer>';
 
     // Process chunk with buffering
     const { processedChunk, bufferState: updatedBufferState } = processChunkWithBuffering(chunkValue, bufferState, (bufferInfo, chunk) => {
-      // Only update code-viewer if we're not ending the code block AND it's actually a code-viewer
-      if(bufferInfo.buffering && bufferInfo.bufferingClosure === '</code-viewer>' && !codeBlockEnding) {   
+      // Update code-viewer if we're actively buffering a code-viewer
+      if(bufferInfo.buffering && bufferInfo.bufferingClosure === '</code-viewer>' && coderId) {   
         const hoster = (host as any);
         try {
-          // Use componentId instead of id to find the code-viewer
           const codeViewer: { updateRenderer: (text: string) => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[componentId="'+coderId+'"]');
           if(codeViewer && typeof codeViewer.updateRenderer === 'function'){            
             codeViewer.updateRenderer(chunk);     
@@ -155,10 +129,31 @@ export async function parseStreamedMessages({
           console.error('Error updating code-viewer:', e);
         }      
       }
-    });  
+    });
+
+    // Check if code-viewer buffering just completed
+    const codeViewerJustCompleted = wasBufferingCodeViewer && !updatedBufferState.buffering && startedCoding;
     
-    // Only update text entry when we have a processed chunk (either normal or completed buffering)
-    if (processedChunk !== null) {
+    if(codeViewerJustCompleted) {
+      // Stop code generation immediately when buffering completes
+      try {
+        const hoster = (host as any);
+        const codeViewer: { stopCodeGeneration: () => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[componentId="'+coderId+'"]');
+        if(codeViewer && typeof codeViewer.stopCodeGeneration === 'function'){            
+          codeViewer.stopCodeGeneration();     
+        }    
+      } catch(e){
+        console.error('Error stopping code generation:', e);
+      }
+    }  
+    
+    // Check if we're currently streaming to a code-viewer
+    const isStreamingToCodeViewer = updatedBufferState.buffering && 
+                                   updatedBufferState.bufferingClosure === '</code-viewer>' && 
+                                   startedCoding;
+    
+    // Only update text entry when we have a processed chunk AND we're not streaming to code-viewer
+    if (processedChunk !== null && !isStreamingToCodeViewer) {
       // Check if this chunk contains a new code-viewer tag being created
       if(processedChunk.includes('<code-viewer') && !startedCoding) {
         startedCoding = true;
@@ -181,15 +176,9 @@ export async function parseStreamedMessages({
             }
           }, 100); // Small delay to ensure component is rendered
         }
-      }
-      
-      // Check if buffering just completed for a code-viewer (closing ``` detected)
-      const wasBufferingCodeViewer = bufferState.buffering && bufferState.bufferingClosure === '</code-viewer>';
-      const isNoLongerBuffering = !updatedBufferState.buffering;
-      const bufferingJustCompleted = wasBufferingCodeViewer && isNoLongerBuffering && startedCoding;
-      
-      if(bufferingJustCompleted){
-        // Code-viewer just completed, reset state (stopCodeGeneration already called earlier)
+      }      // Handle code-viewer completion (reset state)
+      if(codeViewerJustCompleted){
+        // Code-viewer just completed, reset state (stopCodeGeneration already called)
         coderId = null;
         startedCoding = false;
       }

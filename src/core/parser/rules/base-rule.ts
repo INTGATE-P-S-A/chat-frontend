@@ -25,6 +25,30 @@ export abstract class BufferingRule {
   abstract startBuffering(chunk: string, bufferState?: any): BufferingResult;
   
   /**
+   * Continue buffering when we're in the middle of a rule's processing
+   * Override this method to handle continuation of buffering with special logic
+   */
+  continueBuffering(_chunk: string, _currentBuffer: string, _finisher: string, _closure: string, _bufferState?: any): BufferingResult | null {
+    return null; // Default: let the generic buffering logic handle it
+  }
+
+  /**
+   * Handle completion of buffering when finisher is found
+   * Override this method to handle special completion logic (like partial sequences)
+   */
+  handleBufferingCompletion(_chunk: string, _currentBuffer: string, _finisher: string, _closure: string, _bufferState?: any): { finalChunk: string; remainingChunk: string; shouldContinue: boolean } | null {
+    return null; // Default: let the generic buffering logic handle it
+  }
+
+  /**
+   * Extract and transform content that should be buffered
+   * Override this method to process content before adding it to buffer
+   */
+  processBufferContent(content: string): string {
+    return content; // Default: no transformation
+  }
+  
+  /**
    * Process full text with regex patterns (for non-streaming scenarios)
    * Override this method to provide full-text processing for each rule
    */

@@ -12,6 +12,7 @@ export interface BufferState {
   listViewerDepth: number;
   linebreakProof: boolean;
   partialClosing?: string; // For tracking partial closing sequences like ` or ``
+  currentRule?: string; // Track which rule is currently buffering
 }
 
 export interface ParseOptions {
@@ -33,6 +34,7 @@ export function createBufferState(): BufferState {
     listViewerDepth: 0,
     linebreakProof: false,
     partialClosing: undefined,
+    currentRule: undefined,
   };
 }
 
@@ -124,16 +126,15 @@ export function processChunkWithBuffering(
     const ruleResult = ruleManager.processChunk(processedChunk, bufferState);
     
     if (ruleResult) {
-      if (ruleResult.processedChunk !== null) {
-        // Rule completed immediately, return the result
+      bufferState.currentRule = ruleResult.ruleApplied;
+      
+      if (!bufferState.buffering) {
+        // Rule completed immediately (not buffering), return the result
         return { processedChunk: ruleResult.processedChunk, bufferState: ruleResult.bufferState };
       } else {
-        // Rule started buffering, update the processed chunk
-        const rule = ruleManager.getRule(ruleResult.ruleApplied!);
-        if (rule) {
-          const bufferingResult = rule.startBuffering(processedChunk);
-          processedChunk = bufferingResult.processedChunk;
-        }
+        // Rule started buffering, processedChunk is the immediate output
+        // Return the immediate output (like <code-viewer> tag) and continue buffering on next chunk
+        return { processedChunk: ruleResult.processedChunk, bufferState: ruleResult.bufferState };
       }
     }
   }
@@ -143,51 +144,67 @@ export function processChunkWithBuffering(
     return { processedChunk, bufferState };
   }
 
-  // Handle buffering completion - with support for partial closing sequences
-  if (bufferState.bufferingFinisher && bufferState.bufferingClosure) {
+  // Handle buffering continuation with rule-specific logic
+  if (bufferState.currentRule && bufferState.bufferingFinisher && bufferState.bufferingClosure) {
+    console.log('🔄 BUFFERER: Handling buffering for rule:', bufferState.currentRule, 'with finisher:', bufferState.bufferingFinisher);
     
-    // Special case for code-viewer: need to handle partial ``` detection
-    if (bufferState.bufferingClosure === '</code-viewer>' && bufferState.bufferingFinisher === '```') {
-      // Build the partial + chunk content to check
-      let partialPlusChunk = '';
-      
-      if (bufferState.partialClosing) {
-        partialPlusChunk = bufferState.partialClosing + processedChunk;
-      } else {
-        partialPlusChunk = processedChunk;
+    // First try rule-specific continuation logic
+    const continuationResult = ruleManager.continueBuffering(
+      processedChunk,
+      bufferState,
+      bufferState.currentRule
+    );
+
+    if (continuationResult) {
+      if (!continuationResult.shouldContinue) {
+        // Rule wants to complete buffering
+        return { processedChunk: continuationResult.processedChunk, bufferState };
       }
       
-      // Check if the partial + chunk creates a complete ``` anywhere
-      if (partialPlusChunk.includes('```')) {
-        console.log('BUFFERER: DETECTED CLOSING ``` - ENDING CODE BLOCK');
-        console.log('BUFFERER: DETECTED CLOSING ``` - ENDING CODE BLOCK');
-        // Found complete ``` - END THE CODE BLOCK immediately without calling duringBuffering
-        const finisherIndex = partialPlusChunk.indexOf('```');
-        const beforeFinisher = partialPlusChunk.substring(0, finisherIndex);
-        const afterFinisher = partialPlusChunk.substring(finisherIndex + 3);
+      // Rule handled continuation, add to buffer if needed
+      if (continuationResult.processedChunk) {
+        bufferState.bufferText += continuationResult.processedChunk;
+        duringBuffering(bufferState, continuationResult.processedChunk);
+      }
+      return { processedChunk: null, bufferState };
+    }
+
+    // If rule returned null, it wants main completion logic to handle finisher detection
+    // Check for finisher including partial sequences
+    const partialClosing = bufferState.partialClosing || '';
+    const combinedChunk = partialClosing + processedChunk;
+    
+    if (combinedChunk.includes(bufferState.bufferingFinisher)) {
+      console.log('🎯 BUFFERER: Found finisher in combined chunk, attempting completion. Finisher:', bufferState.bufferingFinisher, 'Rule:', bufferState.currentRule);
+      
+      // Try rule-specific completion logic first
+      const completionResult = ruleManager.handleCompletion(
+        processedChunk,
+        bufferState,
+        bufferState.currentRule
+      );
+
+      if (completionResult) {
+        // Rule handled completion
+        let finalChunk = completionResult.finalChunk;
         
-        // The final text is just the buffer (don't include the partial bits)
-        let finalText = bufferState.bufferText;
-        
-        // If there was content before the ``` in the partial+chunk, add it to final text
-        if (beforeFinisher && !bufferState.partialClosing) {
-          finalText += beforeFinisher;
-        }
-        
-        let finalChunk = finalText + '</code-viewer>';
-        
-        // Handle any content after the closing ```
-        if (afterFinisher) {
-          const remainingResult = processChunkWithBuffering(afterFinisher, {
-            ...bufferState,
-            buffering: false,
-            bufferingClosure: null,
-            bufferingFinisher: null,
-            bufferText: '',
-            skipOne: false,
-            partialClosing: undefined,
-            linebreakProof: bufferState.insideCodeViewer && bufferState.codeViewerDepth > 1
-          }, duringBuffering);
+        // Handle any remaining content after completion
+        if (completionResult.remainingChunk) {
+          const remainingResult = processChunkWithBuffering(
+            completionResult.remainingChunk,
+            {
+              ...bufferState,
+              buffering: false,
+              bufferingClosure: null,
+              bufferingFinisher: null,
+              bufferText: '',
+              skipOne: false,
+              partialClosing: undefined,
+              currentRule: undefined,
+              linebreakProof: bufferState.insideCodeViewer && bufferState.codeViewerDepth > 1
+            },
+            duringBuffering
+          );
           
           if (remainingResult.processedChunk) {
             finalChunk += remainingResult.processedChunk;
@@ -196,7 +213,8 @@ export function processChunkWithBuffering(
           Object.assign(bufferState, remainingResult.bufferState);
         }
 
-        // Reset buffer state
+        // Always reset buffer state after completion
+        const wasCodeViewer = bufferState.bufferingClosure === '</code-viewer>';
         bufferState.bufferingFinisher = null;
         bufferState.bufferingClosure = null;
         bufferState.bufferText = '';
@@ -204,267 +222,78 @@ export function processChunkWithBuffering(
         bufferState.skipOne = false;
         bufferState.linebreakProof = false;
         bufferState.partialClosing = undefined;
+        bufferState.currentRule = undefined;
         
+        if (wasCodeViewer) {
+          bufferState.codeViewerDepth = Math.max(0, (bufferState.codeViewerDepth || 1) - 1);
+          bufferState.insideCodeViewer = bufferState.codeViewerDepth > 0;
+          if (bufferState.insideCodeViewer) {
+            bufferState.linebreakProof = true;
+          }
+        }
+
+        return { processedChunk: finalChunk, bufferState };
+      }
+
+      // Fallback to generic completion logic
+      const finisherIndex = processedChunk.indexOf(bufferState.bufferingFinisher);
+      const contentBeforeFinisher = processedChunk.substring(0, finisherIndex);
+      const textAfterFinisher = processedChunk.substring(finisherIndex + bufferState.bufferingFinisher.length);
+      
+      const finalChunk = bufferState.bufferText + contentBeforeFinisher + bufferState.bufferingClosure + textAfterFinisher;
+
+      // Call stopCodeGeneration if this was a code-viewer completion
+      const wasCodeViewer = bufferState.bufferingClosure === '</code-viewer>';
+      if (wasCodeViewer) {
+        // Extract componentId from bufferText to find the component
+        const componentIdMatch = bufferState.bufferText.match(/componentId="([^"]+)"/);
+        if (componentIdMatch) {
+          const componentId = componentIdMatch[1];
+          
+          setTimeout(() => {
+            const codeViewer = document.querySelector(`code-viewer[componentId="${componentId}"]`) as any;
+            if (codeViewer && typeof codeViewer.stopCodeGeneration === 'function') {
+              codeViewer.stopCodeGeneration();
+            }
+          }, 0);
+        }
+      }
+
+      // Reset buffer state
+      bufferState.bufferingFinisher = null;
+      bufferState.bufferingClosure = null;
+      bufferState.bufferText = '';
+      bufferState.buffering = false;
+      bufferState.skipOne = false;
+      bufferState.linebreakProof = false;
+      bufferState.partialClosing = undefined;
+      bufferState.currentRule = undefined;
+      
+      if (wasCodeViewer) {
         bufferState.codeViewerDepth = Math.max(0, (bufferState.codeViewerDepth || 1) - 1);
         bufferState.insideCodeViewer = bufferState.codeViewerDepth > 0;
         if (bufferState.insideCodeViewer) {
           bufferState.linebreakProof = true;
         }
-
-        return { processedChunk: finalChunk, bufferState };
-      } else {
-        // No complete ``` found yet, check if we have a new partial sequence
-        // We need to check if current content ends with potential partial sequences
-        const fullCurrentContent = bufferState.bufferText + partialPlusChunk;
-        
-        let newPartialMatch = '';
-        
-        // Check for partial sequences at the very end: ` or ``
-        if (fullCurrentContent.endsWith('``')) {
-          newPartialMatch = '``';
-        } else if (fullCurrentContent.endsWith('`')) {
-          newPartialMatch = '`';
-        }
-        
-        if (newPartialMatch) {
-          // Found new partial sequence at end
-          const contentBeforePartial = fullCurrentContent.substring(0, fullCurrentContent.length - newPartialMatch.length);
-          
-          // The buffer should contain everything except the partial sequence
-          const bufferTextLength = bufferState.bufferText.length;
-          if (contentBeforePartial.length >= bufferTextLength) {
-            // Some content from this chunk should be added to buffer
-            const contentToAdd = contentBeforePartial.substring(bufferTextLength);
-            if (contentToAdd) {
-              const textToBuffer = extractPlainTextForCodeViewer(contentToAdd);
-              bufferState.bufferText += textToBuffer;
-              duringBuffering(bufferState, textToBuffer);
-            }
-          }
-          
-          bufferState.partialClosing = newPartialMatch;
-          return { processedChunk: null, bufferState };
-        } else {
-          // No partial sequence detected, process content normally
-          // If we had a partial sequence from before, it's not completing - include it as content
-          let contentToProcess = processedChunk;
-          if (bufferState.partialClosing) {
-            contentToProcess = bufferState.partialClosing + processedChunk;
-            bufferState.partialClosing = undefined;
-          }
-          
-          const textToBuffer = extractPlainTextForCodeViewer(contentToProcess);
-          bufferState.bufferText += textToBuffer;
-          duringBuffering(bufferState, textToBuffer);
-          return { processedChunk: null, bufferState };
-        }
       }
-    }
-    
-    // Handle other types of buffering (non-code-viewer) - original logic
-    if (processedChunk.includes(bufferState.bufferingFinisher)) {
 
-    let finalChunk: string;
-    
-    // Special handling for code block language detection
-    if (bufferState.bufferingClosure === '__TEMP_CODE_BLOCK_WAITING__') {
-      // We were waiting for a language after ```
-      // Accumulate content until we find a newline
-      const combinedContent = bufferState.bufferText + processedChunk;
-      const finisherIndex = combinedContent.indexOf(bufferState.bufferingFinisher);
-      
-      if (finisherIndex >= 0) {
-        const languageCandidate = combinedContent.substring(0, finisherIndex);
-        const textAfterFinisher = combinedContent.substring(finisherIndex + 1); // Skip the newline
-        
-        // Check if we have a valid language
-        const languageMatch = languageCandidate.match(/^(\w+)$/);
-        if (languageMatch) {
-          const language = languageMatch[1];
-          const ruleManager = new BufferingRuleManager();
-          const codeBlockRule = ruleManager.getRule('code-block') as any;
-          const normalizedLanguage = codeBlockRule ? codeBlockRule.normalizeLanguage(language) : language;
-          
-          // Generate a unique ID for the code-viewer using voucher
-          const voucher = require('voucher-code-generator');
-          const codeId = voucher.generate({ count: 1, length: 8 })[0].toLowerCase();
-          
-          // NOW create the code-viewer tag and start proper buffering
-          const openTag = `<code-viewer componentId="${codeId}" language="${normalizedLanguage}">`;
-          bufferState.bufferingFinisher = '```';
-          bufferState.bufferingClosure = '</code-viewer>';
-          bufferState.insideCodeViewer = true;
-          bufferState.codeViewerDepth = (bufferState.codeViewerDepth || 0) + 1;
-          
-          // Return the opening tag and start buffering the code content
-          finalChunk = openTag + textAfterFinisher;
-          bufferState.bufferText = ''; // Reset buffer since we're outputting the tag now
-          
-          // CONTINUE BUFFERING until we find the closing ```
-          bufferState.buffering = true;
-          bufferState.skipOne = false;
-          bufferState.linebreakProof = true; // Code blocks are linebreak proof
-          
-          return { processedChunk: finalChunk, bufferState };
-        } else {
-          // Not a valid language, treat as plaintext
-          const voucher = require('voucher-code-generator');
-          const codeId = voucher.generate({ count: 1, length: 8 })[0].toLowerCase();
-          
-          const openTag = `<code-viewer componentId="${codeId}" language="plaintext">`;
-          bufferState.bufferingFinisher = '```';
-          bufferState.bufferingClosure = '</code-viewer>';
-          bufferState.insideCodeViewer = true;
-          bufferState.codeViewerDepth = (bufferState.codeViewerDepth || 0) + 1;
-          
-          // Treat the languageCandidate as code content
-          finalChunk = openTag + languageCandidate + textAfterFinisher;
-          bufferState.bufferText = '';
-          bufferState.buffering = true;  // Continue buffering until closing ```
-          bufferState.skipOne = false;
-          bufferState.linebreakProof = true;
-          
-          return { processedChunk: finalChunk, bufferState };
-        }
-      } else {
-        // No newline found yet, continue waiting and accumulate content
-        bufferState.bufferText += processedChunk;
-        return { processedChunk: null, bufferState };
-      }
-    } else if (bufferState.bufferingClosure && bufferState.bufferingClosure.startsWith('__TEMP_CODE_BLOCK_LANG_WAITING__')) {
-      // Handle partial language accumulation
-      const partialLanguageMatch = bufferState.bufferingClosure.match(/__TEMP_CODE_BLOCK_LANG_WAITING__([a-zA-Z]+)__/);
-      const partialLanguage = partialLanguageMatch ? partialLanguageMatch[1] : '';
-      
-      const combinedLanguage = partialLanguage + bufferState.bufferText + processedChunk;
-      const finisherIndex = combinedLanguage.indexOf(bufferState.bufferingFinisher);
-      
-      if (finisherIndex >= 0) {
-        const completeLanguage = combinedLanguage.substring(0, finisherIndex);
-        const textAfterFinisher = combinedLanguage.substring(finisherIndex + 1);
-        
-        if (/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(completeLanguage) && completeLanguage.length <= 20) {
-          const codeBlockRule = ruleManager.getRule('code-block') as any;
-          const normalizedLanguage = codeBlockRule ? codeBlockRule.normalizeLanguage(completeLanguage) : completeLanguage;
-          
-          const voucher = require('voucher-code-generator');
-          const codeId = voucher.generate({ count: 1, length: 8 })[0].toLowerCase();
-          
-          // Create the code-viewer tag and output it immediately
-          const openTag = `<code-viewer componentId="${codeId}" language="${normalizedLanguage}">`;
-          finalChunk = openTag + textAfterFinisher;
-          
-          bufferState.bufferingFinisher = '```';
-          bufferState.bufferingClosure = '</code-viewer>';
-          bufferState.insideCodeViewer = true;
-          bufferState.codeViewerDepth = (bufferState.codeViewerDepth || 0) + 1;
-          bufferState.bufferText = '';
-          bufferState.buffering = false;
-          bufferState.skipOne = false;
-          bufferState.linebreakProof = true;
-          
-          return { processedChunk: finalChunk, bufferState };
-        } else {
-          // Invalid language, treat as plaintext
-          const voucher = require('voucher-code-generator');
-          const codeId = voucher.generate({ count: 1, length: 8 })[0].toLowerCase();
-          
-          const openTag = `<code-viewer componentId="${codeId}" language="plaintext">`;
-          finalChunk = openTag + combinedLanguage;
-          
-          bufferState.bufferingFinisher = '```';
-          bufferState.bufferingClosure = '</code-viewer>';
-          bufferState.insideCodeViewer = true;
-          bufferState.codeViewerDepth = (bufferState.codeViewerDepth || 0) + 1;
-          bufferState.bufferText = '';
-          bufferState.buffering = false;
-          bufferState.skipOne = false;
-          bufferState.linebreakProof = true;
-          
-          return { processedChunk: finalChunk, bufferState };
-        }
-      } else {
-        // Still waiting for newline, continue accumulating
-        bufferState.bufferText += processedChunk;
-        return { processedChunk: null, bufferState };
-      }
-    } else if (bufferState.bufferingFinisher === '\n') {
-      // Handle header completion with single newline
-      const finisherIndex = processedChunk.indexOf(bufferState.bufferingFinisher);
-      const contentBeforeFinisher = processedChunk.substring(0, finisherIndex);
-      const textAfterFinisher = processedChunk.substring(finisherIndex);
-      
-      finalChunk = bufferState.bufferText + contentBeforeFinisher + bufferState.bufferingClosure + textAfterFinisher;
-    } else {
-      // Handle other buffering types
-      const finisherIndex = processedChunk.indexOf(bufferState.bufferingFinisher);
-      const contentBeforeFinisher = processedChunk.substring(0, finisherIndex);
-      const textAfterFinisher = processedChunk.substring(finisherIndex + bufferState.bufferingFinisher.length);
-      
-      finalChunk = bufferState.bufferText + contentBeforeFinisher + bufferState.bufferingClosure + textAfterFinisher;
-    }
-
-    // Reset buffer state
-    const wasCodeViewer = bufferState.bufferingClosure === '</code-viewer>';
-    bufferState.bufferingFinisher = null;
-    bufferState.bufferingClosure = null;
-    bufferState.bufferText = '';
-    bufferState.buffering = false;
-    bufferState.skipOne = false;
-    bufferState.linebreakProof = false;
-    if (wasCodeViewer) {
-      bufferState.codeViewerDepth = Math.max(0, (bufferState.codeViewerDepth || 1) - 1);
-      bufferState.insideCodeViewer = bufferState.codeViewerDepth > 0;
-      if (bufferState.insideCodeViewer) {
-        bufferState.linebreakProof = true;
-      }
-    }
-
-    return { processedChunk: finalChunk, bufferState };
+      return { processedChunk: finalChunk, bufferState };
     }
   }
 
-  // Continue buffering - BUT NOT if we're about to close a code-viewer with ```
-  if (bufferState.bufferingClosure === '</code-viewer>') {
-    // Check if this chunk contains ``` which should close the code block
-    let partialPlusChunk = '';
-    if (bufferState.partialClosing) {
-      partialPlusChunk = bufferState.partialClosing + processedChunk;
-    } else {
-      partialPlusChunk = processedChunk;
-    }
-    
-    // If this chunk contains ```, DO NOT call duringBuffering - the closing logic above should have handled it
-    if (partialPlusChunk.includes('```')) {
-      console.log('ERROR: ``` detected in fallback logic - this should have been handled above!');
-      return { processedChunk: null, bufferState };
-    }
-  }
-  
+  // Continue buffering - process content through rule if available
   let textToBuffer = processedChunk;
-  if (bufferState.bufferingClosure === '</code-viewer>') {
-    textToBuffer = extractPlainTextForCodeViewer(processedChunk);
+  if (bufferState.currentRule) {
+    textToBuffer = ruleManager.processContentForBuffer(processedChunk, bufferState.currentRule);
   }
   
   bufferState.bufferText += textToBuffer;
   
   if (!bufferState.skipOne) {
-    duringBuffering(bufferState, bufferState.bufferingClosure === '</code-viewer>' ? textToBuffer : processedChunk);
+    duringBuffering(bufferState, textToBuffer);
   }
   bufferState.skipOne = false;
   return { processedChunk: null, bufferState };
-}
-
-/**
- * Extract plain text content for code-viewer components
- * This ensures only text content is passed, no HTML tags
- */
-function extractPlainTextForCodeViewer(content: string): string {
-  if (!content) return content;
-  
-  // For code blocks, we want to preserve all text as-is for proper display
-  // The code-viewer component will handle proper escaping and highlighting
-  return content;
 }
 
 // Usage examples:

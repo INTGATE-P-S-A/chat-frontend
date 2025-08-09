@@ -122,6 +122,91 @@ export class BufferingRuleManager {
   }
 
   /**
+   * Continue buffering with rule-specific logic
+   */
+  continueBuffering(
+    chunk: string,
+    bufferState: BufferState,
+    ruleApplied: string
+  ): { processedChunk: string | null; shouldContinue: boolean } | null {
+    const rule = this.getRule(ruleApplied);
+    if (!rule) {
+      return null;
+    }
+
+    // Try rule-specific continuation logic first
+    const continueResult = rule.continueBuffering(
+      chunk,
+      bufferState.bufferText,
+      bufferState.bufferingFinisher || '',
+      bufferState.bufferingClosure || '',
+      bufferState
+    );
+
+    if (continueResult) {
+      // Update buffer state based on rule result
+      bufferState.bufferingFinisher = continueResult.finisher;
+      bufferState.bufferingClosure = continueResult.closure;
+      
+      return {
+        processedChunk: continueResult.processedChunk,
+        shouldContinue: true
+      };
+    }
+
+    return null; // Rule doesn't handle continuation
+  }
+
+  /**
+   * Handle completion with rule-specific logic
+   */
+  handleCompletion(
+    chunk: string,
+    bufferState: BufferState,
+    ruleApplied: string
+  ): { finalChunk: string; remainingChunk: string; shouldReset: boolean } | null {
+    console.log('🎯 RULE_MANAGER: handleCompletion called for rule:', ruleApplied);
+    const rule = this.getRule(ruleApplied);
+    if (!rule) {
+      console.log('❌ RULE_MANAGER: Rule not found:', ruleApplied);
+      return null;
+    }
+
+    // Try rule-specific completion logic first
+    const completionResult = rule.handleBufferingCompletion(
+      chunk,
+      bufferState.bufferText,
+      bufferState.bufferingFinisher || '',
+      bufferState.bufferingClosure || '',
+      bufferState
+    );
+
+    if (completionResult) {
+      console.log('✅ RULE_MANAGER: Rule handled completion:', completionResult);
+      return {
+        finalChunk: completionResult.finalChunk,
+        remainingChunk: completionResult.remainingChunk,
+        shouldReset: !completionResult.shouldContinue
+      };
+    }
+
+    console.log('❌ RULE_MANAGER: Rule did not handle completion');
+    return null; // Rule doesn't handle completion
+  }
+
+  /**
+   * Process content for buffering using rule-specific logic
+   */
+  processContentForBuffer(content: string, ruleApplied: string): string {
+    const rule = this.getRule(ruleApplied);
+    if (!rule) {
+      return content;
+    }
+
+    return rule.processBufferContent(content);
+  }
+
+  /**
    * Process full text using all rules (for non-streaming scenarios)
    */
   processFullText(text: string): string {
