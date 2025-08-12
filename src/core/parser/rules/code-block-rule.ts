@@ -12,7 +12,8 @@ export class CodeBlockRule extends BufferingRule {
   }
 
 
-  private openingCheck = '';
+  private openingCheck = '';  
+
   private static createdCodeViewers = new Set<string>(); // Track created code-viewer IDs
 
   // Common programming languages for detection
@@ -252,7 +253,7 @@ export class CodeBlockRule extends BufferingRule {
     // Return just the opening tag - content will be handled by main parser
     return {
       processedChunk: contentBefore + openTag,
-      finisher: '```',
+      finisher: undefined, // Use detectFinish() method instead
       closure: closeTag
     };
   }
@@ -267,6 +268,18 @@ export class CodeBlockRule extends BufferingRule {
     // For code blocks, we want to preserve all text as-is, including any HTML-like content
     // The code-viewer component will handle proper escaping and display
     return content;
+  }
+
+  /**
+   * Detect if code block should finish (when finisher is undefined)
+   */
+  override detectFinish(chunk: string, _currentBuffer: string, bufferState?: BufferState): boolean {
+    // Handle partial ``` sequences from previous chunks
+    const partialClosing = bufferState?.partialClosing || '';
+    const combinedChunk = partialClosing + chunk;    
+    
+    // Check if combined chunk contains complete finisher ```
+    return combinedChunk.includes('```');
   }
 
   /**
@@ -294,8 +307,9 @@ export class CodeBlockRule extends BufferingRule {
       }
       
       // Update buffer state with new partial sequence
-      if (_bufferState) {
+      if (_bufferState && newPartialClosing !== '') {
         _bufferState.partialClosing = newPartialClosing;
+        return null;
       }
       
       // For streaming mode, send content via updateRenderer, not processedChunk
@@ -332,14 +346,14 @@ export class CodeBlockRule extends BufferingRule {
             if (contentWithoutLanguage) {
               return {
                 processedChunk: this.extractPlainText(contentWithoutLanguage),
-                finisher: '```',
+                finisher: undefined,
                 closure: '</code-viewer>'
               };
             }
             
             return {
               processedChunk: '', // No content after language removal
-              finisher: '```',
+              finisher: undefined,
               closure: '</code-viewer>'
             };
           }
@@ -349,7 +363,7 @@ export class CodeBlockRule extends BufferingRule {
         // Return content so it can be processed by the main parser's duringBuffering
         return {
           processedChunk: this.extractPlainText(chunk),
-          finisher: '```',
+          finisher: undefined,
           closure: '</code-viewer>'
         };
       }
@@ -357,7 +371,7 @@ export class CodeBlockRule extends BufferingRule {
       // Return empty processedChunk since content goes via duringBuffering callback in main parser
       return {
         processedChunk: this.extractPlainText(chunk),
-        finisher: '```',
+        finisher: undefined,
         closure: '</code-viewer>'
       };
     }
@@ -387,7 +401,7 @@ export class CodeBlockRule extends BufferingRule {
           const plainTextContent = this.extractPlainText(codeContent);
           return {
             processedChunk: openTag + plainTextContent,
-            finisher: '```',
+            finisher: undefined,
             closure: '</code-viewer>'
           };
         } else {
@@ -398,7 +412,7 @@ export class CodeBlockRule extends BufferingRule {
           const plainTextContent = this.extractPlainText(languageText);
           return {
             processedChunk: openTag + plainTextContent,
-            finisher: '```',
+            finisher: undefined,
             closure: '</code-viewer>'
           };
         }
@@ -412,7 +426,7 @@ export class CodeBlockRule extends BufferingRule {
           const plainTextContent = this.extractPlainText(languageText);
           return {
             processedChunk: openTag + plainTextContent,
-            finisher: '```',
+            finisher: undefined,
             closure: '</code-viewer>'
           };
         }

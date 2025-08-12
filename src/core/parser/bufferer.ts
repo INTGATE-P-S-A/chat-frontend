@@ -2,7 +2,7 @@ import { BufferingRuleManager } from './buffering-rules';
 
 export interface BufferState {
   buffering: boolean;
-  bufferingFinisher: string | null;
+  bufferingFinisher: string | undefined | null;
   bufferingClosure: string | null;
   bufferText: string;
   skipOne: boolean;
@@ -149,35 +149,44 @@ export function processChunkWithBuffering(
   }
 
   // Handle buffering continuation with rule-specific logic
-  if (bufferState.currentRule && bufferState.bufferingFinisher && bufferState.bufferingClosure) {
+  if (bufferState.currentRule && bufferState.bufferingClosure) {
     
-    // First try rule-specific continuation logic
-    const continuationResult = ruleManager.continueBuffering(
-      processedChunk,
-      bufferState,
-      bufferState.currentRule
-    );
-
-    if (continuationResult) {
-      if (!continuationResult.shouldContinue) {
-        // Rule wants to complete buffering
-        return { processedChunk: continuationResult.processedChunk, bufferState };
-      }
-      
-      // Rule handled continuation, add to buffer if needed
-      if (continuationResult.processedChunk) {
-        bufferState.bufferText += continuationResult.processedChunk;
-        duringBuffering(bufferState, continuationResult.processedChunk);
-      }
-      return { processedChunk: null, bufferState };
+    // Check if we should finish buffering using detectFinish() when no finisher is set
+    let shouldFinish = false;
+    
+    if (!bufferState.bufferingFinisher) {
+      // No finisher set, use rule-specific detectFinish()
+      shouldFinish = ruleManager.detectFinish(processedChunk, bufferState, bufferState.currentRule) === true;
+    } else {
+      // Check for finisher including partial sequences
+      const partialClosing = bufferState.partialClosing || '';
+      const combinedChunk = partialClosing + processedChunk;
+      shouldFinish = combinedChunk.includes(bufferState.bufferingFinisher);
     }
 
-    // If rule returned null, it wants main completion logic to handle finisher detection
-    // Check for finisher including partial sequences
-    const partialClosing = bufferState.partialClosing || '';
-    const combinedChunk = partialClosing + processedChunk;
-    
-    if (combinedChunk.includes(bufferState.bufferingFinisher)) {
+    if (!shouldFinish) {
+      // First try rule-specific continuation logic
+      const continuationResult = ruleManager.continueBuffering(
+        processedChunk,
+        bufferState,
+        bufferState.currentRule
+      );
+
+      if (continuationResult) {
+        if (!continuationResult.shouldContinue) {
+          // Rule wants to complete buffering
+          return { processedChunk: continuationResult.processedChunk, bufferState };
+        }
+        
+        // Rule handled continuation, add to buffer if needed
+        if (continuationResult.processedChunk) {
+          bufferState.bufferText += continuationResult.processedChunk;
+          duringBuffering(bufferState, continuationResult.processedChunk);
+        }
+        return { processedChunk: null, bufferState };
+      }
+    } else {
+      // Should finish buffering - handle completion
       
       // Try rule-specific completion logic first
       const completionResult = ruleManager.handleCompletion(
@@ -243,50 +252,91 @@ export function processChunkWithBuffering(
         return { processedChunk: finalChunk, bufferState };
       }
 
-      // Fallback to generic completion logic
-      const finisherIndex = processedChunk.indexOf(bufferState.bufferingFinisher);
-      const contentBeforeFinisher = processedChunk.substring(0, finisherIndex);
-      const textAfterFinisher = processedChunk.substring(finisherIndex + bufferState.bufferingFinisher.length);
-      
-      const finalChunk = bufferState.bufferText + contentBeforeFinisher + bufferState.bufferingClosure + textAfterFinisher;
+      // Fallback to generic completion logic (only if we have a finisher)
+      if (bufferState.bufferingFinisher) {
+        const finisherIndex = processedChunk.indexOf(bufferState.bufferingFinisher);
+        const contentBeforeFinisher = processedChunk.substring(0, finisherIndex);
+        const textAfterFinisher = processedChunk.substring(finisherIndex + bufferState.bufferingFinisher.length);
+        
+        const finalChunk = bufferState.bufferText + contentBeforeFinisher + bufferState.bufferingClosure + textAfterFinisher;
 
-      // Call stopCodeGeneration if this was a code-viewer completion
-      const wasCodeViewer = bufferState.bufferingClosure === '</code-viewer>';
-      if (wasCodeViewer) {
-        // Extract componentId from bufferText to find the component
-        const componentIdMatch = bufferState.bufferText.match(/componentId="([^"]+)"/);
-        if (componentIdMatch) {
-          const componentId = componentIdMatch[1];
-          
-          const codeViewer = document.querySelector(`code-viewer[componentId="${componentId}"]`) as any;
-          if (codeViewer && typeof codeViewer.stopCodeGeneration === 'function') {
-            codeViewer.stopCodeGeneration();
+        // Call stopCodeGeneration if this was a code-viewer completion
+        const wasCodeViewer = bufferState.bufferingClosure === '</code-viewer>';
+        if (wasCodeViewer) {
+          // Extract componentId from bufferText to find the component
+          const componentIdMatch = bufferState.bufferText.match(/componentId="([^"]+)"/);
+          if (componentIdMatch) {
+            const componentId = componentIdMatch[1];
+            
+            const codeViewer = document.querySelector(`code-viewer[componentId="${componentId}"]`) as any;
+            if (codeViewer && typeof codeViewer.stopCodeGeneration === 'function') {
+              codeViewer.stopCodeGeneration();
+            }
           }
         }
-      }
 
-      // Reset buffer state
-      bufferState.bufferingFinisher = null;
-      bufferState.bufferingClosure = null;
-      bufferState.bufferText = '';
-      bufferState.buffering = false;
-      bufferState.skipOne = false;
-      bufferState.linebreakProof = false;
-      bufferState.partialClosing = undefined;
-      bufferState.currentRule = undefined;
-      bufferState.currentCodeViewerId = undefined;
-      bufferState.waitingForLanguage = undefined;
-      
-      if (wasCodeViewer) {
-        bufferState.codeViewerDepth = Math.max(0, (bufferState.codeViewerDepth || 1) - 1);
-        bufferState.insideCodeViewer = bufferState.codeViewerDepth > 0;
-        if (bufferState.insideCodeViewer) {
-          bufferState.linebreakProof = true;
+        // Reset buffer state
+        bufferState.bufferingFinisher = null;
+        bufferState.bufferingClosure = null;
+        bufferState.bufferText = '';
+        bufferState.buffering = false;
+        bufferState.skipOne = false;
+        bufferState.linebreakProof = false;
+        bufferState.partialClosing = undefined;
+        bufferState.currentRule = undefined;
+        bufferState.currentCodeViewerId = undefined;
+        bufferState.waitingForLanguage = undefined;
+        
+        if (wasCodeViewer) {
+          bufferState.codeViewerDepth = Math.max(0, (bufferState.codeViewerDepth || 1) - 1);
+          bufferState.insideCodeViewer = bufferState.codeViewerDepth > 0;
+          if (bufferState.insideCodeViewer) {
+            bufferState.linebreakProof = true;
+          }
         }
+
+        return { processedChunk: finalChunk, bufferState };
+      } else {
+        // No finisher set and detectFinish() returned true - complete with just the closure
+        const finalChunk = bufferState.bufferText + bufferState.bufferingClosure + processedChunk;
+
+        // Call stopCodeGeneration if this was a code-viewer completion
+        const wasCodeViewer = bufferState.bufferingClosure === '</code-viewer>';
+        if (wasCodeViewer) {
+          // Extract componentId from bufferText to find the component
+          const componentIdMatch = bufferState.bufferText.match(/componentId="([^"]+)"/);
+          if (componentIdMatch) {
+            const componentId = componentIdMatch[1];
+            
+            const codeViewer = document.querySelector(`code-viewer[componentId="${componentId}"]`) as any;
+            if (codeViewer && typeof codeViewer.stopCodeGeneration === 'function') {
+              codeViewer.stopCodeGeneration();
+            }
+          }
+        }
+
+        // Reset buffer state
+        bufferState.bufferingFinisher = null;
+        bufferState.bufferingClosure = null;
+        bufferState.bufferText = '';
+        bufferState.buffering = false;
+        bufferState.skipOne = false;
+        bufferState.linebreakProof = false;
+        bufferState.partialClosing = undefined;
+        bufferState.currentRule = undefined;
+        bufferState.currentCodeViewerId = undefined;
+        bufferState.waitingForLanguage = undefined;
+        
+        if (wasCodeViewer) {
+          bufferState.codeViewerDepth = Math.max(0, (bufferState.codeViewerDepth || 1) - 1);
+          bufferState.insideCodeViewer = bufferState.codeViewerDepth > 0;
+          if (bufferState.insideCodeViewer) {
+            bufferState.linebreakProof = true;
+          }
+        }
+
+        return { processedChunk: finalChunk, bufferState };
       }
-
-
-      return { processedChunk: finalChunk, bufferState };
     }
   }
 
@@ -304,19 +354,3 @@ export function processChunkWithBuffering(
   bufferState.skipOne = false;
   return { processedChunk: null, bufferState };
 }
-
-// Usage examples:
-// 
-// 1. Parse full message at once (fastest, most reliable):
-// const result = parseFullMessage("# Header\n\nSome **bold** text with ```code```");
-//
-// 2. Parse full message using chunk-based processing:
-// const result = processFullMessageAsChunks("# Header\n\nSome **bold** text", 5);
-//
-// 3. Use unified API:
-// const result = parseText("# Header\n\nSome **bold** text", { mode: 'full' });
-// const result2 = parseText("# Header\n\nSome **bold** text", { mode: 'chunked-full', chunkSize: 10 });
-//
-// 4. Continue using chunk-based processing for streaming:
-// const bufferState = createBufferState();
-// const { processedChunk } = processChunkWithBuffering(chunk, bufferState);

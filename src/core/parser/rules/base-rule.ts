@@ -9,7 +9,7 @@ export interface CompleteMatchResult {
 
 export interface BufferingResult {
   processedChunk: string;
-  finisher: string;
+  finisher?: string;
   closure: string;
 }
 
@@ -40,6 +40,18 @@ export abstract class BufferingRule {
    */
   handleBufferingCompletion(_chunk: string, _currentBuffer: string, _finisher: string, _closure: string, _bufferState?: any): { finalChunk: string; remainingChunk: string; shouldContinue: boolean } | null {
     return null; // Default: let the generic buffering logic handle it
+  }
+
+  /**
+   * Detect if buffering should finish based on the current chunk
+   * Override this method when finisher is undefined in BufferingResult
+   * @param chunk - Current chunk being processed
+   * @param currentBuffer - Current buffer content
+   * @param bufferState - Current buffer state
+   * @returns true if buffering should finish, false otherwise
+   */
+  detectFinish(_chunk: string, _currentBuffer: string, _bufferState?: any): boolean | null {
+    return false; // Default: don't finish buffering
   }
 
   /**

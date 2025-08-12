@@ -93,7 +93,7 @@ export class BufferingRuleManager {
         // Start buffering
         const bufferingResult = rule.startBuffering(chunk, bufferState);
         bufferState.buffering = true;
-        bufferState.bufferingFinisher = bufferingResult.finisher;
+        bufferState.bufferingFinisher = bufferingResult.finisher || null;
         bufferState.bufferingClosure = bufferingResult.closure;
         bufferState.bufferText = bufferState.bufferText || ''; // Initialize bufferText if not set
         
@@ -210,6 +210,22 @@ export class BufferingRuleManager {
     }
 
     return rule.processBufferContent(content);
+  }
+
+  /**
+   * Check if buffering should finish using rule-specific logic when no finisher is set
+   */
+  detectFinish(
+    chunk: string,
+    bufferState: BufferState,
+    ruleApplied: string
+  ): boolean | null {
+    const rule = this.getRule(ruleApplied);
+    if (!rule) {
+      return false;
+    }
+
+    return rule.detectFinish(chunk, bufferState.bufferText, bufferState);
   }
 
   /**
