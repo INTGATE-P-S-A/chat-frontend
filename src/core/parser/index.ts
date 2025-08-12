@@ -58,8 +58,8 @@ export async function parseStreamedMessages({
       try {
         updatedEntry = updateTextEntry({ chunkValue: parseTool(chunk.tool), textBlockIndex, chatEntry: updatedEntry });      
         onVisit(updatedEntry);
-      }catch(e){
-        console.log(e)
+      } catch(e) {
+        // Handle error silently or add proper error handling if needed
       }
        
         continue;

@@ -165,10 +165,8 @@ export class BufferingRuleManager {
     bufferState: BufferState,
     ruleApplied: string
   ): { finalChunk: string; remainingChunk: string; shouldReset: boolean } | null {
-    console.log('🎯 RULE_MANAGER: handleCompletion called for rule:', ruleApplied);
     const rule = this.getRule(ruleApplied);
     if (!rule) {
-      console.log('❌ RULE_MANAGER: Rule not found:', ruleApplied);
       return null;
     }
 
@@ -182,7 +180,6 @@ export class BufferingRuleManager {
     );
 
     if (completionResult) {
-      console.log('✅ RULE_MANAGER: Rule handled completion:', completionResult);
       return {
         finalChunk: completionResult.finalChunk,
         remainingChunk: completionResult.remainingChunk,
@@ -190,7 +187,6 @@ export class BufferingRuleManager {
       };
     }
 
-    console.log('❌ RULE_MANAGER: Rule did not handle completion');
     return null; // Rule doesn't handle completion
   }
 

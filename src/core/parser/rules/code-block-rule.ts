@@ -168,13 +168,13 @@ export class CodeBlockRule extends BufferingRule {
     }
     
     // Create the code-viewer tag immediately
-    const openTag = `<code-viewer componentId="${codeId}" language="${language}">`;
+    const openTag = `<code-viewer streaming="true" componentId="${codeId}" language="${language}">`;
     const closeTag = '</code-viewer>';
     
     // Extract plain text content to put inside the tag initially
     const plainTextContent = this.extractPlainText(codeContent);
-    
-    console.log('✅ CODE_BLOCK_RULE: Creating code-viewer with ID:', codeId, 'language:', language);
+
+    console.log({plainTextContent})
     
     // Return the complete code-viewer tag with any initial content
     return {
@@ -208,7 +208,6 @@ export class CodeBlockRule extends BufferingRule {
       
       // Check if combined chunk contains complete finisher ```
       if (combinedChunk.includes('```')) {
-        console.log('🎯 CODE_BLOCK_RULE: Found complete ``` finisher (partial + chunk), returning null for completion');
         return null; // Let main completion logic handle it
       }
       
@@ -331,11 +330,9 @@ export class CodeBlockRule extends BufferingRule {
    * Handle special completion logic for code blocks with partial ``` detection
    */
   override handleBufferingCompletion(chunk: string, currentBuffer: string, finisher: string, closure: string, bufferState?: any): { finalChunk: string; remainingChunk: string; shouldContinue: boolean } | null {
-    console.log('🎯 CODE_BLOCK_RULE: handleBufferingCompletion called', { finisher, closure });
     
     // Only handle code-viewer completion
     if (closure !== '</code-viewer>' || finisher !== '```') {
-      console.log('❌ CODE_BLOCK_RULE: Not handling completion - wrong finisher/closure');
       return null;
     }
 
@@ -345,7 +342,6 @@ export class CodeBlockRule extends BufferingRule {
     
     // Check if the partial + chunk creates a complete ``` anywhere
     if (partialPlusChunk.includes('```')) {
-      console.log('✅ CODE_BLOCK_RULE: Found complete ``` - completing code block');
       
       // Found complete ``` - END THE CODE BLOCK immediately
       const finisherIndex = partialPlusChunk.indexOf('```');
@@ -369,24 +365,15 @@ export class CodeBlockRule extends BufferingRule {
       const componentIdMatch = currentBuffer.match(/componentId="([^"]+)"/);
       if (componentIdMatch) {
         const componentId = componentIdMatch[1];
-        console.log('🛑 CODE_BLOCK_RULE: Attempting to call stopCodeGeneration for component:', componentId);
         
         setTimeout(() => {
           const codeViewer = document.querySelector(`code-viewer[componentId="${componentId}"]`) as any;
           if (codeViewer) {
-            console.log('✅ CODE_BLOCK_RULE: Found code-viewer component, calling stopCodeGeneration');
             if (typeof codeViewer.stopCodeGeneration === 'function') {
               codeViewer.stopCodeGeneration();
-              console.log('🎉 CODE_BLOCK_RULE: Successfully called stopCodeGeneration');
-            } else {
-              console.log('❌ CODE_BLOCK_RULE: stopCodeGeneration method not found on component');
             }
-          } else {
-            console.log('❌ CODE_BLOCK_RULE: Could not find code-viewer component with ID:', componentId);
           }
         }, 0);
-      } else {
-        console.log('❌ CODE_BLOCK_RULE: Could not extract componentId from currentBuffer');
       }
       
       return {

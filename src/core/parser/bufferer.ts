@@ -146,7 +146,6 @@ export function processChunkWithBuffering(
 
   // Handle buffering continuation with rule-specific logic
   if (bufferState.currentRule && bufferState.bufferingFinisher && bufferState.bufferingClosure) {
-    console.log('🔄 BUFFERER: Handling buffering for rule:', bufferState.currentRule, 'with finisher:', bufferState.bufferingFinisher);
     
     // First try rule-specific continuation logic
     const continuationResult = ruleManager.continueBuffering(
@@ -175,7 +174,6 @@ export function processChunkWithBuffering(
     const combinedChunk = partialClosing + processedChunk;
     
     if (combinedChunk.includes(bufferState.bufferingFinisher)) {
-      console.log('🎯 BUFFERER: Found finisher in combined chunk, attempting completion. Finisher:', bufferState.bufferingFinisher, 'Rule:', bufferState.currentRule);
       
       // Try rule-specific completion logic first
       const completionResult = ruleManager.handleCompletion(
