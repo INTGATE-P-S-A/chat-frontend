@@ -21,6 +21,8 @@ export async function parseStreamedMessages({
   const chunks = readStream<BotResponseChunk | BotResponseError>(reader);
   let startedCoding = false;
   let coderId: string | null = null;
+  let codeViewerCreated = false; // Track if we've already created the code-viewer
+  let codeGenerationStopped = false; // Track if we've already stopped code generation
   let citations: Citation[] = [];
   const streamedMessageRaw: string[] = [];
   const bufferState = createBufferState();
@@ -141,6 +143,7 @@ export async function parseStreamedMessages({
         const codeViewer: { stopCodeGeneration: () => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[componentId="'+coderId+'"]');
         if(codeViewer && typeof codeViewer.stopCodeGeneration === 'function'){            
           codeViewer.stopCodeGeneration();     
+          codeGenerationStopped = true; // Mark that we've stopped generation
         }    
       } catch(e){
         console.error('Error stopping code generation:', e);
@@ -153,10 +156,12 @@ export async function parseStreamedMessages({
                                    startedCoding;
     
     // Only update text entry when we have a processed chunk AND we're not streaming to code-viewer
-    if (processedChunk !== null && !isStreamingToCodeViewer) {
+    // AND we haven't already stopped code generation (to prevent post-completion updates)
+    if (processedChunk !== null && !isStreamingToCodeViewer && !codeGenerationStopped) {
       // Check if this chunk contains a new code-viewer tag being created
-      if(processedChunk.includes('<code-viewer') && !startedCoding) {
+      if(processedChunk.includes('<code-viewer') && !startedCoding && !codeViewerCreated) {
         startedCoding = true;
+        codeViewerCreated = true; // Mark that we've created the component
         
         // Extract the componentId from the generated code-viewer tag
         const componentIdMatch = processedChunk.match(/componentId="([^"]+)"/);
@@ -176,15 +181,25 @@ export async function parseStreamedMessages({
             }
           }, 100); // Small delay to ensure component is rendered
         }
-      }      // Handle code-viewer completion (reset state)
+        
+        // Add the code-viewer tag to DOM immediately - this creates the component ONCE
+        updatedEntry = updateTextEntry({ chunkValue: processedChunk, textBlockIndex, chatEntry: updatedEntry });
+      } else if(processedChunk.includes('<code-viewer') && codeViewerCreated) {
+        // If we already created a code-viewer and this chunk has another one, COMPLETELY IGNORE IT
+        console.log('🚫 MAIN_PARSER: Ignoring duplicate code-viewer chunk after creation');
+        // Do nothing - don't add this chunk to prevent recreation
+      } else if(!processedChunk.includes('<code-viewer')) {
+        // Only add chunks that don't contain code-viewer tags
+        updatedEntry = updateTextEntry({ chunkValue: processedChunk, textBlockIndex, chatEntry: updatedEntry });
+      }
+      
+      // Handle code-viewer completion (reset state)
       if(codeViewerJustCompleted){
         // Code-viewer just completed, reset state (stopCodeGeneration already called)
         coderId = null;
         startedCoding = false;
+        // DON'T reset codeViewerCreated - once created, never recreate
       }
-      
-      // Update the text entry with the processed chunk
-      updatedEntry = updateTextEntry({ chunkValue: processedChunk, textBlockIndex, chatEntry: updatedEntry });
     }
     
     // Update buffer state for next iteration

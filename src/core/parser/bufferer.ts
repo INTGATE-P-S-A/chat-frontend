@@ -13,6 +13,8 @@ export interface BufferState {
   linebreakProof: boolean;
   partialClosing?: string; // For tracking partial closing sequences like ` or ``
   currentRule?: string; // Track which rule is currently buffering
+  currentCodeViewerId?: string; // Track the current code-viewer component ID for streaming
+  waitingForLanguage?: boolean; // Track if we're waiting for language completion
 }
 
 export interface ParseOptions {
@@ -221,6 +223,8 @@ export function processChunkWithBuffering(
         bufferState.linebreakProof = false;
         bufferState.partialClosing = undefined;
         bufferState.currentRule = undefined;
+        bufferState.currentCodeViewerId = undefined;
+        bufferState.waitingForLanguage = undefined;
         
         if (wasCodeViewer) {
           bufferState.codeViewerDepth = Math.max(0, (bufferState.codeViewerDepth || 1) - 1);
@@ -229,6 +233,9 @@ export function processChunkWithBuffering(
             bufferState.linebreakProof = true;
           }
         }
+
+              console.log({finalChunk})
+
 
         return { processedChunk: finalChunk, bufferState };
       }
@@ -266,6 +273,8 @@ export function processChunkWithBuffering(
       bufferState.linebreakProof = false;
       bufferState.partialClosing = undefined;
       bufferState.currentRule = undefined;
+      bufferState.currentCodeViewerId = undefined;
+      bufferState.waitingForLanguage = undefined;
       
       if (wasCodeViewer) {
         bufferState.codeViewerDepth = Math.max(0, (bufferState.codeViewerDepth || 1) - 1);
@@ -274,6 +283,7 @@ export function processChunkWithBuffering(
           bufferState.linebreakProof = true;
         }
       }
+
 
       return { processedChunk: finalChunk, bufferState };
     }

@@ -5,6 +5,8 @@ import voucher from 'voucher-code-generator';
 export class CodeBlockRule extends BufferingRule {
   readonly name = 'code-block';
   readonly priority = 4;
+  
+  private static createdCodeViewers = new Set<string>(); // Track created code-viewer IDs
 
   // Common programming languages for detection
   private readonly supportedLanguages = new Set([
@@ -51,6 +53,13 @@ export class CodeBlockRule extends BufferingRule {
       return null;
     }
     
+    // CRITICAL: Don't process if we have ANY existing code-viewer in the current context
+    // This prevents the infinite recreation loop
+    if (bufferState?.currentCodeViewerId) {
+      console.log('⚠️ CODE_BLOCK_RULE: Skipping complete match - code-viewer already exists:', bufferState.currentCodeViewerId);
+      return null;
+    }
+    
     // Check if we're inside an existing code-viewer tag by looking at the chunk content
     if (chunk.includes('<code-viewer') && !chunk.includes('</code-viewer>')) {
       return null;
@@ -68,7 +77,14 @@ export class CodeBlockRule extends BufferingRule {
       if (rawLanguage && rawLanguage.trim()) {
         const language = this.normalizeLanguage(rawLanguage);
         const codeId = voucher.generate({ count: 1 ,length:8 })[0].toLowerCase();
-        const replacement = `<code-viewer componentId="${codeId}" language="${language}">${content}</code-viewer>`;
+        
+        // Track this code-viewer to prevent duplicates
+        CodeBlockRule.createdCodeViewers.add(codeId);
+        setTimeout(() => CodeBlockRule.createdCodeViewers.delete(codeId), 30000);
+        
+        console.log('✅ CODE_BLOCK_RULE: Creating complete code-viewer with ID:', codeId, 'language:', language);
+        
+        const replacement = `<code-viewer componentId="${codeId}" language="${language}" streaming="false">${content}</code-viewer>`;
         
         // Find the position of the match in the chunk
         const matchIndex = chunk.indexOf(fullMatch);
@@ -132,10 +148,14 @@ export class CodeBlockRule extends BufferingRule {
     // Generate unique ID for the code-viewer
     const codeId = voucher.generate({ count: 1, length: 8 })[0].toLowerCase();
     
+    // Store the componentId in buffer state for later use
+    if (bufferState) {
+      bufferState.currentCodeViewerId = codeId;
+    }
+    
     // Always create code-viewer immediately with default language
     // We'll update the language later if we detect one
     let language = 'plaintext';
-    let codeContent = contentAfterBackticks;
     
     // Try to detect language in the current chunk
     if (contentAfterBackticks.length > 0) {
@@ -143,42 +163,55 @@ export class CodeBlockRule extends BufferingRule {
       const languageMatch = contentAfterBackticks.match(/^(\w+)\n/);
       if (languageMatch) {
         language = this.normalizeLanguage(languageMatch[1]);
-        codeContent = contentAfterBackticks.substring(languageMatch[1].length + 1);
       } else {
         // Check if the entire chunk after ``` is just a language (waiting for \n)
         const potentialLanguage = contentAfterBackticks.match(/^(\w+)$/);
         if (potentialLanguage && contentAfterBackticks.length <= 20) {
           // We have a language, but no newline yet - still create the viewer
           language = this.normalizeLanguage(potentialLanguage[1]);
-          codeContent = ''; // No code content yet
         } else {
           // Check for partial language
           const partialLanguage = contentAfterBackticks.match(/^([a-zA-Z]+)$/);
           if (partialLanguage && contentAfterBackticks.length <= 15) {
-            // Potential partial language, use plaintext for now
+            // Potential partial language, use plaintext for now but mark as waiting
             language = 'plaintext';
-            codeContent = contentAfterBackticks; // Treat as content for now
+            if (bufferState) {
+              bufferState.waitingForLanguage = true;
+            }
           } else {
-            // No clear language pattern, treat everything as code content
+            // No clear language pattern, use plaintext
             language = 'plaintext';
-            codeContent = contentAfterBackticks;
           }
         }
       }
+    } else {
+      // Empty content after ```, we're definitely waiting for language
+      if (bufferState) {
+        bufferState.waitingForLanguage = true;
+      }
     }
     
-    // Create the code-viewer tag immediately
-    const openTag = `<code-viewer streaming="true" componentId="${codeId}" language="${language}">`;
+    // Create the code-viewer tag immediately with streaming="true"
+    const openTag = `<code-viewer componentId="${codeId}" language="${language}" streaming="true">`;
     const closeTag = '</code-viewer>';
     
-    // Extract plain text content to put inside the tag initially
-    const plainTextContent = this.extractPlainText(codeContent);
-
-    console.log({plainTextContent})
+    console.log('✅ CODE_BLOCK_RULE: Creating streaming code-viewer with ID:', codeId, 'language:', language);
     
-    // Return the complete code-viewer tag with any initial content
+    // CRITICAL: Store the code-viewer ID in buffer state to prevent duplicate creation
+    if (bufferState) {
+      bufferState.currentCodeViewerId = codeId;
+    }
+    
+    // Track this code-viewer to prevent duplicates
+    CodeBlockRule.createdCodeViewers.add(codeId);
+    setTimeout(() => CodeBlockRule.createdCodeViewers.delete(codeId), 30000);
+    
+    // For streaming mode, content will be handled by main parser via duringBuffering callback
+    // Don't send initial content directly - let the main parser handle it
+    
+    // Return just the opening tag - content will be handled by main parser
     return {
-      processedChunk: contentBefore + openTag + plainTextContent,
+      processedChunk: contentBefore + openTag,
       finisher: '```',
       closure: closeTag
     };
@@ -208,6 +241,7 @@ export class CodeBlockRule extends BufferingRule {
       
       // Check if combined chunk contains complete finisher ```
       if (combinedChunk.includes('```')) {
+        console.log('🎯 CODE_BLOCK_RULE: Found complete ``` finisher (partial + chunk), returning null for completion');
         return null; // Let main completion logic handle it
       }
       
@@ -224,34 +258,63 @@ export class CodeBlockRule extends BufferingRule {
         _bufferState.partialClosing = newPartialClosing;
       }
       
-      // Handle language detection if needed
-      if (currentBuffer.includes('language="plaintext"') && chunk.match(/^[a-zA-Z]+\n?/)) {
-        const languageMatch = chunk.match(/^([a-zA-Z]+)/);
-        if (languageMatch) {
-          const detectedLanguage = this.normalizeLanguage(languageMatch[1]);
-          
-          const componentIdMatch = currentBuffer.match(/componentId="([^"]+)"/);
-          if (componentIdMatch) {
-            const componentId = componentIdMatch[1];
+      // For streaming mode, send content via updateRenderer, not processedChunk
+      if (_bufferState?.currentCodeViewerId) {
+        const componentId = _bufferState.currentCodeViewerId;
+        
+        // Handle language detection if we're still waiting for it
+        if (_bufferState?.waitingForLanguage && chunk.match(/^[a-zA-Z]+\n?/)) {
+          const languageMatch = chunk.match(/^([a-zA-Z]+)/);
+          if (languageMatch) {
+            const detectedLanguage = this.normalizeLanguage(languageMatch[1]);
+            _bufferState.waitingForLanguage = false; // Stop waiting
             
             setTimeout(() => {
-              const codeViewer = document.querySelector(`code-viewer[componentId="${componentId}"]`) as any;
+              // Find code-viewer component - it may be inside shadow DOM of chat-component
+              let codeViewer = document.querySelector(`code-viewer[componentId="${componentId}"]`) as any;
+              
+              // If not found in light DOM, check inside chat-component shadow DOM
+              if (!codeViewer) {
+                const chatComponent = document.querySelector('chat-component') as any;
+                if (chatComponent && chatComponent.shadowRoot) {
+                  codeViewer = chatComponent.shadowRoot.querySelector(`code-viewer[componentId="${componentId}"]`);
+                }
+              }
+              
               if (codeViewer) {
                 codeViewer.language = detectedLanguage;
+                console.log('🎯 CODE_BLOCK_RULE: Updated language to:', detectedLanguage);
               }
             }, 0);
+            
+            // Send content after language - return it so main parser can handle via duringBuffering
+            const contentWithoutLanguage = chunk.replace(/^[a-zA-Z]+\n?/, '');
+            if (contentWithoutLanguage) {
+              return {
+                processedChunk: this.extractPlainText(contentWithoutLanguage),
+                finisher: '```',
+                closure: '</code-viewer>'
+              };
+            }
+            
+            return {
+              processedChunk: '', // No content after language removal
+              finisher: '```',
+              closure: '</code-viewer>'
+            };
           }
-          
-          const contentWithoutLanguage = chunk.replace(/^[a-zA-Z]+\n?/, '');
-          return {
-            processedChunk: this.extractPlainText(contentWithoutLanguage),
-            finisher: '```',
-            closure: '</code-viewer>'
-          };
         }
+        
+        // Send normal content - let main parser handle via duringBuffering callback
+        // Return content so it can be processed by the main parser's duringBuffering
+        return {
+          processedChunk: this.extractPlainText(chunk),
+          finisher: '```',
+          closure: '</code-viewer>'
+        };
       }
       
-      // Continue buffering - return chunk for updateRenderer
+      // Return empty processedChunk since content goes via duringBuffering callback in main parser
       return {
         processedChunk: this.extractPlainText(chunk),
         finisher: '```',
@@ -278,7 +341,7 @@ export class CodeBlockRule extends BufferingRule {
         if (/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(completeLanguage) && completeLanguage.length <= 20) {
           const language = this.normalizeLanguage(completeLanguage);
           const codeId = voucher.generate({ count: 1, length: 8 })[0].toLowerCase();
-          const openTag = `<code-viewer componentId="${codeId}" language="${language}">`;
+          const openTag = `<code-viewer componentId="${codeId}" language="${language}" streaming="true">`;
           
           // Switch to normal code buffering mode - ensure only plain text content
           const plainTextContent = this.extractPlainText(codeContent);
@@ -290,7 +353,7 @@ export class CodeBlockRule extends BufferingRule {
         } else {
           // Invalid language, treat as plaintext
           const codeId = voucher.generate({ count: 1, length: 8 })[0].toLowerCase();
-          const openTag = `<code-viewer componentId="${codeId}" language="plaintext">`;
+          const openTag = `<code-viewer componentId="${codeId}" language="plaintext" streaming="true">`;
           
           const plainTextContent = this.extractPlainText(languageText);
           return {
@@ -304,7 +367,7 @@ export class CodeBlockRule extends BufferingRule {
         if (languageText.length > 25) {
           // Too long to be a language, treat as plaintext and include everything as code
           const codeId = voucher.generate({ count: 1, length: 8 })[0].toLowerCase();
-          const openTag = `<code-viewer componentId="${codeId}" language="plaintext">`;
+          const openTag = `<code-viewer componentId="${codeId}" language="plaintext" streaming="true">`;
           
           const plainTextContent = this.extractPlainText(languageText);
           return {
@@ -330,9 +393,11 @@ export class CodeBlockRule extends BufferingRule {
    * Handle special completion logic for code blocks with partial ``` detection
    */
   override handleBufferingCompletion(chunk: string, currentBuffer: string, finisher: string, closure: string, bufferState?: any): { finalChunk: string; remainingChunk: string; shouldContinue: boolean } | null {
+    console.log('🎯 CODE_BLOCK_RULE: handleBufferingCompletion called', { finisher, closure, currentBuffer, bufferState });
     
     // Only handle code-viewer completion
     if (closure !== '</code-viewer>' || finisher !== '```') {
+      console.log('❌ CODE_BLOCK_RULE: Not handling completion - wrong finisher/closure');
       return null;
     }
 
@@ -342,6 +407,7 @@ export class CodeBlockRule extends BufferingRule {
     
     // Check if the partial + chunk creates a complete ``` anywhere
     if (partialPlusChunk.includes('```')) {
+      console.log('✅ CODE_BLOCK_RULE: Found complete ``` - completing code block');
       
       // Found complete ``` - END THE CODE BLOCK immediately
       const finisherIndex = partialPlusChunk.indexOf('```');
@@ -349,35 +415,26 @@ export class CodeBlockRule extends BufferingRule {
       const afterFinisher = partialPlusChunk.substring(finisherIndex + 3);
       
       // Since we're using updateRenderer for content, we don't need to include currentBuffer
-      // Just send any remaining content before the ``` to updateRenderer and close the tag
-      let finalChunk = '';
-      if (beforeFinisher && !partialClosing) {
-        // This content should go through updateRenderer, not be added to HTML
-        // But for completion, we need to handle it here
-        finalChunk = this.extractPlainText(beforeFinisher);
-      }
+      // For streaming code blocks, we should NOT return any HTML - just call stopCodeGeneration
       
-      // Add the closing tag
-      finalChunk += '</code-viewer>';
-      
-      // Call stopCodeGeneration on the component
-      // Extract componentId from currentBuffer to find the component
-      const componentIdMatch = currentBuffer.match(/componentId="([^"]+)"/);
-      if (componentIdMatch) {
-        const componentId = componentIdMatch[1];
+      // Send any remaining content before the ``` and let main parser handle stopCodeGeneration
+      if (bufferState?.currentCodeViewerId) {
+        const componentId = bufferState.currentCodeViewerId;
+        const contentToAdd = beforeFinisher && !partialClosing ? this.extractPlainText(beforeFinisher) : '';
         
-        setTimeout(() => {
-          const codeViewer = document.querySelector(`code-viewer[componentId="${componentId}"]`) as any;
-          if (codeViewer) {
-            if (typeof codeViewer.stopCodeGeneration === 'function') {
-              codeViewer.stopCodeGeneration();
-            }
-          }
-        }, 0);
+        // Just log that we have final content - the main parser will handle the component lifecycle
+        if (contentToAdd) {
+          console.log('🔚 CODE_BLOCK_RULE: Final content ready for component:', componentId, 'length:', contentToAdd.length);
+        }
+        console.log('✅ CODE_BLOCK_RULE: Code block completion detected, letting main parser handle stopCodeGeneration');
+        
+        // CRITICAL: Clear the currentCodeViewerId to allow future code-viewers
+        bufferState.currentCodeViewerId = null;
       }
       
+      // For completion, the main parser handles stopCodeGeneration  
       return {
-        finalChunk,
+        finalChunk: '', // Let main parser detect completion and handle stopCodeGeneration
         remainingChunk: afterFinisher,
         shouldContinue: false
       };
@@ -411,8 +468,17 @@ export class CodeBlockRule extends BufferingRule {
           bufferState.partialClosing = newPartialMatch;
         }
         
+        // For streaming code blocks, return content so main parser can handle via duringBuffering
+        if (contentToAdd && bufferState?.currentCodeViewerId) {
+          return {
+            finalChunk: this.extractPlainText(contentToAdd),
+            remainingChunk: '',
+            shouldContinue: true
+          };
+        }
+        
         return {
-          finalChunk: this.extractPlainText(contentToAdd),
+          finalChunk: '', // NEVER return HTML content for streaming
           remainingChunk: '',
           shouldContinue: true
         };
@@ -427,8 +493,17 @@ export class CodeBlockRule extends BufferingRule {
           }
         }
         
+        // For streaming code blocks, return content so main parser can handle via duringBuffering
+        if (contentToProcess && bufferState?.currentCodeViewerId) {
+          return {
+            finalChunk: this.extractPlainText(contentToProcess),
+            remainingChunk: '',
+            shouldContinue: true
+          };
+        }
+        
         return {
-          finalChunk: this.extractPlainText(contentToProcess),
+          finalChunk: '', // NEVER return HTML content for streaming
           remainingChunk: '',
           shouldContinue: true
         };
