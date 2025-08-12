@@ -504,7 +504,7 @@ export class ChatComponent extends LitElement {
   handleExpandAside(event: Event | undefined = undefined, code: { id: string, code: string, language: string } | null = null): void {
     event?.preventDefault();
     this.showCode = code;
-    console.log(this.showCode);
+    
     this.selectedAsideTab = 'tab-thought-process';
     this.shadowRoot?.querySelector('#overlay')?.classList.add('active');
     this.shadowRoot?.querySelector('#chat__containerWrapper')?.classList.add('aside-open');
@@ -640,33 +640,19 @@ export class ChatComponent extends LitElement {
   /**
    * Debug method to check slot content - can be called from browser console
    */
-  public debugSlotContent() {
-    console.log('=== LIT COMPONENT SLOT DEBUG METHOD ===');
+  public debugSlotContent() {    
 
-    const modelSelectSlot = this.shadowRoot?.querySelector('slot[name="model_select"]');
-    console.log('Model select slot:', modelSelectSlot);
+    const modelSelectSlot = this.shadowRoot?.querySelector('slot[name="model_select"]');    
 
     if (modelSelectSlot) {
-      const slot = modelSelectSlot as HTMLSlotElement;
-      console.log('Slot innerHTML:', slot.innerHTML);
-      console.log('Slot textContent:', slot.textContent);
-      console.log('Assigned nodes:', slot.assignedNodes());
-      console.log('Assigned elements:', slot.assignedElements());
+      const slot = modelSelectSlot as HTMLSlotElement;                        
 
       // Check if there are any nodes with slot="model_select" in the light DOM
-      const lightDOMSlotContent = this.querySelector('[slot="model_select"]');
-      console.log('Light DOM slot content:', lightDOMSlotContent);
+      const lightDOMSlotContent = this.querySelector('[slot="model_select"]');      
     }
 
     // Check all slots
     const allSlots = this.shadowRoot?.querySelectorAll('slot');
-    console.log('All slots:', allSlots);
-
-    // Check light DOM content
-    console.log('Light DOM innerHTML:', this.innerHTML);
-    console.log('All slotted content:', this.querySelectorAll('[slot]'));
-
-    console.log('=== END DEBUG METHOD ===');
 
     return {
       modelSelectSlot,

@@ -196,7 +196,7 @@ export class ChatController implements ReactiveController {
           chatEntry: initialEntry,
           signal: this._abortController.signal,
           apiResponseBody: (message as unknown as Response).body,
-          onChunkRead: (updated) => {       
+          onChunkRead: (updated) => {                   
             this.processingMessage = updated;
           },
           onCancel: () => {

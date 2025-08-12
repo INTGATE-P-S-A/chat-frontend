@@ -96,8 +96,6 @@ export class BufferingRuleManager {
         bufferState.bufferingFinisher = bufferingResult.finisher || null;
         bufferState.bufferingClosure = bufferingResult.closure;
         bufferState.bufferText = bufferState.bufferText || ''; // Initialize bufferText if not set
-        
-        console.log(`Applying rule: ${rule.name} for chunk: ${chunk}`, bufferingResult);
 
         // Special handling for code blocks
         if (rule.name === 'code-block') {
@@ -126,7 +124,7 @@ export class BufferingRuleManager {
           bufferState
         };        
       }
-    }
+    }    
 
     return null; // No rule matched
   }

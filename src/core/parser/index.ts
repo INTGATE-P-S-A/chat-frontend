@@ -115,12 +115,12 @@ export async function parseStreamedMessages({
     streamedMessageRaw.push(chunkValue);      
 
     // Store previous buffering state to detect completion
-    const wasBufferingCodeViewer = bufferState.buffering && bufferState.bufferingClosure === '</code-viewer>';
+    const wasBufferingCodeViewer = bufferState.buffering && bufferState.currentRule === 'code-block';
 
     // Process chunk with buffering
     const { processedChunk, bufferState: updatedBufferState } = processChunkWithBuffering(chunkValue, bufferState, (bufferInfo, chunk) => {
-      // Update code-viewer if we're actively buffering a code-viewer
-      if(bufferInfo.buffering && bufferInfo.bufferingClosure === '</code-viewer>' && coderId) {   
+      // Update code-viewer if we're actively buffering a code-block
+      if(bufferInfo.buffering && bufferInfo.currentRule === 'code-block' && coderId) {   
         const hoster = (host as any);
         try {
           const codeViewer: { updateRenderer: (text: string) => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[componentId="'+coderId+'"]');
@@ -132,6 +132,7 @@ export async function parseStreamedMessages({
         }      
       }
     });
+
 
     // Check if code-viewer buffering just completed
     const codeViewerJustCompleted = wasBufferingCodeViewer && !updatedBufferState.buffering && startedCoding;
@@ -152,7 +153,7 @@ export async function parseStreamedMessages({
     
     // Check if we're currently streaming to a code-viewer
     const isStreamingToCodeViewer = updatedBufferState.buffering && 
-                                   updatedBufferState.bufferingClosure === '</code-viewer>' && 
+                                   updatedBufferState.currentRule === 'code-block' && 
                                    startedCoding;
     
     // Only update text entry when we have a processed chunk AND we're not streaming to code-viewer
@@ -186,7 +187,6 @@ export async function parseStreamedMessages({
         updatedEntry = updateTextEntry({ chunkValue: processedChunk, textBlockIndex, chatEntry: updatedEntry });
       } else if(processedChunk.includes('<code-viewer') && codeViewerCreated) {
         // If we already created a code-viewer and this chunk has another one, COMPLETELY IGNORE IT
-        console.log('🚫 MAIN_PARSER: Ignoring duplicate code-viewer chunk after creation');
         // Do nothing - don't add this chunk to prevent recreation
       } else if(!processedChunk.includes('<code-viewer')) {
         // Only add chunks that don't contain code-viewer tags
@@ -209,6 +209,8 @@ export async function parseStreamedMessages({
 
     onVisit(updatedEntry);
   }
+
+
 
   updatedEntry = updateCitationsEntry({ citations, chatEntry: updatedEntry });
   onVisit(updatedEntry);

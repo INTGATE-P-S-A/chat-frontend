@@ -125,6 +125,7 @@ export function processChunkWithBuffering(
   // Use the rule manager from buffer state (created once per message stream)
   const ruleManager = bufferState.ruleManager!;
 
+
   // Try to apply buffering rules if not already buffering
   if (!bufferState.buffering) {
     const ruleResult = ruleManager.processChunk(processedChunk, bufferState);
@@ -141,7 +142,7 @@ export function processChunkWithBuffering(
         return { processedChunk: ruleResult.processedChunk, bufferState: ruleResult.bufferState };
       }
     }
-  }
+  }    
 
   // If not buffering, return the processed chunk immediately
   if (!bufferState.buffering) {
@@ -226,7 +227,7 @@ export function processChunkWithBuffering(
         }
 
         // Always reset buffer state after completion
-        const wasCodeViewer = bufferState.bufferingClosure === '</code-viewer>';
+        const wasCodeViewer = bufferState.currentRule === 'code-block';
         bufferState.bufferingFinisher = null;
         bufferState.bufferingClosure = null;
         bufferState.bufferText = '';
@@ -245,9 +246,6 @@ export function processChunkWithBuffering(
             bufferState.linebreakProof = true;
           }
         }
-
-              console.log({finalChunk})
-
 
         return { processedChunk: finalChunk, bufferState };
       }
@@ -261,19 +259,6 @@ export function processChunkWithBuffering(
         const finalChunk = bufferState.bufferText + contentBeforeFinisher + bufferState.bufferingClosure + textAfterFinisher;
 
         // Call stopCodeGeneration if this was a code-viewer completion
-        const wasCodeViewer = bufferState.bufferingClosure === '</code-viewer>';
-        if (wasCodeViewer) {
-          // Extract componentId from bufferText to find the component
-          const componentIdMatch = bufferState.bufferText.match(/componentId="([^"]+)"/);
-          if (componentIdMatch) {
-            const componentId = componentIdMatch[1];
-            
-            const codeViewer = document.querySelector(`code-viewer[componentId="${componentId}"]`) as any;
-            if (codeViewer && typeof codeViewer.stopCodeGeneration === 'function') {
-              codeViewer.stopCodeGeneration();
-            }
-          }
-        }
 
         // Reset buffer state
         bufferState.bufferingFinisher = null;
@@ -286,35 +271,13 @@ export function processChunkWithBuffering(
         bufferState.currentRule = undefined;
         bufferState.currentCodeViewerId = undefined;
         bufferState.waitingForLanguage = undefined;
-        
-        if (wasCodeViewer) {
-          bufferState.codeViewerDepth = Math.max(0, (bufferState.codeViewerDepth || 1) - 1);
-          bufferState.insideCodeViewer = bufferState.codeViewerDepth > 0;
-          if (bufferState.insideCodeViewer) {
-            bufferState.linebreakProof = true;
-          }
-        }
+
 
         return { processedChunk: finalChunk, bufferState };
       } else {
         // No finisher set and detectFinish() returned true - complete with just the closure
         const finalChunk = bufferState.bufferText + bufferState.bufferingClosure + processedChunk;
 
-        // Call stopCodeGeneration if this was a code-viewer completion
-        const wasCodeViewer = bufferState.bufferingClosure === '</code-viewer>';
-        if (wasCodeViewer) {
-          // Extract componentId from bufferText to find the component
-          const componentIdMatch = bufferState.bufferText.match(/componentId="([^"]+)"/);
-          if (componentIdMatch) {
-            const componentId = componentIdMatch[1];
-            
-            const codeViewer = document.querySelector(`code-viewer[componentId="${componentId}"]`) as any;
-            if (codeViewer && typeof codeViewer.stopCodeGeneration === 'function') {
-              codeViewer.stopCodeGeneration();
-            }
-          }
-        }
-
         // Reset buffer state
         bufferState.bufferingFinisher = null;
         bufferState.bufferingClosure = null;
@@ -327,13 +290,6 @@ export function processChunkWithBuffering(
         bufferState.currentCodeViewerId = undefined;
         bufferState.waitingForLanguage = undefined;
         
-        if (wasCodeViewer) {
-          bufferState.codeViewerDepth = Math.max(0, (bufferState.codeViewerDepth || 1) - 1);
-          bufferState.insideCodeViewer = bufferState.codeViewerDepth > 0;
-          if (bufferState.insideCodeViewer) {
-            bufferState.linebreakProof = true;
-          }
-        }
 
         return { processedChunk: finalChunk, bufferState };
       }
