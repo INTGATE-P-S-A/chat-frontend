@@ -76,8 +76,10 @@ export class BufferingRuleManager {
       if (rule.name === 'line-break' && bufferState.linebreakProof) {
         continue;
       }
+
+      const ruleDetected = rule.detect(chunk, bufferState);
       
-      if (rule.detect(chunk, bufferState)) {
+      if (ruleDetected === true) {
         // Try to complete immediately if possible
         const completeMatch = rule.tryCompleteMatch(chunk, bufferState);
         if (completeMatch) {
@@ -95,6 +97,8 @@ export class BufferingRuleManager {
         bufferState.bufferingClosure = bufferingResult.closure;
         bufferState.bufferText = bufferState.bufferText || ''; // Initialize bufferText if not set
         
+        console.log(`Applying rule: ${rule.name} for chunk: ${chunk}`, bufferingResult);
+
         // Special handling for code blocks
         if (rule.name === 'code-block') {
           bufferState.skipOne = true;
@@ -115,6 +119,12 @@ export class BufferingRuleManager {
           bufferState,
           ruleApplied: rule.name
         };
+      } else if (ruleDetected === null) {
+        // checking on composite detection chunks
+        return {
+          processedChunk: '', // Return the processed chunk immediately
+          bufferState
+        };        
       }
     }
 

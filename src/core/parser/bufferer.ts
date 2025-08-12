@@ -15,6 +15,7 @@ export interface BufferState {
   currentRule?: string; // Track which rule is currently buffering
   currentCodeViewerId?: string; // Track the current code-viewer component ID for streaming
   waitingForLanguage?: boolean; // Track if we're waiting for language completion
+  ruleManager?: BufferingRuleManager; // Rule manager instance - created once per message stream
 }
 
 export interface ParseOptions {
@@ -37,6 +38,7 @@ export function createBufferState(): BufferState {
     linebreakProof: false,
     partialClosing: undefined,
     currentRule: undefined,
+    ruleManager: new BufferingRuleManager(), // Create once per message stream
   };
 }
 
@@ -120,8 +122,8 @@ export function processChunkWithBuffering(
 ): { processedChunk: string | null; bufferState: BufferState } {
   let processedChunk = chunkValue;
   
-  // Initialize rule manager (could be cached/reused)
-  const ruleManager = new BufferingRuleManager();
+  // Use the rule manager from buffer state (created once per message stream)
+  const ruleManager = bufferState.ruleManager!;
 
   // Try to apply buffering rules if not already buffering
   if (!bufferState.buffering) {
@@ -201,7 +203,8 @@ export function processChunkWithBuffering(
               skipOne: false,
               partialClosing: undefined,
               currentRule: undefined,
-              linebreakProof: bufferState.insideCodeViewer && bufferState.codeViewerDepth > 1
+              linebreakProof: bufferState.insideCodeViewer && bufferState.codeViewerDepth > 1,
+              ruleManager: bufferState.ruleManager // Preserve rule manager instance
             },
             duringBuffering
           );
@@ -255,12 +258,10 @@ export function processChunkWithBuffering(
         if (componentIdMatch) {
           const componentId = componentIdMatch[1];
           
-          setTimeout(() => {
-            const codeViewer = document.querySelector(`code-viewer[componentId="${componentId}"]`) as any;
-            if (codeViewer && typeof codeViewer.stopCodeGeneration === 'function') {
-              codeViewer.stopCodeGeneration();
-            }
-          }, 0);
+          const codeViewer = document.querySelector(`code-viewer[componentId="${componentId}"]`) as any;
+          if (codeViewer && typeof codeViewer.stopCodeGeneration === 'function') {
+            codeViewer.stopCodeGeneration();
+          }
         }
       }
 

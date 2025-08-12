@@ -1,3 +1,5 @@
+import { BufferState } from "../bufferer";
+
 export interface CompleteMatchResult {
   match: boolean;
   fullMatch: string;
@@ -20,9 +22,9 @@ export abstract class BufferingRule {
   abstract readonly name: string;
   abstract readonly priority: number;
 
-  abstract detect(chunk: string, bufferState?: any): boolean;
-  abstract tryCompleteMatch(chunk: string, bufferState?: any): CompleteMatchResult | null;
-  abstract startBuffering(chunk: string, bufferState?: any): BufferingResult;
+  abstract detect(chunk: string, bufferState?: BufferState): boolean | null;
+  abstract tryCompleteMatch(chunk: string, bufferState?: BufferState): CompleteMatchResult | null;
+  abstract startBuffering(chunk: string, bufferState?: BufferState): BufferingResult;
   
   /**
    * Continue buffering when we're in the middle of a rule's processing

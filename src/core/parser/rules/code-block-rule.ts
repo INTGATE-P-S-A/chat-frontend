@@ -5,7 +5,14 @@ import voucher from 'voucher-code-generator';
 export class CodeBlockRule extends BufferingRule {
   readonly name = 'code-block';
   readonly priority = 4;
-  
+
+  constructor() {
+    super();
+    console.log('rule done')
+  }
+
+
+  private openingCheck = '';
   private static createdCodeViewers = new Set<string>(); // Track created code-viewer IDs
 
   // Common programming languages for detection
@@ -22,7 +29,8 @@ export class CodeBlockRule extends BufferingRule {
    * Normalize and validate the detected language
    */
 
-  detect(chunk: string, bufferState?: BufferState): boolean {
+  detect(chunk: string, bufferState?: BufferState): boolean | null {
+    console.log('detect called with chunk:', {chunk, det: this.openingCheck});
     // Don't detect if we're already inside a code-viewer tag
     if (bufferState?.insideCodeViewer || (bufferState?.codeViewerDepth && bufferState.codeViewerDepth > 0)) {
       return false;
@@ -38,8 +46,27 @@ export class CodeBlockRule extends BufferingRule {
       return false;
     }
 
+    if(this.openingCheck !== '```' && chunk.includes('`') && !chunk.endsWith('```')){
+      console.log('Partial opening detected, storing:', chunk);
+      this.openingCheck += chunk;
+      return null;
+    }
+
+    if(this.openingCheck !== '' && this.openingCheck.length >= 3){
+      if(this.openingCheck.startsWith('```')){        
+        console.log('Partial opening completed:', this.openingCheck);
+        // this.openingCheck = '';
+        return true;
+      }else{
+        this.openingCheck = '';
+        console.log('Partial opening discontinued:', chunk);
+
+        return false;
+      }
+    }
+
     // Detect ``` - this can appear at any position in the chunk
-    return chunk.includes('```');
+    return chunk.includes('```') && this.openingCheck === '';
   }
 
   tryCompleteMatch(chunk: string, bufferState?: BufferState): CompleteMatchResult | null {
@@ -113,6 +140,8 @@ export class CodeBlockRule extends BufferingRule {
         closure: ''
       };
     }
+
+    console.log(1);
     
     // Don't start buffering if we're currently buffering any rule - this prevents nested code-viewer creation
     if (bufferState?.buffering) {
@@ -123,6 +152,8 @@ export class CodeBlockRule extends BufferingRule {
       };
     }
     
+    console.log(2);
+
     // Check if we're inside an existing code-viewer tag by looking at the chunk content
     if (chunk.includes('<code-viewer') && !chunk.includes('</code-viewer>')) {
       return {
@@ -132,15 +163,24 @@ export class CodeBlockRule extends BufferingRule {
       };
     }
 
+    console.log(3);
+
+    if(this.openingCheck !== ''){
+      chunk = this.openingCheck + chunk;
+    }
+
     // Find the position of ``` in the chunk
     const backtickIndex = chunk.indexOf('```');
-    if (backtickIndex === -1) {
+    if (backtickIndex === -1) {      
       return {
         processedChunk: chunk,
         finisher: '',
         closure: ''
       };
     }
+
+    console.log(4);
+    this.openingCheck = ''; // Reset opening check after starting buffering
     
     const contentBefore = chunk.substring(0, backtickIndex);
     const contentAfterBackticks = chunk.substring(backtickIndex + 3);
