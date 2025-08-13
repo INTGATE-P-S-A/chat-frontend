@@ -15,6 +15,7 @@ export interface BufferState {
   currentRule?: string; // Track which rule is currently buffering
   currentCodeViewerId?: string; // Track the current code-viewer component ID for streaming
   waitingForLanguage?: boolean; // Track if we're waiting for language completion
+  detectedLanguage?: string; // Store detected language when it comes in separate chunk from newline
   ruleManager?: BufferingRuleManager; // Rule manager instance - created once per message stream
 }
 
