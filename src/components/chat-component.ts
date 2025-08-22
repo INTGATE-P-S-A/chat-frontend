@@ -137,6 +137,9 @@ export class ChatComponent extends LitElement {
   @state()
   useDeepSearch = false;
 
+  @state()
+  isFullscreen = false;
+
   private chatController = new ChatController(this);
   private chatHistoryController = new ChatHistoryController(this);
 
@@ -255,6 +258,12 @@ export class ChatComponent extends LitElement {
       this.handleExpandAside(event, theEvent.detail);
     });
 
+    // Add fullscreen event listeners
+    document.addEventListener('fullscreenchange', this.handleFullscreenChange.bind(this));
+    document.addEventListener('webkitfullscreenchange', this.handleFullscreenChange.bind(this));
+    document.addEventListener('mozfullscreenchange', this.handleFullscreenChange.bind(this));
+    document.addEventListener('MSFullscreenChange', this.handleFullscreenChange.bind(this));
+
     this.overrideConfig();
 
     const ev = new CustomEvent('chat-component-connected', {
@@ -263,6 +272,16 @@ export class ChatComponent extends LitElement {
       composed: true
     });
     this.dispatchEvent(ev);
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    
+    // Remove fullscreen event listeners
+    document.removeEventListener('fullscreenchange', this.handleFullscreenChange.bind(this));
+    document.removeEventListener('webkitfullscreenchange', this.handleFullscreenChange.bind(this));
+    document.removeEventListener('mozfullscreenchange', this.handleFullscreenChange.bind(this));
+    document.removeEventListener('MSFullscreenChange', this.handleFullscreenChange.bind(this));
   }
 
   /**
@@ -382,6 +401,26 @@ export class ChatComponent extends LitElement {
       bubbles: true,
       composed: true
     }));
+  }
+
+  handleFullscreenToggle(): void {
+    this.isFullscreen = !this.isFullscreen;
+    
+    if (this.isFullscreen) {
+      this.requestFullscreen?.();
+    } else {
+      document.exitFullscreen?.();
+    }
+
+    this.dispatchEvent(new CustomEvent('fullscreen-change', {
+      detail: { isFullscreen: this.isFullscreen },
+      bubbles: true,
+      composed: true
+    }));
+  }
+
+  handleFullscreenChange(): void {
+    this.isFullscreen = !!document.fullscreenElement;
   }
 
   getMessageContext(): Message[] {
@@ -702,8 +741,7 @@ export class ChatComponent extends LitElement {
   override render() {
     return html`
       <div id="overlay" class="overlay"></div>
-      <section id="chat__containerWrapper" class="chat__containerWrapper">      
-      <div id="chat__title"></div>
+      <section id="chat__containerWrapper" class="chat__containerWrapper">            
         ${this.isCustomBranding && !this.isChatStarted
         ? html` <chat-stage
               svgIcon="${iconLogo}"
@@ -815,6 +853,13 @@ export class ChatComponent extends LitElement {
 
             ${globalConfig.WEB_SEARCH_CHECKBOX_ENABLED
         ? html`<div class="web-search__wrapper">
+                  <button 
+                    type="button"
+                    class="fullscreen-toggle-btn ${this.isFullscreen ? 'simple-icon-close' : 'simple-icon-size-fullscreen'}"
+                    @click="${this.handleFullscreenToggle}"
+                    title="${this.isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}"
+                    ?disabled="${this.isDisabled}"
+                  ></button>
                   <div class="web-search__container">
                     <input
                       type="checkbox"
@@ -845,7 +890,15 @@ export class ChatComponent extends LitElement {
             : ''}
                 <knowledge-picker absolute="true"></knowledge-picker>
                 </div>`
-        : ''}
+        : html`<div class="web-search__wrapper">
+                  <button 
+                    class="fullscreen-toggle-btn ${this.isFullscreen ? 'simple-icon-close' : 'simple-icon-size-fullscreen'}"
+                    @click="${this.handleFullscreenToggle}"
+                    title="${this.isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}"
+                    ?disabled="${this.isDisabled}"
+                  ></button>
+                  <knowledge-picker absolute="true"></knowledge-picker>
+                </div>`}
 
             ${this.isDefaultPromptsEnabled
         ? ''

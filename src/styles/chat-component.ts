@@ -124,7 +124,7 @@ export const chatStyle = css`
     max-height: 100vh;
   }
   #chat-container {
-    height: 57%;
+    height: 100%;
     display: flex;
     flex-direction: column;
     flex: 1;
@@ -412,8 +412,7 @@ export const chatStyle = css`
   }
   
   .web-search__container {
-    padding: 0;
-    margin-bottom: 1rem;
+    padding: 0;    
     position: relative;
     display: block;
   }
@@ -489,6 +488,40 @@ export const chatStyle = css`
     border-color: #86b7fe;
     box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
   }
+
+  /* Fullscreen toggle button styles */
+  .fullscreen-toggle-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid var(--primary-color);
+    background-color: var(--primary-color);
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease-in-out;
+    padding: 5px;
+    flex-shrink: 0;
+  }
+
+  .fullscreen-toggle-btn:hover {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+
+  .fullscreen-toggle-btn:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+  }
+
+  .fullscreen-toggle-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
   .aside__header {
     display: flex;
     justify-content: end;
