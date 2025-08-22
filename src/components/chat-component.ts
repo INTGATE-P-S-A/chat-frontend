@@ -843,6 +843,7 @@ export class ChatComponent extends LitElement {
                         </label>
                       </div>`
             : ''}
+                <knowledge-picker absolute="true"></knowledge-picker>
                 </div>`
         : ''}
 

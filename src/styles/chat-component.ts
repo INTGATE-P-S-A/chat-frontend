@@ -413,8 +413,7 @@ export const chatStyle = css`
   
   .web-search__container {
     padding: 0;
-    margin-bottom: 0.125rem;
-    min-height: 1.5rem;
+    margin-bottom: 1rem;
     position: relative;
     display: block;
   }
@@ -424,8 +423,8 @@ export const chatStyle = css`
     top: 0.25rem;
     left: 0;
     z-index: 2;
-    width: 1em;
-    height: 1em;
+    width: 13px;
+    height: 13px;
     margin: 0;
     opacity: 0;
     cursor: pointer;
@@ -439,6 +438,7 @@ export const chatStyle = css`
     padding-left: 1.5rem;
     margin-bottom: 0;
     position: relative;
+    font-weight: 500;
   }
   
   .web-search__label::before {
@@ -447,8 +447,8 @@ export const chatStyle = css`
     top: 0;
     left: 0;
     display: block;
-    width: 1em;
-    height: 1em;
+    width: 13px;
+    height: 13px;
     pointer-events: none;
     background-color: #fff;
     border: 1px solid #adb5bd;
@@ -461,8 +461,8 @@ export const chatStyle = css`
     top: 0;
     left: 0;
     display: block;
-    width: 1em;
-    height: 1em;
+    width: 13px;
+    height: 13px;
     background-repeat: no-repeat;
     background-position: center center;
     background-size: 0.5em 0.5em;
@@ -471,14 +471,18 @@ export const chatStyle = css`
   }
   
   .web-search__checkbox:checked ~ .web-search__label::before {
-    color: #fff;
-    border-color: #0d6efd;
-    background-color: #0d6efd;
+      color: #fff;
+      border-color: #2F2E2D;
+      background-color: #2F2E2D;
   }
   
   .web-search__checkbox:checked ~ .web-search__label::after {
     opacity: 1;
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'/%3e%3c/svg%3e");
+    background-color: white;
+    mask: url("/assets/images/check.svg") no-repeat center center;
+    mask-size: 0.5em 0.5em;
+    -webkit-mask: url("/assets/images/check.svg") no-repeat center center;
+    -webkit-mask-size: 0.5em 0.5em;
   }
   
   .web-search__checkbox:focus ~ .web-search__label::before {
