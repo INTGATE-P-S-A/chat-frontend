@@ -43,10 +43,13 @@ export const chatStyle = css`
     --shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     width: 100%;
     height: 100%;
+    max-height: 100vh;
     display: flex;
     flex-direction: column;
     padding: var(--d-base);
     color: var(--c-text);
+    overflow: hidden;
+    box-sizing: border-box;
   }
   :host([data-theme='dark']) {
     --c-primary: #fdfeff;
@@ -120,14 +123,36 @@ export const chatStyle = css`
   }
   .chat__container {
     min-width: 100%;
+    width: 100%;
     transition: width 0.3s ease-in-out;
     max-height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Messages container - scrollable area */
+  .chat__messages-container {
+    flex: 1;
+    // overflow-y: auto;
+    // overflow-x: hidden;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Chat header styling */
+  .chat__header--thread {
+    flex-shrink: 0;
+    padding: 0.5rem 0;
   }
   #chat-container {
     height: 100%;
     display: flex;
     flex-direction: column;
     flex: 1;
+    overflow: hidden;
+    min-height: 0;
   }
   
   /* Chat header styling */
@@ -136,6 +161,7 @@ export const chatStyle = css`
     border-bottom: 1px solid #e3e6f0;
     background: #f8f9fc;
     border-radius: 0.35rem 0.35rem 0 0;
+    flex-shrink: 0;
   } 
 
   #chat-container > .chat__container {
@@ -145,6 +171,7 @@ export const chatStyle = css`
     background: #f8f9fc;
     display: flex;
     flex-direction: column;
+    min-height: 0;
   }
 
   #chat-container > #chat-form {
@@ -167,6 +194,8 @@ export const chatStyle = css`
     gutter: var(--d-base);
     height: 100%;
     flex: 1;
+    overflow: hidden;
+    max-height: 100vh;
   }
   .chat__containerWrapper.aside-open {
     display: grid;
@@ -178,6 +207,8 @@ export const chatStyle = css`
     grid-row-gap: var(--d-base);
     height: 100%;
     flex: 1;
+    overflow: hidden;
+    max-height: 100vh;
 
     @media (min-width: 1024px) {
       grid-template-columns: 1fr 50%;
@@ -186,6 +217,8 @@ export const chatStyle = css`
   }
   .chat__containerWrapper.aside-open .chat__container {
     grid-area: chat;
+    overflow: hidden;
+    min-height: 0;
   }
   .chat__containerWrapper.aside-open .aside {
     grid-area: aside;
@@ -217,6 +250,7 @@ export const chatStyle = css`
   }
   .form__container {
     margin-bottom: 0;
+    flex-shrink: 0;
   }
   .form__container-sticky {
     position: relative;
@@ -227,6 +261,7 @@ export const chatStyle = css`
     box-shadow: none;
     padding: 0;
     border: 1px solid #e3e6f0;
+    flex-shrink: 0;
   }
   .form__label {
     display: block;
@@ -549,5 +584,8 @@ export const chatStyle = css`
     flex-direction: column;
     border-bottom: 3px solid var(--light-gray);
     margin-bottom: 30px;
+    overflow-y: auto;
+    max-height: 30vh;
+    flex-shrink: 0;
   }
 `;

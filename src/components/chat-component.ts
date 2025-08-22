@@ -758,42 +758,57 @@ export class ChatComponent extends LitElement {
             ? this.chatHistoryController.renderHistoryButton({ disabled: this.isDisabled })
             : ''}                 
                 </div>
-                ${this.chatHistoryController.showChatHistory
+                <div class="chat__messages-container">
+                  ${this.chatHistoryController.showChatHistory
             ? html`<div class="chat-history__container">
-                      ${this.renderChatThread(this.chatHistoryController.chatHistory)}
-                      <div class="chat-history__footer">
-                        ${unsafeSVG(iconUp)}
-                        ${globalConfig.CHAT_HISTORY_FOOTER_TEXT.replace(
+                        ${this.renderChatThread(this.chatHistoryController.chatHistory)}
+                        <div class="chat-history__footer">
+                          ${unsafeSVG(iconUp)}
+                          ${globalConfig.CHAT_HISTORY_FOOTER_TEXT.replace(
               globalConfig.CHAT_MAX_COUNT_TAG,
               MAX_CHAT_HISTORY,
             )}
-                        ${unsafeSVG(iconUp)}
-                      </div>
+                          ${unsafeSVG(iconUp)}
+                        </div>
+                      </div>`
+            : ''}
+                  ${this.renderChatThread(this.chatThread)}
+                  ${this.chatController.isAwaitingResponse
+            ? this.isShowingProgress
+              ? html`<progress-bar 
+                      .progress="${this.progressPercentage}"
+                      .message="${this.progressMessage}"
+                      .stage="${this.progressStage}">
+                    </progress-bar>`
+              : html`<loading-indicator label="${globalConfig.LOADING_INDICATOR_TEXT}"></loading-indicator>`
+            : ''}
+                  ${!this.chatController.isAwaitingResponse && this.isShowingProgress
+            ? html`<progress-bar 
+                    .progress="${this.progressPercentage}"
+                    .message="${this.progressMessage}"
+                    .stage="${this.progressStage}">
+                  </progress-bar>`
+            : ''}
+                  ${this.isDefaultPromptsEnabled && this.isChatStarted
+            ? html`<div style="padding: 1rem;">
+                      <teaser-list-component
+                        .heading="${this.interactionModel === 'chat'
+                ? teaserListTexts.HEADING_CHAT
+                : teaserListTexts.HEADING_ASK}"
+                        .clickable="${true}"
+                        .actionLabel="${teaserListTexts.TEASER_CTA_LABEL}"
+                        @teaser-click="${this.handleQuestionInputClick}"
+                        .teasers="${teaserListTexts.DEFAULT_PROMPTS}"
+                      ></teaser-list-component>
                     </div>`
             : ''}
-                ${this.renderChatThread(this.chatThread)}
+                </div>
               `
-        : ''}
-          ${this.chatController.isAwaitingResponse
-        ? this.isShowingProgress
-          ? html`<progress-bar 
-                  .progress="${this.progressPercentage}"
-                  .message="${this.progressMessage}"
-                  .stage="${this.progressStage}">
-                </progress-bar>`
-          : html`<loading-indicator label="${globalConfig.LOADING_INDICATOR_TEXT}"></loading-indicator>`
-        : ''}
-          ${!this.chatController.isAwaitingResponse && this.isShowingProgress
-        ? html`<progress-bar 
-                .progress="${this.progressPercentage}"
-                .message="${this.progressMessage}"
-                .stage="${this.progressStage}">
-              </progress-bar>`
         : ''}
        
          
            
-            ${this.isDefaultPromptsEnabled
+            ${this.isDefaultPromptsEnabled && !this.isChatStarted
         ? html`<div class="chat__container">
                   <teaser-list-component
                     .heading="${this.interactionModel === 'chat'
