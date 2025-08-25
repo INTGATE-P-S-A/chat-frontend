@@ -4,10 +4,39 @@ import { BufferState } from '../bufferer';
 export class LinkRule extends BufferingRule {
   readonly name = 'link';
   readonly priority = 6;
+  
+  private partialSequence = ''; // Track partial link sequences across chunks
 
-  detect(chunk: string, _bufferState?: BufferState): boolean {
+  detect(chunk: string, _bufferState?: BufferState): boolean | null {
+    // Combine any partial sequence from previous chunks with current chunk
+    const combinedChunk = this.partialSequence + chunk;
+    
     // Detect markdown-style links [text](url) or plain URLs
-    return chunk.includes('[') || chunk.includes('](') || /https?:\/\//.test(chunk);
+    const hasLinkMarker = combinedChunk.includes('[') || combinedChunk.includes('](') || /https?:\/\//.test(combinedChunk);
+    
+    if (hasLinkMarker) {
+      // Check if we have a complete link pattern
+      if (/\[([^\]]+)\]\(([^)]+)\)/.test(combinedChunk) || /https?:\/\/[^\s]+/.test(combinedChunk)) {
+        this.partialSequence = ''; // Reset partial sequence
+        return true;
+      }
+    }
+    
+    // Check for partial link sequences at the end of chunk
+    const partialLinkMatch = chunk.match(/(\[[^\]]*|\]\([^)]*)$/);
+    const partialUrlMatch = chunk.match(/(https?:\/\/[^\s]*)$/);
+    
+    if (partialLinkMatch && partialLinkMatch[1].length > 1) {
+      this.partialSequence = partialLinkMatch[1];
+      return null; // Wait for more chunks
+    } else if (partialUrlMatch && partialUrlMatch[1].length > 7) { // "http://" is 7 chars
+      this.partialSequence = partialUrlMatch[1];
+      return null; // Wait for more chunks
+    } else {
+      this.partialSequence = '';
+    }
+    
+    return false;
   }
 
   tryCompleteMatch(chunk: string, _bufferState?: BufferState): CompleteMatchResult | null {

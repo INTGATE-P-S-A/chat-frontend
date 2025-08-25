@@ -4,10 +4,31 @@ import { BufferState } from '../bufferer';
 export class H2HeaderRule extends BufferingRule {
   readonly name = 'h2-header';
   readonly priority = 2;
+  
+  private partialSequence = ''; // Track partial ## sequences across chunks
 
-  detect(chunk: string, _bufferState?: BufferState): boolean {
+  detect(chunk: string, _bufferState?: BufferState): boolean | null {
+    // Combine any partial sequence from previous chunks with current chunk
+    const combinedChunk = this.partialSequence + chunk;
+    
     // Detect ## at start of chunk or after newline, with optional space, but not ###
-    return /(?:^|\n)##(?!#)(\s|$)/.test(chunk) || /(?:^|\n)##(?!#)/.test(chunk);
+    const hasH2Marker = /(?:^|\n)##(?!#)(\s|$)/.test(combinedChunk) || /(?:^|\n)##(?!#)/.test(combinedChunk);
+    
+    if (hasH2Marker) {
+      this.partialSequence = ''; // Reset partial sequence
+      return true;
+    }
+    
+    // Check for partial ## sequence at the end of chunk (after newline)
+    const partialMatch = chunk.match(/(\n#{1,2})$/);
+    if (partialMatch && partialMatch[1].length > 1) {
+      this.partialSequence = partialMatch[1];
+      return null; // Wait for more chunks
+    } else {
+      this.partialSequence = '';
+    }
+    
+    return false;
   }
 
   tryCompleteMatch(chunk: string, _bufferState?: BufferState): CompleteMatchResult | null {
@@ -47,7 +68,7 @@ export class H2HeaderRule extends BufferingRule {
   protected override getFullTextPattern(): FullTextResult {
     return {
       pattern: /^## (.+)$/gm,
-      replacement: (match: string, content: string) => `<h2>${content}</h2>`
+      replacement: (_match: string, content: string) => `<h2>${content}</h2>`
     };
   }
 }
