@@ -7,7 +7,22 @@ export class ListRule extends BufferingRule {
   
   private partialMarker = ''; // Track partial list markers across chunks
 
-  detect(chunk: string, _bufferState?: BufferState): boolean | null {
+  detect(chunk: string, bufferState?: BufferState): boolean | null {
+    // Don't detect if we're already inside a list-viewer tag
+    if (bufferState?.insideListViewer || (bufferState?.listViewerDepth && bufferState.listViewerDepth > 0)) {
+      return false;
+    }
+    
+    // Don't detect if we're currently buffering any rule
+    if (bufferState?.buffering) {
+      return false;
+    }
+    
+    // Check if we're inside an existing list-viewer tag by looking at the chunk content
+    if (chunk.includes('<list-viewer') && !chunk.includes('</list-viewer>')) {
+      return false;
+    }
+    
     // Combine any partial marker from previous chunks with current chunk
     const combinedChunk = this.partialMarker + chunk;
     
@@ -47,7 +62,22 @@ export class ListRule extends BufferingRule {
     return false;
   }
 
-  tryCompleteMatch(chunk: string, _bufferState?: BufferState): CompleteMatchResult | null {
+  tryCompleteMatch(chunk: string, bufferState?: BufferState): CompleteMatchResult | null {
+    // Don't process if we're already inside a list-viewer tag
+    if (bufferState?.insideListViewer || (bufferState?.listViewerDepth && bufferState.listViewerDepth > 0)) {
+      return null;
+    }
+    
+    // Don't process if we're currently buffering any rule
+    if (bufferState?.buffering) {
+      return null;
+    }
+    
+    // Check if we're inside an existing list-viewer tag by looking at the chunk content
+    if (chunk.includes('<list-viewer') && !chunk.includes('</list-viewer>')) {
+      return null;
+    }
+    
     // Check if this chunk contains a complete list with proper boundaries
     // More strict pattern that requires proper list structure
     const listPattern = /(?:^|\n)(\s*(?:\d+\.|\-|\*|\+)\s+[^\n]+(?:\n\s*(?:\d+\.|\-|\*|\+)\s+[^\n]+)*)/;
@@ -77,9 +107,11 @@ export class ListRule extends BufferingRule {
       // Convert each line to a slotted list item, preserving formatting
       const htmlItems = validItems.map(item => {
         const content = item.replace(/^\s*(?:\d+\.|\-|\*|\+)\s+/, '').trim();
+        // Ensure content is properly escaped for HTML attributes but preserve markup
         return `    <li slot="items">${content}</li>`;
       }).join('\n');
       
+      // Create clean list-viewer without any extra attributes
       const replacement = `<list-viewer list-type="${listType}">
 ${htmlItems}
 </list-viewer>`;
@@ -91,6 +123,15 @@ ${htmlItems}
   }
 
   startBuffering(chunk: string, bufferState: BufferState): BufferingResult {
+    // Don't start buffering if we're already inside a list-viewer tag
+    if (bufferState?.insideListViewer || (bufferState?.listViewerDepth && bufferState.listViewerDepth > 0)) {
+      return {
+        processedChunk: chunk,
+        finisher: '',
+        closure: ''
+      };
+    }
+    
     // Start buffering when we detect a list item
     const listStart = chunk.match(/^(.*?)(\s*(?:\d+\.|\-|\*|\+)\s.*)/);
     if (listStart) {
@@ -113,6 +154,39 @@ ${htmlItems}
       finisher: '\n\n',
       closure: ''
     };
+  }
+
+  /**
+   * Handle completion of buffering when finisher is found
+   */
+  override handleBufferingCompletion(chunk: string, currentBuffer: string, finisher: string, closure: string, bufferState?: any): { finalChunk: string; remainingChunk: string; shouldContinue: boolean } | null {
+    // Reset list viewer state when buffering completes
+    if (bufferState) {
+      bufferState.insideListViewer = false;
+      bufferState.listViewerDepth = Math.max(0, (bufferState.listViewerDepth || 1) - 1);
+      bufferState.linebreakProof = false;
+      bufferState.buffering = false; // Ensure buffering is properly reset
+    }
+    
+    return null; // Let default logic handle the rest
+  }
+
+  /**
+   * Detect if list should finish based on content patterns
+   */
+  override detectFinish(chunk: string, currentBuffer: string, bufferState?: BufferState): boolean {
+    // If we encounter double newlines, the list should finish
+    if (chunk.includes('\n\n')) {
+      return true;
+    }
+    
+    // If we encounter content that's not a list item after a newline, finish the list
+    const nonListContent = /\n[^\s]*[^0-9\-\*\+\.\s]/.test(chunk);
+    if (nonListContent) {
+      return true;
+    }
+    
+    return false;
   }
 
   protected override getFullTextPattern(): FullTextResult {
