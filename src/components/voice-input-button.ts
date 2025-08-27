@@ -2,21 +2,15 @@ import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { styles } from '../styles/voice-input-button.js';
 import { globalConfig } from '../config/global-config.js';
-import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 
-import iconMicOff from '../svg/mic-icon.svg?raw';
-import iconMicOn from '../svg/mic-record-on-icon.svg?raw';
 import { addIconSheet } from '../utils/index.js';
 
 @customElement('voice-input-button')
 export class VoiceInputButton extends LitElement {
-  static override styles = [styles];
+  static override styles = [styles];  
 
-  recognitionSvc = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-  // some browsers may not support SpeechRecognition https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition#browser_compatibility
   @state()
-  showVoiceInput = this.recognitionSvc !== undefined;
+  showVoiceInput = true;
 
   @state()
   enableVoiceListening = false;
@@ -31,8 +25,7 @@ export class VoiceInputButton extends LitElement {
     event.preventDefault();
     
     this.enableVoiceListening = !this.enableVoiceListening;
-    
-    // Dispatch recording state event
+
     const recordingEvent = new CustomEvent('chat:audio:record', {
       detail: {
         isRecording: this.enableVoiceListening,
