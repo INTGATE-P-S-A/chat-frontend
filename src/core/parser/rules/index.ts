@@ -7,6 +7,7 @@ import { H2HeaderRule } from './h2-header-rule';
 import { H1HeaderRule } from './h1-header-rule';
 import { CodeBlockRule } from './code-block-rule';
 import { BoldTextRule } from './bold-text-rule';
+import { ItalicTextRule } from './italic-text-rule';
 import { LineBreakRule } from './line-break-rule';
 import { LinkRule } from './link-rule';
 import { ListRule } from './list-rule';
@@ -16,6 +17,7 @@ const ruleList: typeof BufferingRule[] = [
     LinkRule,
     ListRule,
     LineBreakRule,
+    ItalicTextRule,
     BoldTextRule,
     CodeBlockRule,
     H1HeaderRule,
@@ -28,6 +30,7 @@ export {
     LinkRule,
     ListRule,
     LineBreakRule,
+    ItalicTextRule,
     BoldTextRule,
     CodeBlockRule,
     H1HeaderRule,

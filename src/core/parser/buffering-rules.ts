@@ -6,6 +6,7 @@ import {
   H1HeaderRule,
   CodeBlockRule,
   BoldTextRule,
+  ItalicTextRule,
   LineBreakRule,
   LinkRule,
   ListRule
@@ -30,6 +31,7 @@ export class BufferingRuleManager {
       new H1HeaderRule(),
       new CodeBlockRule(),
       new BoldTextRule(),
+      new ItalicTextRule(),
       new ListRule(),
       new LineBreakRule(),
       new LinkRule()
