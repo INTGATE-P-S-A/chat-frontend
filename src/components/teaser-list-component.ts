@@ -45,6 +45,7 @@ export class TeaserListComponent extends LitElement {
         href="#"
         data-testid="default-question"
         @click="${(event: Event) => this.handleTeaserClick(teaser, event)}"
+        style="height: 100%;"
       >
         ${teaser.description}
         <span class="teaser-click-label">${this.actionLabel}</span>

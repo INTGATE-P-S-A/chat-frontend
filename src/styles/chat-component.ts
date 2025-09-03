@@ -539,6 +539,7 @@ export const chatStyle = css`
     transition: all 0.2s ease-in-out;
     padding: 5px;
     flex-shrink: 0;
+    margin-left: auto;
   }
 
   .fullscreen-toggle-btn:hover {

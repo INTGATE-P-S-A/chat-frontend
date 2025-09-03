@@ -751,6 +751,13 @@ export class ChatComponent extends LitElement {
             </chat-stage>`
         : ''}
         <section class="chat__container" id="chat-container">
+          <button 
+            type="button"
+            class="fullscreen-toggle-btn ${this.isFullscreen ? 'simple-icon-close' : 'simple-icon-size-fullscreen'}"
+            @click="${this.handleFullscreenToggle}"
+            title="${this.isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}"
+            ?disabled="${this.isDisabled}"
+          ></button>
           ${this.isChatStarted
         ? html`
                 <div class="chat__header--thread">                 
@@ -809,7 +816,7 @@ export class ChatComponent extends LitElement {
          
            
             ${this.isDefaultPromptsEnabled && !this.isChatStarted
-        ? html`<div class="chat__container">
+        ? html`<div class="chat__container">        
                   <teaser-list-component
                     .heading="${this.interactionModel === 'chat'
             ? teaserListTexts.HEADING_CHAT
@@ -867,14 +874,7 @@ export class ChatComponent extends LitElement {
             </div>
 
             ${globalConfig.WEB_SEARCH_CHECKBOX_ENABLED
-        ? html`<div class="web-search__wrapper">
-                  <button 
-                    type="button"
-                    class="fullscreen-toggle-btn ${this.isFullscreen ? 'simple-icon-close' : 'simple-icon-size-fullscreen'}"
-                    @click="${this.handleFullscreenToggle}"
-                    title="${this.isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}"
-                    ?disabled="${this.isDisabled}"
-                  ></button>
+        ? html`<div class="web-search__wrapper">                  
                   <div class="web-search__container">
                     <input
                       type="checkbox"
