@@ -16,6 +16,9 @@ export interface BufferState {
   currentCodeViewerId?: string; // Track the current code-viewer component ID for streaming
   waitingForLanguage?: boolean; // Track if we're waiting for language completion
   detectedLanguage?: string; // Store detected language when it comes in separate chunk from newline
+  textBeforeCodeBlock?: string; // Store text that appears before ``` in code block detection
+  contentAfterLanguage?: string; // Store content that comes after language+newline in same chunk
+  isFirstBufferingChunk?: boolean; // Track if this is the first chunk after starting buffering
   ruleManager?: BufferingRuleManager; // Rule manager instance - created once per message stream
 }
 
