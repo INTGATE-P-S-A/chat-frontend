@@ -192,10 +192,9 @@ export const chatStyle = css`
     display: grid;
     grid-template-columns: 1fr;
     gutter: var(--d-base);
-    height: 100%;
     flex: 1;
     overflow: hidden;
-    max-height: 100vh;
+    min-height: 0;
   }
   .chat__containerWrapper.aside-open {
     display: grid;
@@ -203,34 +202,36 @@ export const chatStyle = css`
     grid-template-areas: 
       "chat"
       "aside";
+    grid-template-rows: 1fr 1fr;
     grid-column-gap: var(--d-base);
     grid-row-gap: var(--d-base);
-    height: 100%;
     flex: 1;
     overflow: hidden;
-    max-height: 100vh;
+    min-height: 0;
 
     @media (min-width: 1024px) {
-      grid-template-columns: 1fr 50%;
+      grid-template-columns: 1fr 1fr;
       grid-template-areas: "chat aside";
+      grid-template-rows: 1fr;
     }
   }
   .chat__containerWrapper.aside-open .chat__container {
     grid-area: chat;
     overflow: hidden;
     min-height: 0;
+    max-height: 100%;
   }
   .chat__containerWrapper.aside-open .aside {
     grid-area: aside;
     width: 100%;
     border-left: var(--border-thin) solid var(--c-light-gray);
-    max-width: 600px;
-    min-width: 400px;
+    max-width: none;
+    min-width: 0;
+    min-height: 0;
+    max-height: 100%;
+    overflow: hidden;
 
     @media (max-width: 1024px) {
-      width: var(--width-base);
-      max-width: none;
-      min-width: auto;
       border-left: none;
       border-top: var(--border-thin) solid var(--c-light-gray);
     }

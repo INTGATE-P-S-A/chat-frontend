@@ -25,6 +25,7 @@ declare interface ChatThreadEntry {
   };
   thoughts?: string;
   dataPoints?: string[];
+  rawContent?: string;
 }
 
 declare interface Citation {

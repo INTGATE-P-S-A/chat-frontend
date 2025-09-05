@@ -187,6 +187,7 @@ export class ChatController implements ReactiveController {
           isUserMessage: false,
           thoughts: undefined,
           dataPoints: undefined,
+          rawContent: '', // Will be populated by the parser
         };
 
         this.isProcessingResponse = true;
@@ -222,6 +223,9 @@ export class ChatController implements ReactiveController {
           isUserMessage,
           thoughts,
           dataPoints,
+          // For user messages, rawContent is the same as the message content
+          // For AI responses in non-streaming mode, we don't have true rawContent, so use the message
+          rawContent: isUserMessage ? (message as string) : (message as string),
         };
       }
     };
@@ -282,6 +286,7 @@ export class ChatController implements ReactiveController {
             isUserMessage: false,
             thoughts: undefined,
             dataPoints: undefined,
+            rawContent: '', // Will be populated by WebSocket parser
           };
 
           // Use WebSocket

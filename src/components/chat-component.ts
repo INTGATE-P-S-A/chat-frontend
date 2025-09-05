@@ -436,7 +436,9 @@ export class ChatComponent extends LitElement {
 
     const messages: Message[] = history.map((entry) => {
       return {
-        content: chatEntryToString(entry),
+        // Use rawContent for AI responses (non-user messages) to send raw LLM output to backend
+        // Use parsed content for user messages since they don't have rawContent
+        content: entry.isUserMessage ? chatEntryToString(entry) : (entry.rawContent || chatEntryToString(entry)),
         role: entry.isUserMessage ? 'user' : 'assistant',
       };
     });

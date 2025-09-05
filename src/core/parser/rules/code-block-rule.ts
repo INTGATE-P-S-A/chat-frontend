@@ -188,6 +188,7 @@ export class CodeBlockRule extends BufferingRule {
     if (this.shouldSkipProcessing(bufferState, chunk)) {
       return null;
     }
+                console.log('REPL')
 
     // Check for complete code block pattern in the chunk
     // Pattern: ```language\ncontent``` - only process if language is specified and ``` is at start of line
@@ -206,8 +207,9 @@ export class CodeBlockRule extends BufferingRule {
         CodeBlockRule.createdCodeViewers.add(codeId);
         setTimeout(() => CodeBlockRule.createdCodeViewers.delete(codeId), 30000);
         
+
         const replacement = `<code-viewer componentId="${codeId}" language="${language}" streaming="false">${content}</code-viewer>`;
-        
+
         // Find the position of the match in the chunk
         const matchIndex = chunk.indexOf(fullMatch);
         const beforeMatch = chunk.substring(0, matchIndex);
@@ -476,10 +478,11 @@ export class CodeBlockRule extends BufferingRule {
     return this.extractPlainText(content);
   }
 
-  protected override getFullTextPattern(): FullTextResult {
+  protected override getFullTextPattern(): FullTextResult {    
     return {
       pattern: /```(\w+)?\n?([\s\S]*?)```/g,
       replacement: (_match: string, language: string, content: string) => {
+        console.log(content);
         const normalizedLanguage = language ? this.normalizeLanguage(language) : 'plaintext';
         return `<code-viewer language="${normalizedLanguage}">${content}</code-viewer>`;
       }

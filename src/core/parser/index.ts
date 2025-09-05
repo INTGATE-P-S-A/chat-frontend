@@ -24,6 +24,7 @@ export async function parseStreamedMessages({
   let codeViewerCreated = false; // Track if we've already created the code-viewer
   let citations: Citation[] = [];
   const streamedMessageRaw: string[] = [];
+  let rawContentAccumulator = ''; // Accumulate raw content before parsing
   const bufferState = createBufferState();
   let textBlockIndex = 0;
 
@@ -110,6 +111,9 @@ export async function parseStreamedMessages({
     if (chunkValue === '') {
       continue;
     }
+
+    // Accumulate raw content before applying parsing rules
+    rawContentAccumulator += chunkValue;
 
     streamedMessageRaw.push(chunkValue);      
 
@@ -220,6 +224,10 @@ export async function parseStreamedMessages({
 
 
   updatedEntry = updateCitationsEntry({ citations, chatEntry: updatedEntry });
+  
+  // Set the accumulated raw content
+  updatedEntry.rawContent = rawContentAccumulator;
+
   onVisit(updatedEntry);
 }
 

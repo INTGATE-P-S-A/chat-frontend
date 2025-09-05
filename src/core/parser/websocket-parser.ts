@@ -15,6 +15,7 @@ export async function parseStreamedMessagesFromWebSocket({
 }, host: ReactiveControllerHost) {
 
   const streamedMessageRaw: string[] = [];
+  let rawContentAccumulator = chatEntry.rawContent || ''; // Continue from existing raw content
   const bufferState = createBufferState();
   let textBlockIndex = 0;
 
@@ -77,6 +78,9 @@ export async function parseStreamedMessagesFromWebSocket({
     return;
   }
 
+  // Accumulate raw content before applying parsing rules
+  rawContentAccumulator += chunkValue;
+
   streamedMessageRaw.push(chunkValue);      
 
   // Process chunk with buffering
@@ -91,6 +95,9 @@ export async function parseStreamedMessagesFromWebSocket({
   
   const citations = parseCitations(streamedMessageRaw.join(''));
   updatedEntry = updateCitationsEntry({ citations, chatEntry: updatedEntry });
+  
+  // Set the accumulated raw content
+  updatedEntry.rawContent = rawContentAccumulator;
 
   onVisit(updatedEntry);
 }
