@@ -22,6 +22,7 @@ export async function parseStreamedMessages({
   let startedCoding = false;
   let coderId: string | null = null;
   let codeViewerCreated = false; // Track if we've already created the code-viewer
+  let accumulatedCodeContent = ''; // Accumulate all code content during streaming
   let citations: Citation[] = [];
   const streamedMessageRaw: string[] = [];
   let rawContentAccumulator = ''; // Accumulate raw content before parsing
@@ -123,17 +124,9 @@ export async function parseStreamedMessages({
 
     // Process chunk with buffering
     const { processedChunk, bufferState: updatedBufferState } = processChunkWithBuffering(chunkValue, bufferState, (bufferInfo, chunk) => {
-      // Update code-viewer if we're actively buffering a code-block
+      // Accumulate code content instead of directly updating code-viewer
       if(bufferInfo.buffering && bufferInfo.currentRule === 'code-block' && coderId) {   
-        const hoster = (host as any);
-        try {
-          const codeViewer: { updateRenderer: (text: string) => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[componentId="'+coderId+'"]');
-          if(codeViewer && typeof codeViewer.updateRenderer === 'function'){            
-            codeViewer.updateRenderer(chunk);     
-          }    
-        } catch(e){
-          console.error('Error updating code-viewer:', e);
-        }      
+        accumulatedCodeContent += chunk;
       }
     });
 
@@ -141,7 +134,20 @@ export async function parseStreamedMessages({
     const codeViewerJustCompleted = wasBufferingCodeViewer && !updatedBufferState.buffering && startedCoding;
     
     if(codeViewerJustCompleted) {
-      // Stop code generation immediately when buffering completes
+      // Code-viewer buffering just completed - render all accumulated content at once
+      if(accumulatedCodeContent && coderId) {
+        try {
+          const hoster = (host as any);
+          const codeViewer: { updateRenderer: (text: string) => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[componentId="'+coderId+'"]');
+          if(codeViewer && typeof codeViewer.updateRenderer === 'function'){            
+            codeViewer.updateRenderer(accumulatedCodeContent);     
+          }    
+        } catch(e){
+          console.error('Error rendering accumulated code content:', e);
+        }
+      }
+      
+      // Stop code generation after rendering content
       try {
         const hoster = (host as any);
         const codeViewer: { stopCodeGeneration: () => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[componentId="'+coderId+'"]');
@@ -152,14 +158,14 @@ export async function parseStreamedMessages({
         console.error('Error stopping code generation:', e);
       }
       
-      // Clear the coderId to prevent subsequent chunks from being routed to the component
-      coderId = null;
+      // DON'T clear coderId here - we need it for the final update!
     }  
     
     if(codeViewerJustCompleted){
-      // Code-viewer just completed, reset state (stopCodeGeneration already called)
-      coderId = null;
+      // Code-viewer just completed, reset state 
+      // DON'T clear coderId yet - keep it to find the component for final update
       startedCoding = false;
+      // DON'T clear accumulatedCodeContent yet - keep it for final update
       // DON'T reset codeViewerCreated - once created, never recreate
     }
     
@@ -193,24 +199,19 @@ export async function parseStreamedMessages({
             }
           }, 100); // Small delay to ensure component is rendered
         }
-        
-        // Add the code-viewer tag to DOM immediately - this creates the component ONCE
-        updatedEntry = updateTextEntry({ chunkValue: processedChunk, textBlockIndex, chatEntry: updatedEntry });
-      } else if(processedChunk.includes('<code-viewer') && codeViewerCreated) {
-        // If we already created a code-viewer and this chunk has another one, COMPLETELY IGNORE IT
-        // Do nothing - don't add this chunk to prevent recreation
-      } else if(!processedChunk.includes('<code-viewer')) {
-        // Only add chunks that don't contain code-viewer tags
-        updatedEntry = updateTextEntry({ chunkValue: processedChunk, textBlockIndex, chatEntry: updatedEntry });
       }
+      
+      // Always update text content normally (let everything render)
+      updatedEntry = updateTextEntry({ chunkValue: processedChunk, textBlockIndex, chatEntry: updatedEntry });
     }
     
     // Handle code-viewer completion (reset state)
     if(codeViewerJustCompleted){
-      // Code-viewer just completed, reset state (stopCodeGeneration already called)
-      coderId = null;
+      // Code-viewer just completed, reset some state but keep coderId and accumulatedCodeContent for final update
       startedCoding = false;
       // DON'T reset codeViewerCreated - once created, never recreate
+      // DON'T reset coderId - need it for final update
+      // DON'T reset accumulatedCodeContent - need it for final update
     }
     
     // Update buffer state for next iteration
@@ -227,6 +228,37 @@ export async function parseStreamedMessages({
   
   // Set the accumulated raw content
   updatedEntry.rawContent = rawContentAccumulator;
+
+  // FINAL STEP: If we accumulated code content, update the last rendered code-viewer
+  if (accumulatedCodeContent && codeViewerCreated) {
+    setTimeout(() => {
+      try {
+        const hoster = (host as any);
+        // Find the last code-viewer in the current message using the stored coderId
+        let codeViewer: { updateRenderer: (text: string) => void } | null = null;
+        
+        if (coderId) {
+          // Try to find by specific componentId first
+          codeViewer = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector(`code-viewer[componentId="${coderId}"]`);
+        }
+        
+        if (!codeViewer) {
+          // Fallback: find last code-viewer in the message
+          codeViewer = hoster.renderRoot?.querySelector('chat-thread-component .message:last-child code-viewer:last-of-type');
+        }
+        
+        if(codeViewer && typeof codeViewer.updateRenderer === 'function'){            
+          codeViewer.updateRenderer(accumulatedCodeContent);
+          
+          // Clear state after successful update
+          accumulatedCodeContent = '';
+          coderId = null;
+        }    
+      } catch(e){
+        console.error('Error updating code-viewer with accumulated content:', e);
+      }
+    }, 500); // Longer delay to ensure DOM is fully rendered
+  }
 
   onVisit(updatedEntry);
 }

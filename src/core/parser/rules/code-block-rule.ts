@@ -30,40 +30,13 @@ export class CodeBlockRule extends BufferingRule {
   /**
    * Check if we should skip processing due to existing code-viewer context
    */
-  private shouldSkipProcessing(bufferState?: BufferState, chunk?: string): boolean {
-    // Don't process if we're already inside a code-viewer tag
-    if (bufferState?.insideCodeViewer || (bufferState?.codeViewerDepth && bufferState.codeViewerDepth > 0)) {
-      return true;
-    }
-    
-    // Don't process if we're currently buffering any rule - prevents nested code-viewer creation
-    if (bufferState?.buffering) {
-      return true;
-    }
-    
-    // Don't process if we have ANY existing code-viewer in the current context
-    if (bufferState?.currentCodeViewerId) {
-      return true;
-    }
-    
-    // Check if we're inside an existing code-viewer tag by looking at the chunk content
-    if (chunk && chunk.includes('<code-viewer') && !chunk.includes('</code-viewer>')) {
-      return true;
-    }
-    
-    return false;
-  }
+
 
   /**
    * Normalize and validate the detected language
    */
 
   detect(chunk: string, bufferState?: BufferState): boolean | null {
-    // if (this.shouldSkipProcessing(bufferState, chunk)) {
-    //  
-    //   return false;
-    // }
-
     if(this.checkLang(chunk, bufferState)){
         return true;
     }
@@ -185,9 +158,6 @@ export class CodeBlockRule extends BufferingRule {
   }
 
   tryCompleteMatch(chunk: string, bufferState?: BufferState): CompleteMatchResult | null {
-    if (this.shouldSkipProcessing(bufferState, chunk)) {
-      return null;
-    }
                 console.log('REPL')
 
     // Check for complete code block pattern in the chunk
@@ -229,14 +199,6 @@ export class CodeBlockRule extends BufferingRule {
   }
 
   startBuffering(chunk: string, bufferState?: BufferState): BufferingResult {
-    if (this.shouldSkipProcessing(bufferState, chunk)) {
-      return {
-        processedChunk: chunk,
-        finisher: '',
-        closure: ''
-      };
-    }
-
     // Generate unique ID for the code-viewer
     const codeId = voucher.generate({ count: 1, length: 8 })[0].toLowerCase();
     
