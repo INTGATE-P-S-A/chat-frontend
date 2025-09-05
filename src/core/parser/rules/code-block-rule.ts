@@ -63,17 +63,14 @@ export class CodeBlockRule extends BufferingRule {
     //  
     //   return false;
     // }
-    console.log('det', this.openingCheck, chunk)
 
     if(this.checkLang(chunk, bufferState)){
-        console.log('FOUND LANG IMMEDIATELY')
         return true;
     }
 
     // Handle opening check for ``` sequence across chunks
     if(this.openingCheck !== '```' && chunk.includes('`') && !chunk.endsWith('```')){
       this.openingCheck += chunk;
-      console.log('pass`')
       return null;
     }    
 
@@ -91,8 +88,6 @@ export class CodeBlockRule extends BufferingRule {
                 
         // Start language detection phase with remaining content
         this.languageCheck = textAfterTripleBacktick;
-
-        console.log('lc', this.languageCheck);
 
         if(this.languageCheck !== ''){
           this.detectedLanguage = this.languageCheck;
@@ -139,7 +134,6 @@ export class CodeBlockRule extends BufferingRule {
         return true;
       }
       
-      console.log({chunk})
       // Still waiting for complete LANG\n pattern
       return null;
     }
@@ -149,14 +143,19 @@ export class CodeBlockRule extends BufferingRule {
 
   private checkLang(checking: string, bufferState?: BufferState): boolean
   {
-    const languageMatch = checking.match(/(.*)```([a-zA-Z]+)\n/);
+    const languageMatch = checking.match(/(.*)```([a-zA-Z]+)\n(.*)$/);
     if (languageMatch) {
       if(bufferState && languageMatch[1]){
         bufferState.textBeforeCodeBlock = languageMatch[1]
-      }      
+      }            
 
       this.detectedLanguage = this.normalizeLanguage(languageMatch[2]);
       this.languageDetectionMode = false;
+
+      // Store content after language+newline as first chunk for the component
+      if (bufferState && languageMatch[3]) {
+        bufferState.contentAfterLanguage = languageMatch[3];
+      }
 
       return true; // Start buffering now
     }
@@ -178,7 +177,6 @@ export class CodeBlockRule extends BufferingRule {
           bufferState.contentAfterLanguage = contentAfterLanguage;
         }
 
-        console.log('START BUFFERING with language:', this.detectedLanguage, 'Content after language:', contentAfterLanguage);
         
         return true; // Start buffering now
       }
@@ -309,8 +307,6 @@ export class CodeBlockRule extends BufferingRule {
     const stopIt =  combinedChunk.includes('```');
 
     if(stopIt && bufferState){
-    console.log({partialClosing, combinedChunk});
-
       // Set the finisher so handleBufferingCompletion can process it properly
       bufferState.bufferingFinisher = '```';
       bufferState.buffering = false;
@@ -393,7 +389,6 @@ export class CodeBlockRule extends BufferingRule {
       return null;
     }
 
-
     // Handle partial ``` sequences
     let partialClosing = bufferState?.partialClosing || '';
     let processedChunk = partialClosing + chunk;
@@ -406,10 +401,12 @@ export class CodeBlockRule extends BufferingRule {
       const beforeFinisher = processedChunk.substring(0, finisherIndex);
       const afterFinisher = processedChunk.substring(finisherIndex + 3);
       
-      // Clear partial closing and currentCodeViewerId
+      // Clear partial closing and currentCodeViewerId BEFORE returning
       if (bufferState) {
         bufferState.partialClosing = undefined;
         bufferState.currentCodeViewerId = null;
+        bufferState.buffering = false;
+        bufferState.currentRule = undefined;
       }
 
       const finalChunk = beforeFinisher ? this.extractPlainText(beforeFinisher) : '';

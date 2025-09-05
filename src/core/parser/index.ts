@@ -22,7 +22,6 @@ export async function parseStreamedMessages({
   let startedCoding = false;
   let coderId: string | null = null;
   let codeViewerCreated = false; // Track if we've already created the code-viewer
-  let codeGenerationStopped = false; // Track if we've already stopped code generation
   let citations: Citation[] = [];
   const streamedMessageRaw: string[] = [];
   const bufferState = createBufferState();
@@ -144,12 +143,21 @@ export async function parseStreamedMessages({
         const codeViewer: { stopCodeGeneration: () => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[componentId="'+coderId+'"]');
         if(codeViewer && typeof codeViewer.stopCodeGeneration === 'function'){            
           codeViewer.stopCodeGeneration();     
-          codeGenerationStopped = true; // Mark that we've stopped generation
         }    
       } catch(e){
         console.error('Error stopping code generation:', e);
       }
+      
+      // Clear the coderId to prevent subsequent chunks from being routed to the component
+      coderId = null;
     }  
+    
+    if(codeViewerJustCompleted){
+      // Code-viewer just completed, reset state (stopCodeGeneration already called)
+      coderId = null;
+      startedCoding = false;
+      // DON'T reset codeViewerCreated - once created, never recreate
+    }
     
     // Check if we're currently streaming to a code-viewer
     const isStreamingToCodeViewer = updatedBufferState.buffering && 
@@ -157,8 +165,7 @@ export async function parseStreamedMessages({
                                    startedCoding;
     
     // Only update text entry when we have a processed chunk AND we're not streaming to code-viewer
-    // AND we haven't already stopped code generation (to prevent post-completion updates)
-    if (processedChunk !== null && !isStreamingToCodeViewer && !codeGenerationStopped) {
+    if (processedChunk !== null && !isStreamingToCodeViewer) {
       // Check if this chunk contains a new code-viewer tag being created
       if(processedChunk.includes('<code-viewer') && !startedCoding && !codeViewerCreated) {
         startedCoding = true;
@@ -192,14 +199,14 @@ export async function parseStreamedMessages({
         // Only add chunks that don't contain code-viewer tags
         updatedEntry = updateTextEntry({ chunkValue: processedChunk, textBlockIndex, chatEntry: updatedEntry });
       }
-      
-      // Handle code-viewer completion (reset state)
-      if(codeViewerJustCompleted){
-        // Code-viewer just completed, reset state (stopCodeGeneration already called)
-        coderId = null;
-        startedCoding = false;
-        // DON'T reset codeViewerCreated - once created, never recreate
-      }
+    }
+    
+    // Handle code-viewer completion (reset state)
+    if(codeViewerJustCompleted){
+      // Code-viewer just completed, reset state (stopCodeGeneration already called)
+      coderId = null;
+      startedCoding = false;
+      // DON'T reset codeViewerCreated - once created, never recreate
     }
     
     // Update buffer state for next iteration

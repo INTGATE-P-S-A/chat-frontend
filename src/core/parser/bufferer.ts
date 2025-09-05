@@ -129,7 +129,6 @@ export function processChunkWithBuffering(
   // Use the rule manager from buffer state (created once per message stream)
   const ruleManager = bufferState.ruleManager!;
 
-
   // Try to apply buffering rules if not already buffering
   if (!bufferState.buffering) {
     const ruleResult = ruleManager.processChunk(processedChunk, bufferState);
@@ -202,7 +201,8 @@ export function processChunkWithBuffering(
 
       if (completionResult) {
         // Rule handled completion
-        let finalChunk = completionResult.finalChunk;
+        let codeContent = completionResult.finalChunk; // This is just the code before ```
+        let normalText = '';
         
         // Handle any remaining content after completion
         if (completionResult.remainingChunk) {
@@ -217,14 +217,16 @@ export function processChunkWithBuffering(
               skipOne: false,
               partialClosing: undefined,
               currentRule: undefined,
+              currentCodeViewerId: undefined, // Explicitly clear this
+              waitingForLanguage: undefined,
               linebreakProof: bufferState.insideCodeViewer && bufferState.codeViewerDepth > 1,
               ruleManager: bufferState.ruleManager // Preserve rule manager instance
             },
-            duringBuffering
+            undefined // NO duringBuffering callback - process as normal text
           );
           
           if (remainingResult.processedChunk) {
-            finalChunk += remainingResult.processedChunk;
+            normalText = remainingResult.processedChunk;
           }
           
           Object.assign(bufferState, remainingResult.bufferState);
@@ -250,11 +252,14 @@ export function processChunkWithBuffering(
             bufferState.linebreakProof = true;
           }
         }
-        
-        duringBuffering({ buffering: true, currentRule: 'code-block' } as any, finalChunk);
 
+        // Send ONLY the code content to code-viewer, not the remaining text
+        if (codeContent) {
+          duringBuffering({ buffering: true, currentRule: 'code-block' } as any, codeContent);
+        }
 
-        return { processedChunk: finalChunk, bufferState };
+        // Return the normal text for regular processing
+        return { processedChunk: normalText, bufferState };
       }
 
       // Fallback to generic completion logic (only if we have a finisher)
