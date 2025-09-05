@@ -59,15 +59,23 @@ export class CodeBlockRule extends BufferingRule {
    */
 
   detect(chunk: string, bufferState?: BufferState): boolean | null {
-    if (this.shouldSkipProcessing(bufferState, chunk)) {
-      return false;
+    // if (this.shouldSkipProcessing(bufferState, chunk)) {
+    //  
+    //   return false;
+    // }
+    console.log('det', this.openingCheck, chunk)
+
+    if(this.checkLang(chunk, bufferState)){
+        console.log('FOUND LANG IMMEDIATELY')
+        return true;
     }
 
     // Handle opening check for ``` sequence across chunks
     if(this.openingCheck !== '```' && chunk.includes('`') && !chunk.endsWith('```')){
       this.openingCheck += chunk;
+      console.log('pass`')
       return null;
-    }
+    }    
 
     if(this.openingCheck !== '' && this.openingCheck.length >= 3){
       if(this.openingCheck.includes('```')){        
@@ -80,13 +88,22 @@ export class CodeBlockRule extends BufferingRule {
         if (textBeforeCodeBlock && bufferState) {
           bufferState.textBeforeCodeBlock = textBeforeCodeBlock;
         }
-        
-        this.openingCheck = '';
+                
         // Start language detection phase with remaining content
         this.languageCheck = textAfterTripleBacktick;
+
+        console.log('lc', this.languageCheck);
+
+        if(this.languageCheck !== ''){
+          this.detectedLanguage = this.languageCheck;
+          this.languageDetectionMode = false;
+          this.openingCheck = '';
+          return true;
+        }
+
         this.detectedLanguage = '';
         this.languageDetectionMode = true;
-        return null; // Don't start buffering yet, wait for language
+        // return null; // Don't start buffering yet, wait for language
       }else{
         this.openingCheck = '';
         return false;
@@ -117,8 +134,39 @@ export class CodeBlockRule extends BufferingRule {
       // We're in language detection mode - accumulate chunks until we get LANG\n
       this.languageCheck += chunk;
       
-      // Check if we have LANG\n pattern
-      const languageMatch = this.languageCheck.match(/^([a-zA-Z][a-zA-Z0-9_-]*)\n/);
+      if(this.checkLangInDetectionMode(this.languageCheck, bufferState)){
+        this.openingCheck = '';
+        return true;
+      }
+      
+      console.log({chunk})
+      // Still waiting for complete LANG\n pattern
+      return null;
+    }
+
+    return false;
+  }
+
+  private checkLang(checking: string, bufferState?: BufferState): boolean
+  {
+    const languageMatch = checking.match(/(.*)```([a-zA-Z]+)\n/);
+    if (languageMatch) {
+      if(bufferState && languageMatch[1]){
+        bufferState.textBeforeCodeBlock = languageMatch[1]
+      }      
+
+      this.detectedLanguage = this.normalizeLanguage(languageMatch[2]);
+      this.languageDetectionMode = false;
+
+      return true; // Start buffering now
+    }
+
+    return false;
+  }
+
+  private checkLangInDetectionMode(checking: string, bufferState?: BufferState): boolean
+  {
+      const languageMatch = checking.match(/^([a-zA-Z][a-zA-Z0-9_-]*)\n/);
       if (languageMatch) {
         // Found complete language + newline, now we can start buffering
         this.detectedLanguage = this.normalizeLanguage(languageMatch[1]);
@@ -129,15 +177,13 @@ export class CodeBlockRule extends BufferingRule {
         if (contentAfterLanguage && bufferState) {
           bufferState.contentAfterLanguage = contentAfterLanguage;
         }
+
+        console.log('START BUFFERING with language:', this.detectedLanguage, 'Content after language:', contentAfterLanguage);
         
         return true; // Start buffering now
       }
-      
-      // Still waiting for complete LANG\n pattern
-      return null;
-    }
 
-    return false;
+      return false;
   }
 
   tryCompleteMatch(chunk: string, bufferState?: BufferState): CompleteMatchResult | null {
