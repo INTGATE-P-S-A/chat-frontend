@@ -117,6 +117,7 @@ export async function parseStreamedMessages({
     // Store previous buffering state to detect completion
     const wasBufferingCodeViewer = bufferState.buffering && bufferState.currentRule === 'code-block';
 
+
     // Process chunk with buffering
     const { processedChunk, bufferState: updatedBufferState } = processChunkWithBuffering(chunkValue, bufferState, (bufferInfo, chunk) => {
       // Update code-viewer if we're actively buffering a code-block
@@ -132,7 +133,6 @@ export async function parseStreamedMessages({
         }      
       }
     });
-
 
     // Check if code-viewer buffering just completed
     const codeViewerJustCompleted = wasBufferingCodeViewer && !updatedBufferState.buffering && startedCoding;

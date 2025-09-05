@@ -304,10 +304,13 @@ export class CodeBlockRule extends BufferingRule {
     const partialClosing = bufferState?.partialClosing || '';
     const combinedChunk = partialClosing + chunk;    
     
+
     // Check if combined chunk contains complete finisher ```
     const stopIt =  combinedChunk.includes('```');
 
     if(stopIt && bufferState){
+    console.log({partialClosing, combinedChunk});
+
       // Set the finisher so handleBufferingCompletion can process it properly
       bufferState.bufferingFinisher = '```';
       bufferState.buffering = false;
@@ -390,6 +393,7 @@ export class CodeBlockRule extends BufferingRule {
       return null;
     }
 
+
     // Handle partial ``` sequences
     let partialClosing = bufferState?.partialClosing || '';
     let processedChunk = partialClosing + chunk;
@@ -407,10 +411,11 @@ export class CodeBlockRule extends BufferingRule {
         bufferState.partialClosing = undefined;
         bufferState.currentCodeViewerId = null;
       }
-      
-      // For completion, return any content before the finisher and the remaining chunk
+
+      const finalChunk = beforeFinisher ? this.extractPlainText(beforeFinisher) : '';
+
       return {
-        finalChunk: beforeFinisher ? this.extractPlainText(beforeFinisher) : '',
+        finalChunk,
         remainingChunk: afterFinisher,
         shouldContinue: false
       };

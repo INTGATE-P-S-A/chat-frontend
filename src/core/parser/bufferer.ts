@@ -250,6 +250,9 @@ export function processChunkWithBuffering(
             bufferState.linebreakProof = true;
           }
         }
+        
+        duringBuffering({ buffering: true, currentRule: 'code-block' } as any, finalChunk);
+
 
         return { processedChunk: finalChunk, bufferState };
       }
