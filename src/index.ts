@@ -7,5 +7,6 @@ export * from './components/loading-indicator.js';
 export * from './components/citation-list.js';
 export * from './components/chat-thread-component.js';
 export * from './components/chat-action-button.js';
+export * from './components/reasoning-viewer.js';
 export * from './core/index.js';
 export * from './utils/index.js';

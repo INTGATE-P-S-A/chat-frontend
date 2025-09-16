@@ -10,12 +10,14 @@ export async function parseStreamedMessages({
   signal,
   onChunkRead: onVisit,
   onCancel,
+  onReasoningStep,
 }: {
   chatEntry: ChatThreadEntry;
   apiResponseBody: ReadableStream<Uint8Array> | null;
   signal: AbortSignal;
   onChunkRead: (updated: ChatThreadEntry) => void;
   onCancel: () => void;
+  onReasoningStep?: (reasoningId: string, step: string) => void;
 }, host: ReactiveControllerHost) {
   const reader = createReader(apiResponseBody);
   const chunks = readStream<BotResponseChunk | BotResponseError>(reader);
@@ -39,9 +41,9 @@ export async function parseStreamedMessages({
     total_tokens: 0,
     cost: 0,
     reasoning_tokens: 0
-  }
+  }  
 
-  let reasoningId: string | null = null;  
+  let reasoningId: string | null = null;
 
   for await (const chunk of chunks) {
     if (signal.aborted) {
@@ -51,8 +53,6 @@ export async function parseStreamedMessages({
 
 
     if ((chunk as BotResponseChunk).cost) {
-      console.log(`Received cost info:`, (chunk as BotResponseChunk).cost);
-
       promptCost.prompt_tokens += (chunk as BotResponseChunk).cost?.prompt_tokens || 0;
       promptCost.completion_tokens += (chunk as BotResponseChunk).cost?.completion_tokens || 0;
       promptCost.total_tokens += (chunk as BotResponseChunk).cost?.total_tokens || 0;
@@ -87,20 +87,15 @@ export async function parseStreamedMessages({
     }
 
     if (chunk.reasoning) {
+      // Use the callback function to add reasoning steps
       if (!reasoningId) {
         reasoningId = 'reasoning-' + Math.random().toString(36).substring(2, 15);
-        updatedEntry = updateTextEntry({ chunkValue: `<reasoning-viewer id="${reasoningId}"></reasoning-viewer>`, textBlockIndex, chatEntry: updatedEntry });
-        onVisit(updatedEntry);
       }
- 
-      setTimeout(() => {
-        const reasoningViewer: { updateReasoning: (text: string) => void } = (host as any).renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('reasoning-viewer[id="' + reasoningId + '"]');
-     
-        const reasonText = chunk.reasoning as string;
-        const processedReasoning = parseText(reasonText)
-
-        reasoningViewer?.updateReasoning(processedReasoning);
-      }, 500);      
+      
+      if (onReasoningStep) {
+        const processedReasoning = parseText(chunk.reasoning as string, { mode: 'full' });
+        onReasoningStep(reasoningId, processedReasoning);
+      }
       
       continue;
     }
@@ -309,7 +304,10 @@ export async function parseStreamedMessages({
   }
 
   onVisit(updatedEntry);
-  reasoningId = null;  
+  
+  // Don't clear the reasoning - let it persist with the message
+  // The reasoning will be cleared when a new conversation starts
+  reasoningId = null;
 }
 
 // update the citations entry and wrap the citations in a sup tag

@@ -15,6 +15,7 @@ export class ChatController implements ReactiveController {
   private _processingMessage: ChatThreadEntry | undefined = undefined;
   private _abortController: AbortController = new AbortController();
   private _useWebSocket: boolean = false;
+  private _onReasoningStep?: (reasoningId: string, step: string) => void;
 
   get isAwaitingResponse() {
     return this._isAwaitingResponse;
@@ -49,6 +50,10 @@ export class ChatController implements ReactiveController {
       : undefined;
     
     this.host.requestUpdate();
+  }
+
+  setReasoningCallback(callback: (reasoningId: string, step: string) => void) {
+    this._onReasoningStep = callback;
   }
 
   set isAwaitingResponse(value: boolean) {
@@ -161,34 +166,47 @@ export class ChatController implements ReactiveController {
     });
   }
 
-  async processResponse(response: string | BotResponse, isUserMessage: boolean = false, useStream: boolean = false) {
-    const citations: Citation[] = [];
-    const followingSteps: string[] = [];
-    const followupQuestions: string[] = [];
+  async processResponse(response: string | BotResponse, isUserMessage: boolean = false, useStream: boolean = false, existingChatThread: ChatThreadEntry[] = []) {
     const timestamp = getTimestamp();
+    const citations: Citation[] = [];
+    let followupQuestions: string[] = [];
+    let followingSteps: string[] = [];
     let thoughts: string | undefined;
     let dataPoints: string[] | undefined;
             
 
     const updateChatWithMessageOrChunk = async (message: string | BotResponse, chunked: boolean) => {
       if (chunked) {
-        // For HTTP streaming, create initial empty entry for parseStreamedMessages
-        const initialEntry: ChatThreadEntry = {
-          id: crypto.randomUUID(),
-          text: [
-            {
-              value: '',
-              followingSteps: [],
-            },
-          ],
-          followupQuestions: [],
-          citations: [],
-          timestamp: timestamp,
-          isUserMessage: false,
-          thoughts: undefined,
-          dataPoints: undefined,
-          rawContent: '', // Will be populated by the parser
-        };
+        // Check if there's already an AI message at the end of the chat thread
+        let initialEntry: ChatThreadEntry | undefined;
+        
+        if (existingChatThread.length > 0) {
+          const lastMessage = existingChatThread[existingChatThread.length - 1];
+          if (!lastMessage.isUserMessage) {
+            // Use the existing AI message
+            initialEntry = lastMessage;
+          }
+        }
+        
+        // If no existing AI message found, create a new one
+        if (!initialEntry) {
+          initialEntry = {
+            id: crypto.randomUUID(),
+            text: [
+              {
+                value: '',
+                followingSteps: [],
+              },
+            ],
+            followupQuestions: [],
+            citations: [],
+            timestamp: timestamp,
+            isUserMessage: false,
+            thoughts: undefined,
+            dataPoints: undefined,
+            rawContent: '', // Will be populated by the parser
+          };
+        }
 
         this.isProcessingResponse = true;
         this._abortController = new AbortController();
@@ -203,6 +221,7 @@ export class ChatController implements ReactiveController {
           onCancel: () => {
             this.clear();
           },
+          onReasoningStep: this._onReasoningStep,
         }, this.host);
 
         // processing done.
@@ -252,7 +271,7 @@ export class ChatController implements ReactiveController {
     }
   }
 
-  async generateAnswer(requestOptions: ChatRequestOptions, httpOptions: ChatHttpOptions, useWebSocket?: boolean, websocketUrl?: string) {
+  async generateAnswer(requestOptions: ChatRequestOptions, httpOptions: ChatHttpOptions, useWebSocket?: boolean, websocketUrl?: string, existingChatThread: ChatThreadEntry[] = []) {
     const { question } = requestOptions;
 
     if (question) {
@@ -264,30 +283,46 @@ export class ChatController implements ReactiveController {
 
         // for chat messages, process user question as a chat entry
         if (requestOptions.type === 'chat') {
-          await this.processResponse(question, true, false);
+          await this.processResponse(question, true, false, existingChatThread);
         }
 
         this.isAwaitingResponse = true;
         this.processingMessage = undefined;
 
         if (useWebSocket && this._useWebSocket && websocketUrl) {
+          // Check if there's already an AI message at the end of the chat thread
+          let initialMessage: ChatThreadEntry | undefined;
+          
+          if (existingChatThread.length > 0) {
+            const lastMessage = existingChatThread[existingChatThread.length - 1];
+            if (!lastMessage.isUserMessage) {
+              // Use the existing AI message
+              initialMessage = lastMessage;
+            }
+          }
+          
+          // If no existing AI message found, create a new one
+          if (!initialMessage) {
+            initialMessage = {
+              id: crypto.randomUUID(),
+              text: [
+                {
+                  value: '',
+                  followingSteps: [],
+                },
+              ],
+              followupQuestions: [],
+              citations: [],
+              timestamp: getTimestamp(),
+              isUserMessage: false,
+              thoughts: undefined,
+              dataPoints: undefined,
+              rawContent: '', // Will be populated by WebSocket parser
+            };
+          }
+
           // Use WebSocket - initialize processing message for WebSocket
-          this.processingMessage = {
-            id: crypto.randomUUID(),
-            text: [
-              {
-                value: '',
-                followingSteps: [],
-              },
-            ],
-            followupQuestions: [],
-            citations: [],
-            timestamp: getTimestamp(),
-            isUserMessage: false,
-            thoughts: undefined,
-            dataPoints: undefined,
-            rawContent: '', // Will be populated by WebSocket parser
-          };
+          this.processingMessage = initialMessage;
 
           // Use WebSocket
           const websocketOptions: WebSocketApiOptions = {
@@ -310,7 +345,7 @@ export class ChatController implements ReactiveController {
           const response = (await getAPIResponse(requestOptions, updatedHttpOptions)) as BotResponse;
           this.isAwaitingResponse = false;
 
-          await this.processResponse(response, false, httpOptions.stream);
+          await this.processResponse(response, false, httpOptions.stream, existingChatThread);
         }
       } catch (error_: any) {
         const error = error_ as ChatResponseError;
@@ -320,7 +355,7 @@ export class ChatController implements ReactiveController {
 
         if (!this.processingMessage) {
           // add a empty message to the chat thread to display the error
-          await this.processResponse('', false, false);
+          await this.processResponse('', false, false, existingChatThread);
         }
 
         if (this.processingMessage) {

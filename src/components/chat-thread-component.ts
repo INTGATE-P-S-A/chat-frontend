@@ -1,4 +1,4 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, PropertyValues } from 'lit';
 import { customElement, property, query, state } from 'lit/decorators.js';
 
 import { styles } from '../styles/chat-thread-component.js';
@@ -16,7 +16,9 @@ import iconQuestion from '../svg/bubblequestion-icon.svg?raw';
 import './citation-list.js';
 import './chat-action-button.js';
 import './loading-indicator.js';
+import './reasoning-viewer.js';
 import { type ChatActionButton } from './chat-action-button.js';
+import { ReasoningViewer } from './reasoning-viewer.js';
 
 @customElement('chat-thread-component')
 export class ChatThreadComponent extends LitElement {
@@ -40,8 +42,65 @@ export class ChatThreadComponent extends LitElement {
   @state()
   isResponseCopied = false;
 
+  @state()
+  isReasoningClosed = false;
+
+  @state()
+  reasoningSteps: { [key: string]: string[] } = {};
+
+  @state()
+  currentReasoningId: string | null = null;
+
+  @state()
+  pendingReasoningId: string | null = null; // Track reasoning waiting for an AI message
+
+  @state()
+  messageReasoningMap: { [messageIndex: number]: string } = {};
+
   @query('#chat-list-footer')
   chatFooter!: HTMLElement;
+
+  private previousChatThreadLength = 0;
+
+  override willUpdate(changedProperties: PropertyValues) {
+    super.willUpdate(changedProperties);
+    
+    // Check if a new AI message was added and we have pending reasoning
+    if (changedProperties.has('chatThread') && this.pendingReasoningId) {
+      const newAIMessageIndex = this.findLatestAIMessageIndex();
+      
+      // Check if there's a new AI message OR if the latest AI message doesn't have reasoning yet
+      const shouldAssociate = newAIMessageIndex >= 0 && (
+        newAIMessageIndex >= this.previousChatThreadLength || 
+        !this.messageReasoningMap[newAIMessageIndex]
+      );
+      
+      if (shouldAssociate) {
+        this.messageReasoningMap = {
+          ...this.messageReasoningMap,
+          [newAIMessageIndex]: this.pendingReasoningId
+        };
+        this.pendingReasoningId = null; // Clear pending reasoning
+      }
+    }
+    
+    this.previousChatThreadLength = this.chatThread.length;
+  }
+
+  private findLatestAIMessageIndex(): number {
+    for (let i = this.chatThread.length - 1; i >= 0; i--) {
+      if (!this.chatThread[i].isUserMessage) {
+        const reasoningComponent = this.shadowRoot?.querySelector('reasoning-viewer') as ReasoningViewer;
+        
+        if(reasoningComponent && reasoningComponent.dropdownShown){
+          this.isReasoningClosed = true;
+          reasoningComponent.close();
+        }    
+        return i;
+      }
+    }
+    return -1;
+  }
 
   @property({ type: Object })
   selectedCitation: Citation | undefined = undefined;
@@ -105,6 +164,78 @@ export class ChatThreadComponent extends LitElement {
     this.dispatchEvent(citationClickEvent);
   }
 
+  // Reasoning management methods
+  addReasoningStep(reasoningId: string, step: string) {
+    if (!this.reasoningSteps[reasoningId]) {
+      this.reasoningSteps[reasoningId] = [];
+    }
+    this.reasoningSteps = {
+      ...this.reasoningSteps,
+      [reasoningId]: [...this.reasoningSteps[reasoningId], step]
+    };
+    
+    // Set the current reasoning ID for the latest message
+    this.currentReasoningId = reasoningId;
+    
+    // Find the last AI message (non-user message) to associate reasoning with
+    let targetMessageIndex = -1;
+    for (let i = this.chatThread.length - 1; i >= 0; i--) {
+      if (!this.chatThread[i].isUserMessage) {
+        targetMessageIndex = i;
+        break;
+      }
+    }
+    
+    if (targetMessageIndex >= 0) {
+      // AI message exists (either real or placeholder) - associate reasoning immediately
+      this.messageReasoningMap = {
+        ...this.messageReasoningMap,
+        [targetMessageIndex]: reasoningId
+      };
+      // Clear any pending reasoning since we found an AI message to associate with
+      this.pendingReasoningId = null;
+    } else {
+      // No AI message exists yet - store reasoning as pending
+      // It will be associated when the streaming process creates the AI message
+      this.pendingReasoningId = reasoningId;
+    }
+    
+    this.requestUpdate();
+  }
+
+  getReasoningSteps(reasoningId: string): string[] {
+    return this.reasoningSteps[reasoningId] || [];
+  }
+
+  clearReasoningSteps(reasoningId: string) {
+    const newSteps = { ...this.reasoningSteps };
+    delete newSteps[reasoningId];
+    this.reasoningSteps = newSteps;
+    
+    // Clear current reasoning ID if it matches
+    if (this.currentReasoningId === reasoningId) {
+      this.currentReasoningId = null;
+    }
+    
+    // Remove from message mapping
+    const newMapping = { ...this.messageReasoningMap };
+    Object.keys(newMapping).forEach(key => {
+      if (newMapping[parseInt(key)] === reasoningId) {
+        delete newMapping[parseInt(key)];
+      }
+    });
+    this.messageReasoningMap = newMapping;
+    
+    this.requestUpdate();
+  }
+
+  // Method to clear current reasoning when starting a new message
+  startNewMessage() {
+    // Don't clear the reasoning ID immediately - let it persist until the message is complete
+    // this.currentReasoningId = null;
+    this.requestUpdate();
+  }
+
   renderResponseActions(entry: ChatThreadEntry) {
     return html`
       <header class="chat__header">
@@ -137,6 +268,7 @@ export class ChatThreadComponent extends LitElement {
 
   renderTextEntry(textEntry: ChatMessageText) {
     const entries = [html`<p class="chat__txt--entry">${unsafeHTML(textEntry.value)}</p>`];
+    
     // render steps
     if (textEntry.followingSteps && textEntry.followingSteps.length > 0) {
       entries.push(html`
@@ -206,6 +338,46 @@ export class ChatThreadComponent extends LitElement {
     return html`<p class="chat__txt error">${error.message}</p>`;
   }
 
+  renderReasoningViewer(messageIndex: number) {
+    // Check if this message has reasoning associated with it
+    const reasoningId = this.messageReasoningMap[messageIndex];
+    
+    if (reasoningId && this.reasoningSteps[reasoningId]?.length > 0) {
+      return html`
+        <reasoning-viewer
+          component-id="${reasoningId}"
+          .reasoningSteps="${this.reasoningSteps[reasoningId]}"
+          .closed="${this.isReasoningClosed}"
+        ></reasoning-viewer>
+      `;
+    }
+    return '';
+  }
+
+  renderPendingReasoning() {
+    // Show pending reasoning if there are reasoning steps but no AI message yet
+    if (this.pendingReasoningId && this.reasoningSteps[this.pendingReasoningId]?.length > 0) {
+      return html`
+        <li class="chat__listItem ai-message">
+          <div class="message-avatar">
+            <div class="ai-avatar">AI</div>
+          </div>
+          
+          <div class="message-content">
+            <div class="chat__txt">
+              <reasoning-viewer
+                component-id="${this.pendingReasoningId}"
+                .reasoningSteps="${this.reasoningSteps[this.pendingReasoningId]}"
+              ></reasoning-viewer>
+              <loading-indicator label=""></loading-indicator>
+            </div>
+          </div>
+        </li>
+      `;
+    }
+    return '';
+  }
+
   private formatTo24Hour(timestamp: number): string
   {    
     const date = new Date(timestamp);
@@ -253,6 +425,7 @@ export class ChatThreadComponent extends LitElement {
                   
                   <div class="message-content">
                     <div class="chat__txt ${message.isUserMessage ? 'user-message' : ''}">
+                      ${!message.isUserMessage ? this.renderReasoningViewer(index) : ''}
                       ${message.text.map((textEntry) => this.renderTextEntry(textEntry))} 
                       ${this.renderCitation(message)}
                       ${this.renderFollowupQuestions(message)} 
@@ -278,6 +451,7 @@ export class ChatThreadComponent extends LitElement {
                 </li>
               `},
           )}
+        ${this.renderPendingReasoning()}
         </ul>
       </div>
       <div class="chat__footer" id="chat-list-footer">

@@ -236,6 +236,14 @@ export class ChatComponent extends LitElement {
 
     await addIconSheet.bind(this)();
 
+    // Set up reasoning callback for chat controller
+    this.chatController.setReasoningCallback((reasoningId: string, step: string) => {       
+      const chatThreadComponent = this.renderRoot?.querySelector('chat-thread-component');
+      if (chatThreadComponent && typeof (chatThreadComponent as any).addReasoningStep === 'function') {
+        (chatThreadComponent as any).addReasoningStep(reasoningId, step);
+      }
+    });
+
     if (this.dataWebSearch === true) {
       this.useWebSearch = true;
     }
@@ -477,7 +485,8 @@ export class ChatComponent extends LitElement {
         headers: this.customHeaders,
       },
       this.useWebSocket, // Pass WebSocket flag
-      this.apiUrl // Pass WebSocket URL (same as API URL)
+      this.apiUrl, // Pass WebSocket URL (same as API URL)
+      this.chatThread // Pass current chat thread
     );
 
     if (this.interactionModel === 'chat') {
