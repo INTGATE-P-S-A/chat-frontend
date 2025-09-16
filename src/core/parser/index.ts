@@ -1,7 +1,7 @@
 import { ReactiveControllerHost } from 'lit';
 import { ChatResponseError, newListWithEntryAtIndex } from '../../utils/index.js';
 import { createReader, readStream } from '../stream/index.js';
-import { createBufferState, processChunkWithBuffering } from './bufferer.js';
+import { createBufferState, processChunkWithBuffering, parseText } from './bufferer.js';
 import { parseTool } from './toolsParser.js';
 
 export async function parseStreamedMessages({
@@ -9,13 +9,13 @@ export async function parseStreamedMessages({
   apiResponseBody,
   signal,
   onChunkRead: onVisit,
-  onCancel,  
+  onCancel,
 }: {
   chatEntry: ChatThreadEntry;
   apiResponseBody: ReadableStream<Uint8Array> | null;
   signal: AbortSignal;
   onChunkRead: (updated: ChatThreadEntry) => void;
-  onCancel: () => void;  
+  onCancel: () => void;
 }, host: ReactiveControllerHost) {
   const reader = createReader(apiResponseBody);
   const chunks = readStream<BotResponseChunk | BotResponseError>(reader);
@@ -33,43 +33,91 @@ export async function parseStreamedMessages({
     ...chatEntry,
   };
 
+  const promptCost: IPromptCost = {
+    prompt_tokens: 0,
+    completion_tokens: 0,
+    total_tokens: 0,
+    cost: 0,
+    reasoning_tokens: 0
+  }
+
+  let reasoningId: string | null = null;  
+
   for await (const chunk of chunks) {
     if (signal.aborted) {
       onCancel();
       return;
     }
 
+
+    if ((chunk as BotResponseChunk).cost) {
+      console.log(`Received cost info:`, (chunk as BotResponseChunk).cost);
+
+      promptCost.prompt_tokens += (chunk as BotResponseChunk).cost?.prompt_tokens || 0;
+      promptCost.completion_tokens += (chunk as BotResponseChunk).cost?.completion_tokens || 0;
+      promptCost.total_tokens += (chunk as BotResponseChunk).cost?.total_tokens || 0;
+      promptCost.cost += (chunk as BotResponseChunk).cost?.cost || 0;
+      promptCost.reasoning_tokens += (chunk as BotResponseChunk).cost?.reasoning_tokens || 0;
+
+      updatedEntry = {
+        ...updatedEntry,
+        cost: promptCost
+      };
+      onVisit(updatedEntry);
+      continue;
+
+    }
+
     if ('error' in chunk) {
       throw new ChatResponseError(chunk.message, chunk.statusCode);
     }
 
-    if(chunk.progress && chunk.status !== 'rws_progress'){
+    if (chunk.progress && chunk.status !== 'rws_progress') {
       continue;
     }
 
-    if(chunk.conversationId) {
-        const event = new CustomEvent('chat:conversation:start', {
+    if (chunk.conversationId) {
+      const event = new CustomEvent('chat:conversation:start', {
         detail: { conversationId: chunk.conversationId },
         bubbles: true,
         composed: true
       });
-      (host as any).dispatchEvent(event);   
+      (host as any).dispatchEvent(event);
       continue;
-    }    
+    }
 
-     if(chunk.tool) {  
-      try {
-        updatedEntry = updateTextEntry({ chunkValue: parseTool(chunk.tool), textBlockIndex, chatEntry: updatedEntry });      
+    if (chunk.reasoning) {
+      if (!reasoningId) {
+        reasoningId = 'reasoning-' + Math.random().toString(36).substring(2, 15);
+        updatedEntry = updateTextEntry({ chunkValue: `<reasoning-viewer id="${reasoningId}"></reasoning-viewer>`, textBlockIndex, chatEntry: updatedEntry });
         onVisit(updatedEntry);
-      } catch(e) {
-        // Handle error silently or add proper error handling if needed
       }
-       
-        continue;
-    }   
+ 
+      setTimeout(() => {
+        const reasoningViewer: { updateReasoning: (text: string) => void } = (host as any).renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('reasoning-viewer[id="' + reasoningId + '"]');
+     
+        const reasonText = chunk.reasoning as string;
+        const processedReasoning = parseText(reasonText)
 
-    if(chunk.citations) {
-      citations = [ ...citations, ...chunk.citations ];      
+        reasoningViewer?.updateReasoning(processedReasoning);
+      }, 500);      
+      
+      continue;
+    }
+
+    if (chunk.tool) {
+      try {
+        updatedEntry = updateTextEntry({ chunkValue: parseTool(chunk.tool), textBlockIndex, chatEntry: updatedEntry });
+        onVisit(updatedEntry);
+      } catch (e) {
+        console.error('Error parsing tool chunk:', e);
+      }
+
+      continue;
+    }
+
+    if (chunk.citations) {
+      citations = [...citations, ...chunk.citations];
       continue;
     }
 
@@ -116,7 +164,7 @@ export async function parseStreamedMessages({
     // Accumulate raw content before applying parsing rules
     rawContentAccumulator += chunkValue;
 
-    streamedMessageRaw.push(chunkValue);      
+    streamedMessageRaw.push(chunkValue);
 
     // Store previous buffering state to detect completion
     const wasBufferingCodeViewer = bufferState.buffering && bufferState.currentRule === 'code-block';
@@ -125,98 +173,98 @@ export async function parseStreamedMessages({
     // Process chunk with buffering
     const { processedChunk, bufferState: updatedBufferState } = processChunkWithBuffering(chunkValue, bufferState, (bufferInfo, chunk) => {
       // Accumulate code content instead of directly updating code-viewer
-      if(bufferInfo.buffering && bufferInfo.currentRule === 'code-block' && coderId) {   
+      if (bufferInfo.buffering && bufferInfo.currentRule === 'code-block' && coderId) {
         accumulatedCodeContent += chunk;
       }
     });
 
     // Check if code-viewer buffering just completed
     const codeViewerJustCompleted = wasBufferingCodeViewer && !updatedBufferState.buffering && startedCoding;
-    
-    if(codeViewerJustCompleted) {
+
+    if (codeViewerJustCompleted) {
       // Code-viewer buffering just completed - render all accumulated content at once
-      if(accumulatedCodeContent && coderId) {
+      if (accumulatedCodeContent && coderId) {
         try {
           const hoster = (host as any);
-          const codeViewer: { updateRenderer: (text: string) => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[componentId="'+coderId+'"]');
-          if(codeViewer && typeof codeViewer.updateRenderer === 'function'){            
-            codeViewer.updateRenderer(accumulatedCodeContent);     
-          }    
-        } catch(e){
+          const codeViewer: { updateRenderer: (text: string) => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[componentId="' + coderId + '"]');
+          if (codeViewer && typeof codeViewer.updateRenderer === 'function') {
+            codeViewer.updateRenderer(accumulatedCodeContent);
+          }
+        } catch (e) {
           console.error('Error rendering accumulated code content:', e);
         }
       }
-      
+
       // Stop code generation after rendering content
       try {
         const hoster = (host as any);
-        const codeViewer: { stopCodeGeneration: () => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[componentId="'+coderId+'"]');
-        if(codeViewer && typeof codeViewer.stopCodeGeneration === 'function'){            
-          codeViewer.stopCodeGeneration();     
-        }    
-      } catch(e){
+        const codeViewer: { stopCodeGeneration: () => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[componentId="' + coderId + '"]');
+        if (codeViewer && typeof codeViewer.stopCodeGeneration === 'function') {
+          codeViewer.stopCodeGeneration();
+        }
+      } catch (e) {
         console.error('Error stopping code generation:', e);
       }
-      
+
       // DON'T clear coderId here - we need it for the final update!
-    }  
-    
-    if(codeViewerJustCompleted){
+    }
+
+    if (codeViewerJustCompleted) {
       // Code-viewer just completed, reset state 
       // DON'T clear coderId yet - keep it to find the component for final update
       startedCoding = false;
       // DON'T clear accumulatedCodeContent yet - keep it for final update
       // DON'T reset codeViewerCreated - once created, never recreate
     }
-    
+
     // Check if we're currently streaming to a code-viewer
-    const isStreamingToCodeViewer = updatedBufferState.buffering && 
-                                   updatedBufferState.currentRule === 'code-block' && 
-                                   startedCoding;
-    
+    const isStreamingToCodeViewer = updatedBufferState.buffering &&
+      updatedBufferState.currentRule === 'code-block' &&
+      startedCoding;
+
     // Only update text entry when we have a processed chunk AND we're not streaming to code-viewer
     if (processedChunk !== null && !isStreamingToCodeViewer) {
       // Check if this chunk contains a new code-viewer tag being created
-      if(processedChunk.includes('<code-viewer') && !startedCoding && !codeViewerCreated) {
+      if (processedChunk.includes('<code-viewer') && !startedCoding && !codeViewerCreated) {
         startedCoding = true;
         codeViewerCreated = true; // Mark that we've created the component
-        
+
         // Extract the componentId from the generated code-viewer tag
         const componentIdMatch = processedChunk.match(/componentId="([^"]+)"/);
-        if(componentIdMatch) {
+        if (componentIdMatch) {
           coderId = componentIdMatch[1];
-          
+
           // Start code generation on the code-viewer component after a small delay
           setTimeout(() => {
             try {
               const hoster = (host as any);
-              const codeViewer: { startCodeGeneration: () => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[componentId="'+coderId+'"]');
-              if(codeViewer && typeof codeViewer.startCodeGeneration === 'function'){            
-                codeViewer.startCodeGeneration();     
-              }    
-            } catch(e){
+              const codeViewer: { startCodeGeneration: () => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[componentId="' + coderId + '"]');
+              if (codeViewer && typeof codeViewer.startCodeGeneration === 'function') {
+                codeViewer.startCodeGeneration();
+              }
+            } catch (e) {
               console.error('Error starting code generation:', e);
             }
           }, 100); // Small delay to ensure component is rendered
         }
       }
-      
+
       // Always update text content normally (let everything render)
       updatedEntry = updateTextEntry({ chunkValue: processedChunk, textBlockIndex, chatEntry: updatedEntry });
     }
-    
+
     // Handle code-viewer completion (reset state)
-    if(codeViewerJustCompleted){
+    if (codeViewerJustCompleted) {
       // Code-viewer just completed, reset some state but keep coderId and accumulatedCodeContent for final update
       startedCoding = false;
       // DON'T reset codeViewerCreated - once created, never recreate
       // DON'T reset coderId - need it for final update
       // DON'T reset accumulatedCodeContent - need it for final update
     }
-    
+
     // Update buffer state for next iteration
     Object.assign(bufferState, updatedBufferState);
-    
+
     updatedEntry = updateCitationsEntry({ citations: [], chatEntry: updatedEntry });
 
     onVisit(updatedEntry);
@@ -225,7 +273,7 @@ export async function parseStreamedMessages({
 
 
   updatedEntry = updateCitationsEntry({ citations, chatEntry: updatedEntry });
-  
+
   // Set the accumulated raw content
   updatedEntry.rawContent = rawContentAccumulator;
 
@@ -236,31 +284,32 @@ export async function parseStreamedMessages({
         const hoster = (host as any);
         // Find the last code-viewer in the current message using the stored coderId
         let codeViewer: { updateRenderer: (text: string) => void } | null = null;
-        
+
         if (coderId) {
           // Try to find by specific componentId first
           codeViewer = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector(`code-viewer[componentId="${coderId}"]`);
         }
-        
+
         if (!codeViewer) {
           // Fallback: find last code-viewer in the message
           codeViewer = hoster.renderRoot?.querySelector('chat-thread-component .message:last-child code-viewer:last-of-type');
         }
-        
-        if(codeViewer && typeof codeViewer.updateRenderer === 'function'){            
+
+        if (codeViewer && typeof codeViewer.updateRenderer === 'function') {
           codeViewer.updateRenderer(accumulatedCodeContent);
-          
+
           // Clear state after successful update
           accumulatedCodeContent = '';
           coderId = null;
-        }    
-      } catch(e){
+        }
+      } catch (e) {
         console.error('Error updating code-viewer with accumulated content:', e);
       }
     }, 500); // Longer delay to ensure DOM is fully rendered
   }
 
   onVisit(updatedEntry);
+  reasoningId = null;  
 }
 
 // update the citations entry and wrap the citations in a sup tag
@@ -350,12 +399,12 @@ export function updateTextEntry({
 export function updateFollowingStepOrFollowupQuestionEntry({
   chunkValue,
   textBlockIndex,
-  stepIndex,  
+  stepIndex,
   chatEntry,
 }: {
   chunkValue: string;
   textBlockIndex: number;
-  stepIndex: number;  
+  stepIndex: number;
   chatEntry: ChatThreadEntry;
 }): ChatThreadEntry {
   // following steps and followup questions are treated the same way. They are just stored in different arrays

@@ -3,7 +3,7 @@ import { css } from 'lit';
 export const styles = css`
   .subheadline--small {
     font-size: 12px;
-    display: inline-block;
+    display: block;
   }
   .items__list {
     border-top: none;

@@ -292,5 +292,22 @@ export const styles = css`
     flex: 1;
     overflow-y: auto;
     background: white;
-  }  
+  }
+
+  .cost-info {
+    font-size: 0.75rem;
+    color: #666;
+    margin-left: 0.5rem;
+    opacity: 0.8;
+  }
+
+  .chat__txt--info {
+    display: flex;
+    align-items: center;
+  }
+
+  .timestamp {
+    font-size: 0.75rem;
+    color: #999;
+  }
 `;

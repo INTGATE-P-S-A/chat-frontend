@@ -7,8 +7,7 @@ import {
   CodeBlockRule,
   BoldTextRule,
   ItalicTextRule,
-  LineBreakRule,
-  LinkRule,
+  LineBreakRule,  
   ListRule
 } from './rules';
 
@@ -33,8 +32,7 @@ export class BufferingRuleManager {
       new BoldTextRule(),
       new ItalicTextRule(),
       new ListRule(),
-      new LineBreakRule(),
-      new LinkRule()
+      new LineBreakRule()
     ];
   }
 

@@ -26,6 +26,7 @@ declare interface ChatThreadEntry {
   thoughts?: string;
   dataPoints?: string[];
   rawContent?: string;
+  cost?: IPromptCost;
 }
 
 declare interface Citation {
@@ -95,10 +96,20 @@ declare interface ProgressChunk {
   };
 }
 
+declare interface IPromptCost {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  cost: number;
+  reasoning_tokens: number;
+}
+
 declare interface BotResponseChunk {
   tool?: { name: string; data: Record<string, any> };
   citations?: Citation[];
   conversationId?: string;
+  cost?: IPromptCost,
+  reasoning?: string;
   status?: string;
   progress?: ProgressChunk;
   choices: Array<{

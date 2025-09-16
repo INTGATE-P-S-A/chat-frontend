@@ -214,6 +214,20 @@ export class ChatThreadComponent extends LitElement {
     return `${hours}:${minutes.toString().padStart(2, '0')}`;
   }
 
+  private renderCostInfo(entry: ChatThreadEntry) {
+    if (!entry.cost || entry.isUserMessage) {
+      return '';
+    }
+
+    const { prompt_tokens, completion_tokens, total_tokens, cost } = entry.cost;
+    
+    return html`
+      <span class="cost-info" title="Tokens: ${prompt_tokens} + ${completion_tokens} = ${total_tokens}">
+        💰 $${cost.toFixed(4)}
+      </span>
+    `;
+  }
+
   override render() {
     return html`
     <div id="chat__thread-container">
@@ -246,11 +260,12 @@ export class ChatThreadComponent extends LitElement {
                       ${showLoadingIndicator ? html`<loading-indicator label=""></loading-indicator>` : ''}
                     </div>
                     <div class="chat__txt--footer">
-                      <div class="chat__txt--info">
-                        <span class="timestamp">${this.formatTo24Hour(message.timestamp)}</span>                 
+                      <div class="chat__txt--info">                              
+                        <span class="timestamp">${this.formatTo24Hour(message.timestamp)}</span>                        
+                        ${this.renderCostInfo(message)}     
                       </div>
                       <div class="chat__response-actions">                  
-                        ${message.isUserMessage ? '' : this.renderResponseActions(message)}                
+                        ${message.isUserMessage ? '' : this.renderResponseActions(message)}                                              
                       </div>
                     </div>
                   </div>
