@@ -144,7 +144,7 @@ export const chatStyle = css`
   /* Chat header styling */
   .chat__header--thread {
     flex-shrink: 0;
-    padding: 0.5rem 0;
+    padding: 0;
   }
   #chat-container {
     height: 100%;
@@ -523,40 +523,6 @@ export const chatStyle = css`
   .web-search__checkbox:focus ~ .web-search__label::before {
     border-color: #86b7fe;
     box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
-  }
-
-  /* Fullscreen toggle button styles */
-  .fullscreen-toggle-btn {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    border: 2px solid var(--primary-color);
-    background-color: var(--primary-color);
-    color: white;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease-in-out;
-    padding: 5px;
-    flex-shrink: 0;
-    margin-left: auto;
-  }
-
-  .fullscreen-toggle-btn:hover {
-    opacity: 0.8;
-    transform: scale(1.05);
-  }
-
-  .fullscreen-toggle-btn:focus {
-    outline: 2px solid var(--primary-color);
-    outline-offset: 2px;
-  }
-
-  .fullscreen-toggle-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
   }
 
   .aside__header {

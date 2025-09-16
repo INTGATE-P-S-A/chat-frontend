@@ -740,10 +740,12 @@ export class ChatComponent extends LitElement {
       .isProcessingResponse="${this.chatController.isProcessingResponse}"
       .selectedCitation="${this.selectedCitation}"
       .isCustomBranding="${this.isCustomBranding}"
+      .isFullscreen="${this.isFullscreen}"
       .svgIcon="${iconLogo}"
       @on-action-button-click="${this.handleChatEntryActionButtonClick}"
       @on-citation-click="${this.handleCitationClick}"
       @on-followup-click="${this.handleQuestionInputClick}"
+      @on-fullscreen-toggle="${this.handleFullscreenToggle}"
     >
     </chat-thread-component>`;
   }
@@ -761,14 +763,7 @@ export class ChatComponent extends LitElement {
             >
             </chat-stage>`
         : ''}
-        <section class="chat__container" id="chat-container">
-          <button 
-            type="button"
-            class="fullscreen-toggle-btn ${this.isFullscreen ? 'simple-icon-close' : 'simple-icon-size-fullscreen'}"
-            @click="${this.handleFullscreenToggle}"
-            title="${this.isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}"
-            ?disabled="${this.isDisabled}"
-          ></button>
+        <section class="chat__container" id="chat-container">         
           ${this.isChatStarted
         ? html`
                 <div class="chat__header--thread">                 

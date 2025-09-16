@@ -6,7 +6,7 @@ import { styles } from '../styles/chat-thread-component.js';
 import { globalConfig } from '../config/global-config.js';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
-import { chatEntryToString } from '../utils/index.js';
+import { addIconSheet, chatEntryToString } from '../utils/index.js';
 
 import iconSuccess from '../svg/success-icon.svg?raw';
 import iconCopyToClipboard from '../svg/copy-icon.svg?raw';
@@ -39,6 +39,9 @@ export class ChatThreadComponent extends LitElement {
   @property({ type: String })
   conversationTitle;
 
+  @property({ type: Boolean })
+  isFullscreen = false;
+
   @state()
   isResponseCopied = false;
 
@@ -61,6 +64,12 @@ export class ChatThreadComponent extends LitElement {
   chatFooter!: HTMLElement;
 
   private previousChatThreadLength = 0;
+
+  override async connectedCallback() {
+    super.connectedCallback();
+
+    await addIconSheet.bind(this)();     
+  }
 
   override willUpdate(changedProperties: PropertyValues) {
     super.willUpdate(changedProperties);
@@ -160,6 +169,18 @@ export class ChatThreadComponent extends LitElement {
       composed: true,
     });
     this.dispatchEvent(followUpClickEvent);
+  }
+
+  handleFullscreenToggle(event: Event) {
+    event.preventDefault();
+    const fullscreenToggleEvent = new CustomEvent('on-fullscreen-toggle', {
+      detail: {
+        isFullscreen: !this.isFullscreen,
+      },
+      bubbles: true,
+      composed: true,
+    });
+    this.dispatchEvent(fullscreenToggleEvent);
   }
 
   handleCitationClick(citation: Citation, entry: ChatThreadEntry, event: Event) {
@@ -417,9 +438,15 @@ export class ChatThreadComponent extends LitElement {
     <div id="chat__thread-container">
       <div class="chat-topic">
         <h5>
-          <i class="iconsminds-speach-bubble-9" style="margin-right: 0.5rem;"></i>
           ${this.conversationTitle}
         </h5>
+        <button 
+            type="button"
+            class="fullscreen-toggle-btn ${this.isFullscreen ? 'simple-icon-close' : 'simple-icon-size-fullscreen'}"
+            @click="${this.handleFullscreenToggle}"
+            title="${this.isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}"
+            ?disabled="${this.isDisabled}"
+        ></button>
       </div>
       <ul class="chat__list" aria-live="assertive">
         ${this.chatThread.map(
