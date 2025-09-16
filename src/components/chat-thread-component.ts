@@ -83,8 +83,20 @@ export class ChatThreadComponent extends LitElement {
         this.pendingReasoningId = null; // Clear pending reasoning
       }
     }
+
+    // Auto-scroll to bottom when new messages are added
+    if (changedProperties.has('chatThread') && this.chatThread.length) {
+        this.scrollToBottom();
+    }
     
     this.previousChatThreadLength = this.chatThread.length;
+  }
+
+  private scrollToBottom(): void {    
+    const scrollContainer = this.shadowRoot?.querySelector('#chat__thread-container ul.chat__list');
+    if (scrollContainer) {
+      scrollContainer.scrollTop = scrollContainer.scrollHeight;
+    }
   }
 
   private findLatestAIMessageIndex(): number {
