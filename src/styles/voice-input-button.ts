@@ -18,6 +18,9 @@ export const styles = css`
   {    
     color: #fff;
   }
+  :host{
+    box-sizing: border-box;
+  }
   :host(:hover) button{
     color: #fff;
   }

@@ -12,6 +12,7 @@ export const styles = css`
   p {
     display: flex;
     align-items: center;
+    margin: 0;
   }
   svg {
     width: var(--d-large);

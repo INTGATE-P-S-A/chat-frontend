@@ -785,16 +785,7 @@ export class ChatComponent extends LitElement {
                         </div>
                       </div>`
             : ''}
-                  ${this.renderChatThread(this.chatThread)}
-                  ${this.chatController.isAwaitingResponse
-            ? this.isShowingProgress
-              ? html`<progress-bar 
-                      .progress="${this.progressPercentage}"
-                      .message="${this.progressMessage}"
-                      .stage="${this.progressStage}">
-                    </progress-bar>`
-              : html`<loading-indicator label="${globalConfig.LOADING_INDICATOR_TEXT}"></loading-indicator>`
-            : ''}
+                  ${this.renderChatThread(this.chatThread)}                  
                   ${!this.chatController.isAwaitingResponse && this.isShowingProgress
             ? html`<progress-bar 
                     .progress="${this.progressPercentage}"
@@ -841,18 +832,22 @@ export class ChatComponent extends LitElement {
           >
             <div class="chatbox__container">
               <div class="chatbox__input-container">
-                <input
-                  class="chatbox__input"
-                  data-testid="question-input"
-                  id="question-input"
-                  placeholder="${globalConfig.CHAT_INPUT_PLACEHOLDER}"
-                  aria-labelledby="chatbox-label"
-                  name="chatbox"
-                  type="text"
-                  ?disabled="${this.isDisabled}"
-                  autocomplete="off"
-                  @keyup="${this.handleOnInputChange}"
-                />
+                <div class="input_container_wrapper">
+                  <textarea
+                    class="chatbox__input"
+                    data-testid="question-input"
+                    id="question-input"
+                    placeholder="${globalConfig.CHAT_INPUT_PLACEHOLDER}"
+                    aria-labelledby="chatbox-label"
+                    name="chatbox"
+                    type="text"
+                    ?disabled="${this.isDisabled}"
+                    autocomplete="off"
+                    @keyup="${this.handleOnInputChange}"
+                  ></textarea>
+                  ${this.chatController.isAwaitingResponse
+                  ? html`<loading-indicator label="${globalConfig.LOADING_INDICATOR_TEXT}"></loading-indicator>` : ''}                  
+                </div>
                 <div class="input-group-append">
                   ${this.isResetInput ? html`<button
                     title="${globalConfig.RESET_BUTTON_TITLE_TEXT}"

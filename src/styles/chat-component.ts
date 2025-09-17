@@ -281,6 +281,7 @@ export const chatStyle = css`
   .chatbox__input:disabled {
     opacity: 0.65;
     cursor: not-allowed;
+    background: #505050ff;
   }
   .chatbox__container {
     position: relative;
@@ -307,21 +308,40 @@ export const chatStyle = css`
   }
   
   .chatbox__input {
-    position: relative;
-    flex: 1 1 auto;
-    width: 1%;
-    min-width: 0;
+    width: 100%;
+    display: block;
     background: transparent;
     color: #212529;
     border: none;
     padding: 0.5rem 0.75rem;
     font-size: 1rem;
     font-weight: 400;
-    line-height: 1.5;
+    line-height: 0.8;
     background-clip: padding-box;
     border-radius: 0.375rem 0 0 0.375rem;
     border: 1px solid #ced4da;
+    min-height: 40px;
+    max-height: 100px;
+    resize: vertical;
+    box-sizing: border-box;
     // border-radius: 0.375rem;
+  }
+
+  .input_container_wrapper{
+    position: relative;
+    flex: 1 1 auto;
+    width: 1%;
+    min-width: 0;
+  }
+
+  .input_container_wrapper loading-indicator{
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    border-radius: 5px;
+    padding: 0 5px;
   }
   
   .chatbox__input:focus {
@@ -339,6 +359,7 @@ export const chatStyle = css`
   .input-group-append {
     display: flex;
     margin-left: -1px;
+    align-items: flex-start;
   }
   
   .input-group-append .chatbox__button {
@@ -346,6 +367,8 @@ export const chatStyle = css`
     z-index: 2;
     margin-left: 0;
     border-radius: 0;
+    height: 40px;
+    align-self: flex-start;
   }
   
   .input-group-append .chatbox__button:first-child {
