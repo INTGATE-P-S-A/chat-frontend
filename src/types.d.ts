@@ -134,3 +134,10 @@ declare interface BotResponseError {
   code: string;
   message: string;
 }
+
+declare interface IChatSettings {
+    imageModel: string | null;
+    videoModel: string | null;
+    voice: string | null;
+}
+

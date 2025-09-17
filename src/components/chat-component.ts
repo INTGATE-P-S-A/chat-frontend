@@ -47,16 +47,11 @@ import { parseTool } from '../core/parser/toolsParser.js';
 let teaserListTexts = configTeaserListTexts;
 let globalConfig = mainConfig;
 
-/**
- * A chat component that allows the user to ask questions and get answers from an API.
- * The component also displays default prompts that the user can click on to ask a question.
- * The component is built as a custom element that extends LitElement.
- *
- * Labels and other aspects are configurable via properties that get their values from the global config file.
- * @element chat-component
- * @fires chat-component#questionSubmitted - Fired when the user submits a question
- * @fires chat-component#defaultQuestionClicked - Fired when the user clicks on a default question
- * */
+const DEFAULT_CHAT_SETTINGS: IChatSettings = {
+    imageModel: 'stableDiffusionXL',
+    videoModel: null,
+    voice: null
+}
 
 @customElement('chat-component')
 export class ChatComponent extends LitElement {
@@ -140,6 +135,9 @@ export class ChatComponent extends LitElement {
   @state()
   isFullscreen = false;
 
+  @state()
+  showSettings = false;
+
   private chatController = new ChatController(this);
   private chatHistoryController = new ChatHistoryController(this);
 
@@ -168,6 +166,9 @@ export class ChatComponent extends LitElement {
 
   @state()
   progressStage = '';
+
+  @state()
+  chatSettings: IChatSettings = DEFAULT_CHAT_SETTINGS;
 
   selectedAsideTab: 'tab-thought-process' | 'tab-support-context' | 'tab-citations' = 'tab-thought-process';
 
@@ -263,8 +264,24 @@ export class ChatComponent extends LitElement {
         return
       }
 
-      this.handleExpandAside(event, theEvent.detail);
+      this.handleCodeExpandAside(event, theEvent.detail);
     });
+
+    this.addEventListener('chat_settings:submit', (e: Event) =>{
+      const theEvent = e as CustomEvent<IChatSettings>;
+
+      this.chatSettings = theEvent.detail;
+    });
+
+    this.addEventListener('chat_settings:close', (e: Event) =>{      
+      this.collapseAside(e);
+    });
+
+    const savedChatSettings = localStorage.getItem('ai.chatSettings');
+
+    if(savedChatSettings){
+      this.chatSettings = JSON.parse(savedChatSettings);
+    }
 
     // Add fullscreen event listeners
     document.addEventListener('fullscreenchange', this.handleFullscreenChange.bind(this));
@@ -389,7 +406,7 @@ export class ChatComponent extends LitElement {
       if (event?.detail?.chatThreadEntry) {
         this.selectedChatEntry = event?.detail?.chatThreadEntry;
       }
-      this.handleExpandAside();
+      this.handleCodeExpandAside();
       this.selectedAsideTab = 'tab-citations';
     }
   }
@@ -473,6 +490,7 @@ export class ChatComponent extends LitElement {
         overrides: {
           ...requestOptions.overrides,
           ...this.overrides,
+          chatSettings: this.chatSettings
         },
         question,
         type: this.interactionModel,
@@ -560,10 +578,22 @@ export class ChatComponent extends LitElement {
   }
 
   // show thought process aside
-  handleExpandAside(event: Event | undefined = undefined, code: { id: string, code: string, language: string } | null = null): void {
+  handleCodeExpandAside(event: Event | undefined = undefined, code: { id: string, code: string, language: string } | null = null): void {
     event?.preventDefault();
     this.showCode = code;
     
+    this.openAside();
+  }
+
+  handleSettingsExpandAside(event: Event | undefined = undefined): void {
+    event?.preventDefault();
+    this.showCode = null;
+    this.showSettings = true;
+    
+    this.openAside();
+  }
+
+  openAside(){
     this.selectedAsideTab = 'tab-thought-process';
     this.shadowRoot?.querySelector('#overlay')?.classList.add('active');
     this.shadowRoot?.querySelector('#chat__containerWrapper')?.classList.add('aside-open');
@@ -573,6 +603,7 @@ export class ChatComponent extends LitElement {
   collapseAside(event: Event): void {
     event.preventDefault();
     this.showCode = null;
+    this.showSettings = false;
     this.selectedCitation = undefined;
     this.shadowRoot?.querySelector('#chat__containerWrapper')?.classList.remove('aside-open');
     this.shadowRoot?.querySelector('#overlay')?.classList.remove('active');
@@ -654,7 +685,7 @@ export class ChatComponent extends LitElement {
   handleChatEntryActionButtonClick(event: CustomEvent) {
     if (event.detail?.id === 'chat-show-thought-process') {
       this.selectedChatEntry = event.detail?.chatThreadEntry;
-      this.handleExpandAside(event);
+      this.handleCodeExpandAside(event);
     }
 
     if (event.detail?.id === 'speak') {
@@ -914,6 +945,7 @@ export class ChatComponent extends LitElement {
                       </div>`
             : ''}
                 <knowledge-picker absolute="true"></knowledge-picker>
+                <div class="settings-toggler"><button  type="button" @click="${this.handleSettingsExpandAside}"><i class="simple-icon-settings"></i></button></div>
                 </div>`
         : html`<div class="web-search__wrapper">
                   <button 
@@ -923,6 +955,7 @@ export class ChatComponent extends LitElement {
                     ?disabled="${this.isDisabled}"
                   ></button>
                   <knowledge-picker absolute="true"></knowledge-picker>
+                  <div class="settings-toggler"><button type="button" @click="${this.handleSettingsExpandAside}"><i class="simple-icon-settings"></i></button></div>
                 </div>`}
 
             ${this.isDefaultPromptsEnabled
@@ -932,8 +965,15 @@ export class ChatComponent extends LitElement {
         </section>        
         ${this.showCode?.id
         ? html`
-              <aside class="aside" data-testid="aside-thought-process">
+              <aside class="aside">
                 <code-screen language="${this.showCode.language}" componentId=${this.showCode.id}>${this.showCode.code}</code-screen>
+              </aside>
+            `
+        : ''}
+        ${this.showSettings
+        ? html`
+              <aside class="aside">
+                <chat-settings></chat-settings>
               </aside>
             `
         : ''}

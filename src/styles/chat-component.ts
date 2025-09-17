@@ -579,4 +579,15 @@ export const chatStyle = css`
     max-height: 30vh;
     flex-shrink: 0;
   }
+  .settings-toggler {
+    margin-left: auto;
+  }
+  .settings-toggler button{
+    background: none;
+    border: 1px solid var(--alt_blu);
+    border-radius: 5px;
+    cursor: pointer;
+    color: var(--alt_blu);
+    padding: 5px;
+  }
 `;
