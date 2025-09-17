@@ -93,8 +93,9 @@ export async function parseStreamedMessages({
       }
       
       if (onReasoningStep) {
-        const processedReasoning = parseText(chunk.reasoning as string, { mode: 'full' });
-        onReasoningStep(reasoningId, processedReasoning);
+        const reasonongBufferState = createBufferState();
+        const processedReasoning = processChunkWithBuffering(parseText(chunk.reasoning as string, { mode: 'full' }), reasonongBufferState);
+        onReasoningStep(reasoningId, processedReasoning.processedChunk as string);
       }
       
       continue;

@@ -123,6 +123,7 @@ export const styles = css`
     font-size: 14px;
     line-height: 1.5;
     color: #2d3748;
+    padding: 15px;
   }
 
   .step-content strong {

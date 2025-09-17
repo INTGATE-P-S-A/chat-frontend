@@ -350,7 +350,12 @@ export class ChatComponent extends LitElement {
     } else {
       this.setQuestionInputValue(value);
     }
-    this.handleOnInputChange();
+    
+    this.resetInputCheck();
+  }
+
+  resetInputCheck(){
+    this.isResetInput = !!this.questionInput.value;
   }
 
   handleVoiceInput(event: CustomEvent): void {
@@ -540,8 +545,12 @@ export class ChatComponent extends LitElement {
   }
 
   // Handle the change event on the input field
-  handleOnInputChange(): void {
-    this.isResetInput = !!this.questionInput.value;
+  handleOnInputChange(e: KeyboardEvent): void {
+    this.resetInputCheck();
+
+    if(e.key === 'Enter' && !e.shiftKey && this.questionInput.value.trim().length > 0){
+      this.handleUserChatSubmit(e);
+    }
   }
 
   // Stop generation

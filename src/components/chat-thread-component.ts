@@ -49,7 +49,7 @@ export class ChatThreadComponent extends LitElement {
   isReasoningClosed = false;
 
   @state()
-  reasoningSteps: { [key: string]: string[] } = {};
+  reasoningTexts: { [key: string]: string } = {};
 
   @state()
   currentReasoningId: string | null = null;
@@ -199,12 +199,16 @@ export class ChatThreadComponent extends LitElement {
 
   // Reasoning management methods
   addReasoningStep(reasoningId: string, step: string) {
-    if (!this.reasoningSteps[reasoningId]) {
-      this.reasoningSteps[reasoningId] = [];
+    if (!this.reasoningTexts[reasoningId]) {
+      this.reasoningTexts[reasoningId] = '';
     }
-    this.reasoningSteps = {
-      ...this.reasoningSteps,
-      [reasoningId]: [...this.reasoningSteps[reasoningId], step]
+
+    console.log({step})
+
+    // Append the new text chunk to existing text
+    this.reasoningTexts = {
+      ...this.reasoningTexts,
+      [reasoningId]: this.reasoningTexts[reasoningId] + step
     };
     
     // Set the current reasoning ID for the latest message
@@ -236,14 +240,14 @@ export class ChatThreadComponent extends LitElement {
     this.requestUpdate();
   }
 
-  getReasoningSteps(reasoningId: string): string[] {
-    return this.reasoningSteps[reasoningId] || [];
+  getReasoningText(reasoningId: string): string {
+    return this.reasoningTexts[reasoningId] || '';
   }
 
-  clearReasoningSteps(reasoningId: string) {
-    const newSteps = { ...this.reasoningSteps };
-    delete newSteps[reasoningId];
-    this.reasoningSteps = newSteps;
+  clearReasoningText(reasoningId: string) {
+    const newTexts = { ...this.reasoningTexts };
+    delete newTexts[reasoningId];
+    this.reasoningTexts = newTexts;
     
     // Clear current reasoning ID if it matches
     if (this.currentReasoningId === reasoningId) {
@@ -375,11 +379,11 @@ export class ChatThreadComponent extends LitElement {
     // Check if this message has reasoning associated with it
     const reasoningId = this.messageReasoningMap[messageIndex];
     
-    if (reasoningId && this.reasoningSteps[reasoningId]?.length > 0) {
+    if (reasoningId && this.reasoningTexts[reasoningId]) {
       return html`
         <reasoning-viewer
           component-id="${reasoningId}"
-          .reasoningSteps="${this.reasoningSteps[reasoningId]}"
+          .reasoningText="${this.reasoningTexts[reasoningId]}"
           .closed="${this.isReasoningClosed}"
         ></reasoning-viewer>
       `;
@@ -389,7 +393,7 @@ export class ChatThreadComponent extends LitElement {
 
   renderPendingReasoning() {
     // Show pending reasoning if there are reasoning steps but no AI message yet
-    if (this.pendingReasoningId && this.reasoningSteps[this.pendingReasoningId]?.length > 0) {
+    if (this.pendingReasoningId && this.reasoningTexts[this.pendingReasoningId]) {
       return html`
         <li class="chat__listItem ai-message">
           <div class="message-avatar">
@@ -400,7 +404,7 @@ export class ChatThreadComponent extends LitElement {
             <div class="chat__txt">
               <reasoning-viewer
                 component-id="${this.pendingReasoningId}"
-                .reasoningSteps="${this.reasoningSteps[this.pendingReasoningId]}"
+                .reasoningText="${this.reasoningTexts[this.pendingReasoningId]}"
               ></reasoning-viewer>
               <loading-indicator label=""></loading-indicator>
             </div>

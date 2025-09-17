@@ -7,9 +7,10 @@ import { styles } from '../styles/reasoning-viewer.js';
 export class ReasoningViewer extends LitElement {
   @property({ attribute: 'streaming', type: Boolean }) streaming = false;
   @property({ attribute: 'closed', type: Boolean }) closed = false;
+  @property({ attribute: 'label', type: String }) label = 'Reasoning';
 
   @property({ attribute: 'component-id' }) componentId = '';
-  @property({ type: Array }) reasoningSteps: string[] = [];
+  @property({ type: String }) reasoningText: string = '';
 
   @state() dropdownShown = true;
 
@@ -35,23 +36,13 @@ export class ReasoningViewer extends LitElement {
         <div class="reasoning-header" @click="${this.toggleDropdown}">
           <div class="header-content">
             <i class="simple-icon-lightbulb"></i>
-            <h4 class="reasoning-title">Reasoning</h4>
-            ${this.reasoningSteps.length > 0 ? html`
-              <span class="step-counter">${this.reasoningSteps.length}</span>
-            ` : ''}
+            <h4 class="reasoning-title">Reasoning</h4>          
           </div>
           <i class="simple-icon-arrow-${this.dropdownShown ? 'up' : 'down'}"></i>
         </div>
         
         <div class="reasoning-content ${this.dropdownShown ? '' : 'collapsed'}">
-          <ol class="reasoning-steps">
-            ${this.reasoningSteps.map((step, index) => html`
-              <li class="reasoning-step">
-                <div class="step-indicator">${index + 1}</div>
-                <div class="step-content" .innerHTML="${step}"></div>
-              </li>
-            `)}
-          </ol>
+             ${html`<div class="step-content" .innerHTML="${this.reasoningText}"></div>`}
         </div>
       </div>
     `;
@@ -63,14 +54,15 @@ export class ReasoningViewer extends LitElement {
 
   updateReasoning(text: string) {
     if (text && text.trim()) {
+      console.log({text});
       // Update the reasoningSteps array immutably to trigger re-render
-      this.reasoningSteps = [...this.reasoningSteps, text];
+      this.reasoningText += text;
       this.requestUpdate();
     }
   }
 
   clearReasoning() {
-    this.reasoningSteps = [];
+    this.reasoningText = '';
     this.requestUpdate();
   }
 }
