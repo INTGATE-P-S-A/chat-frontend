@@ -203,8 +203,6 @@ export class ChatThreadComponent extends LitElement {
       this.reasoningTexts[reasoningId] = '';
     }
 
-    console.log({step})
-
     // Append the new text chunk to existing text
     this.reasoningTexts = {
       ...this.reasoningTexts,
