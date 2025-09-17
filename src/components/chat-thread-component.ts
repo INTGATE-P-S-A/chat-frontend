@@ -58,7 +58,7 @@ export class ChatThreadComponent extends LitElement {
   pendingReasoningId: string | null = null; // Track reasoning waiting for an AI message
 
   @state()
-  messageReasoningMap: { [messageIndex: number]: string } = {};
+  messageReasoningMap: { [messageId: string]: string } = {};
 
   @query('#chat-list-footer')
   chatFooter!: HTMLElement;
@@ -78,18 +78,22 @@ export class ChatThreadComponent extends LitElement {
     if (changedProperties.has('chatThread') && this.pendingReasoningId) {
       const newAIMessageIndex = this.findLatestAIMessageIndex();
       
-      // Check if there's a new AI message OR if the latest AI message doesn't have reasoning yet
-      const shouldAssociate = newAIMessageIndex >= 0 && (
-        newAIMessageIndex >= this.previousChatThreadLength || 
-        !this.messageReasoningMap[newAIMessageIndex]
-      );
-      
-      if (shouldAssociate) {
-        this.messageReasoningMap = {
-          ...this.messageReasoningMap,
-          [newAIMessageIndex]: this.pendingReasoningId
-        };
-        this.pendingReasoningId = null; // Clear pending reasoning
+      if (newAIMessageIndex >= 0) {
+        const latestAIMessage = this.chatThread[newAIMessageIndex];
+        
+        // Check if there's a new AI message OR if the latest AI message doesn't have reasoning yet
+        const shouldAssociate = (
+          newAIMessageIndex >= this.previousChatThreadLength || 
+          !this.messageReasoningMap[latestAIMessage.id]
+        );
+        
+        if (shouldAssociate) {
+          this.messageReasoningMap = {
+            ...this.messageReasoningMap,
+            [latestAIMessage.id]: this.pendingReasoningId
+          };
+          this.pendingReasoningId = null; // Clear pending reasoning
+        }
       }
     }
 
@@ -213,25 +217,25 @@ export class ChatThreadComponent extends LitElement {
     this.currentReasoningId = reasoningId;
     
     // Find the last AI message (non-user message) to associate reasoning with
-    let targetMessageIndex = -1;
+    let targetMessage: ChatThreadEntry | null = null;
     for (let i = this.chatThread.length - 1; i >= 0; i--) {
       if (!this.chatThread[i].isUserMessage) {
-        targetMessageIndex = i;
+        targetMessage = this.chatThread[i];
         break;
       }
     }
     
-    if (targetMessageIndex >= 0) {
-      // AI message exists (either real or placeholder) - associate reasoning immediately
+    if (targetMessage) {
+      // AI message exists - associate reasoning immediately
       this.messageReasoningMap = {
         ...this.messageReasoningMap,
-        [targetMessageIndex]: reasoningId
+        [targetMessage.id]: reasoningId
       };
       // Clear any pending reasoning since we found an AI message to associate with
       this.pendingReasoningId = null;
     } else {
       // No AI message exists yet - store reasoning as pending
-      // It will be associated when the streaming process creates the AI message
+      // It will be associated when the AI message is added to the chat thread
       this.pendingReasoningId = reasoningId;
     }
     
@@ -254,9 +258,9 @@ export class ChatThreadComponent extends LitElement {
     
     // Remove from message mapping
     const newMapping = { ...this.messageReasoningMap };
-    Object.keys(newMapping).forEach(key => {
-      if (newMapping[parseInt(key)] === reasoningId) {
-        delete newMapping[parseInt(key)];
+    Object.keys(newMapping).forEach(messageId => {
+      if (newMapping[messageId] === reasoningId) {
+        delete newMapping[messageId];
       }
     });
     this.messageReasoningMap = newMapping;
@@ -374,8 +378,11 @@ export class ChatThreadComponent extends LitElement {
   }
 
   renderReasoningViewer(messageIndex: number) {
-    // Check if this message has reasoning associated with it
-    const reasoningId = this.messageReasoningMap[messageIndex];
+    // Get the message at this index and check if it has reasoning associated with it
+    const message = this.chatThread[messageIndex];
+    if (!message) return '';
+    
+    const reasoningId = this.messageReasoningMap[message.id];
     
     if (reasoningId && this.reasoningTexts[reasoningId]) {
       return html`

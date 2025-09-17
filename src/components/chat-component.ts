@@ -508,8 +508,7 @@ export class ChatComponent extends LitElement {
         headers: this.customHeaders,
       },
       this.useWebSocket, // Pass WebSocket flag
-      this.apiUrl, // Pass WebSocket URL (same as API URL)
-      this.chatThread // Pass current chat thread
+      this.apiUrl // Pass WebSocket URL (same as API URL)
     );
 
     if (this.interactionModel === 'chat') {

@@ -49,6 +49,7 @@ export class ChatController implements ReactiveController {
         }
       : undefined;
     
+    // Force immediate update so reasoning can find the message
     this.host.requestUpdate();
   }
 
@@ -166,7 +167,7 @@ export class ChatController implements ReactiveController {
     });
   }
 
-  async processResponse(response: string | BotResponse, isUserMessage: boolean = false, useStream: boolean = false, existingChatThread: ChatThreadEntry[] = []) {
+  async processResponse(response: string | BotResponse, isUserMessage: boolean = false, useStream: boolean = false) {
     const timestamp = getTimestamp();
     const citations: Citation[] = [];
     let followupQuestions: string[] = [];
@@ -177,39 +178,29 @@ export class ChatController implements ReactiveController {
 
     const updateChatWithMessageOrChunk = async (message: string | BotResponse, chunked: boolean) => {
       if (chunked) {
-        // Check if there's already an AI message at the end of the chat thread
-        let initialEntry: ChatThreadEntry | undefined;
-        
-        if (existingChatThread.length > 0) {
-          const lastMessage = existingChatThread[existingChatThread.length - 1];
-          if (!lastMessage.isUserMessage) {
-            // Use the existing AI message
-            initialEntry = lastMessage;
-          }
-        }
-        
-        // If no existing AI message found, create a new one
-        if (!initialEntry) {
-          initialEntry = {
-            id: crypto.randomUUID(),
-            text: [
-              {
-                value: '',
-                followingSteps: [],
-              },
-            ],
-            followupQuestions: [],
-            citations: [],
-            timestamp: timestamp,
-            isUserMessage: false,
-            thoughts: undefined,
-            dataPoints: undefined,
-            rawContent: '', // Will be populated by the parser
-          };
-        }
+        // Always create a new AI message for each response
+        const initialEntry: ChatThreadEntry = {
+          id: crypto.randomUUID(),
+          text: [
+            {
+              value: '',
+              followingSteps: [],
+            },
+          ],
+          followupQuestions: [],
+          citations: [],
+          timestamp: timestamp,
+          isUserMessage: false,
+          thoughts: undefined,
+          dataPoints: undefined,
+          rawContent: '', // Will be populated by the parser
+        };
 
         this.isProcessingResponse = true;
         this._abortController = new AbortController();
+
+        // Set the processing message immediately so reasoning can attach to it
+        this.processingMessage = initialEntry;
 
         await parseStreamedMessages({
           chatEntry: initialEntry,
@@ -271,7 +262,7 @@ export class ChatController implements ReactiveController {
     }
   }
 
-  async generateAnswer(requestOptions: ChatRequestOptions, httpOptions: ChatHttpOptions, useWebSocket?: boolean, websocketUrl?: string, existingChatThread: ChatThreadEntry[] = []) {
+  async generateAnswer(requestOptions: ChatRequestOptions, httpOptions: ChatHttpOptions, useWebSocket?: boolean, websocketUrl?: string) {
     const { question } = requestOptions;
 
     if (question) {
@@ -283,45 +274,30 @@ export class ChatController implements ReactiveController {
 
         // for chat messages, process user question as a chat entry
         if (requestOptions.type === 'chat') {
-          await this.processResponse(question, true, false, existingChatThread);
+          await this.processResponse(question, true, false);
         }
 
         this.isAwaitingResponse = true;
         this.processingMessage = undefined;
 
         if (useWebSocket && this._useWebSocket && websocketUrl) {
-          // Check if there's already an AI message at the end of the chat thread
-          let initialMessage: ChatThreadEntry | undefined;
-          
-          if (existingChatThread.length > 0) {
-            const lastMessage = existingChatThread[existingChatThread.length - 1];
-            if (!lastMessage.isUserMessage) {
-              // Use the existing AI message
-              initialMessage = lastMessage;
-            }
-          }
-          
-          // If no existing AI message found, create a new one
-          if (!initialMessage) {
-            initialMessage = {
-              id: crypto.randomUUID(),
-              text: [
-                {
-                  value: '',
-                  followingSteps: [],
-                },
-              ],
-              followupQuestions: [],
-              citations: [],
-              timestamp: getTimestamp(),
-              isUserMessage: false,
-              thoughts: undefined,
-              dataPoints: undefined,
-              rawContent: '', // Will be populated by WebSocket parser
-            };
-          }
-
-          // Use WebSocket - initialize processing message for WebSocket
+          // Always create a new AI message for each WebSocket response
+          const initialMessage: ChatThreadEntry = {
+            id: crypto.randomUUID(),
+            text: [
+              {
+                value: '',
+                followingSteps: [],
+              },
+            ],
+            followupQuestions: [],
+            citations: [],
+            timestamp: getTimestamp(),
+            isUserMessage: false,
+            thoughts: undefined,
+            dataPoints: undefined,
+            rawContent: '', // Will be populated by WebSocket parser
+          };          // Use WebSocket - initialize processing message for WebSocket immediately
           this.processingMessage = initialMessage;
 
           // Use WebSocket
@@ -345,7 +321,7 @@ export class ChatController implements ReactiveController {
           const response = (await getAPIResponse(requestOptions, updatedHttpOptions)) as BotResponse;
           this.isAwaitingResponse = false;
 
-          await this.processResponse(response, false, httpOptions.stream, existingChatThread);
+          await this.processResponse(response, false, httpOptions.stream);
         }
       } catch (error_: any) {
         const error = error_ as ChatResponseError;
@@ -355,7 +331,7 @@ export class ChatController implements ReactiveController {
 
         if (!this.processingMessage) {
           // add a empty message to the chat thread to display the error
-          await this.processResponse('', false, false, existingChatThread);
+          await this.processResponse('', false, false);
         }
 
         if (this.processingMessage) {
