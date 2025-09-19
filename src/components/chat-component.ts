@@ -121,6 +121,12 @@ export class ChatComponent extends LitElement {
   isDisabled = false;
 
   @state()
+  isTalking = false;
+
+  @state()
+  upperLoader = false;
+
+  @state()
   isChatStarted = false;
 
   @state()
@@ -757,11 +763,31 @@ export class ChatComponent extends LitElement {
     };
   }
 
+  toggleTalk(value?: boolean) {
+    if(value !== undefined){
+      this.isTalking = value;
+      return;
+    }
+
+    this.isTalking = !this.isTalking;
+  }
+
+  toggleThreadLoading(value?: boolean) {
+    if(value !== undefined){
+      this.upperLoader = value;
+      return;
+    }
+
+    this.upperLoader = !this.upperLoader;
+  }
+
   renderChatThread(chatThread: ChatThreadEntry[]) {
     return html`<chat-thread-component
       .chatThread="${chatThread}"
       .conversationTitle="${this.overrides.conversationTitle}"
       .customConfig="${this.customConfig}"
+      .isTalking="${this.isTalking}"
+      .upperLoader="${this.upperLoader}"
       .actionButtons="${[
         // {
         //   id: 'chat-show-thought-process',

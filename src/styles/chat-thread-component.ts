@@ -279,12 +279,29 @@ export const styles = css`
     display: flex;
     align-items: center;
     justify-content: space-between;
+    padding: 0.4rem 1rem;
   }  
   .chat-topic h5 {  
     margin: 0;
     font-size: 1.1rem;
     color: #000;
   }
+
+  .chat-topic .talking-indicator {
+    animation: pulse-opacity 1.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse-opacity {
+    0% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.3;
+    }
+    100% {
+      opacity: 1;
+    }
+  }  
 
   /* Fullscreen toggle button styles */
   .fullscreen-toggle-btn {

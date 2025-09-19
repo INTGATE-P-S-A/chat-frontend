@@ -55,6 +55,12 @@ export class ChatThreadComponent extends LitElement {
   @query('#chat-list-footer')
   chatFooter!: HTMLElement;
 
+  @property({ type: Boolean })
+  private isTalking = false;
+
+  @property({ type: Boolean })
+  private upperLoader = false;
+
   override async connectedCallback() {
     super.connectedCallback();
 
@@ -318,9 +324,11 @@ export class ChatThreadComponent extends LitElement {
     return html`
     <div id="chat__thread-container">
       <div class="chat-topic">
-        <h5>
+        <h5 class="mr-3">
           ${this.conversationTitle}
         </h5>
+        ${ this.isTalking ? html`<div class="talking-indicator"><i class="simple-icon-earphones-alt" /></div>` : '' }
+        ${ this.upperLoader ? html`<loading-indicator></loading-indicator>` : '' }
         <button 
             type="button"
             class="fullscreen-toggle-btn ${this.isFullscreen ? 'simple-icon-close' : 'simple-icon-size-fullscreen'}"
