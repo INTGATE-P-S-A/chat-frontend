@@ -285,6 +285,7 @@ export const styles = css`
     margin: 0;
     font-size: 1.1rem;
     color: #000;
+    margin-right: 1rem;
   }
 
   .chat-topic .talking-indicator {
