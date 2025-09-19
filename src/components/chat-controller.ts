@@ -16,6 +16,7 @@ export class ChatController implements ReactiveController {
   private _abortController: AbortController = new AbortController();
   private _useWebSocket: boolean = false;
   private _onReasoningStep?: (reasoningId: string, step: string) => void;
+  private _hasReceivedFirstTextContent: boolean = false;
 
   get isAwaitingResponse() {
     return this._isAwaitingResponse;
@@ -43,14 +44,54 @@ export class ChatController implements ReactiveController {
   }
 
   set processingMessage(value: ChatThreadEntry | undefined) {
+    const previousMessage = this._processingMessage;
+    
     this._processingMessage = value
       ? {
           ...value,
+          // Preserve existing reasoning if it exists
+          reasoning: this._processingMessage?.reasoning || value.reasoning,
         }
       : undefined;
     
+    // Check if this is the first text content arriving after reasoning
+    if (value && previousMessage && 
+        !this._hasReceivedFirstTextContent &&
+        previousMessage.reasoning && 
+        value.text && value.text.length > 0 && 
+        value.text[0].value && value.text[0].value.trim() !== '') {
+      
+      this._hasReceivedFirstTextContent = true;
+      
+      // Close the reasoning viewer for this message
+      this.closeReasoningViewer(value.id);
+    }
+    
     // Force immediate update so reasoning can find the message
     this.host.requestUpdate();
+  }
+
+  addReasoningToProcessingMessage(step: string) {
+    if (this._processingMessage) {
+      this._processingMessage = {
+        ...this._processingMessage,
+        reasoning: (this._processingMessage.reasoning || '') + step
+      };
+      this.host.requestUpdate();
+    }
+  }
+
+  private closeReasoningViewer(messageId: string) {    
+    // Find the reasoning-viewer component for this message and close it
+    const hostElement = this.host as any;
+     const root = hostElement.shadowRoot;
+
+      console.log('ROOT', root)
+
+      const reasoningViewer = root.querySelector(`chat-thread-component`).shadowRoot.querySelector(`reasoning-viewer[component-id="${messageId}"]`);
+      if (reasoningViewer && typeof reasoningViewer.close === 'function') {
+        reasoningViewer.close();
+      }
   }
 
   setReasoningCallback(callback: (reasoningId: string, step: string) => void) {
@@ -92,6 +133,7 @@ export class ChatController implements ReactiveController {
     this._isAwaitingResponse = false;
     this._isProcessingResponse = false;
     this._generatingAnswer = false;
+    this._hasReceivedFirstTextContent = false; // Reset for next message
     this.host.requestUpdate(); // do update once
   }
 
@@ -198,6 +240,7 @@ export class ChatController implements ReactiveController {
 
         this.isProcessingResponse = true;
         this._abortController = new AbortController();
+        this._hasReceivedFirstTextContent = false; // Reset for new message
 
         // Set the processing message immediately so reasoning can attach to it
         this.processingMessage = initialEntry;
@@ -298,6 +341,7 @@ export class ChatController implements ReactiveController {
             dataPoints: undefined,
             rawContent: '', // Will be populated by WebSocket parser
           };          // Use WebSocket - initialize processing message for WebSocket immediately
+          this._hasReceivedFirstTextContent = false; // Reset for new WebSocket message
           this.processingMessage = initialMessage;
 
           // Use WebSocket

@@ -18,7 +18,8 @@ import './chat-action-button.js';
 import './loading-indicator.js';
 import './reasoning-viewer.js';
 import { type ChatActionButton } from './chat-action-button.js';
-import { ReasoningViewer } from './reasoning-viewer.js';
+
+let currentConfig = globalConfig;
 
 @customElement('chat-thread-component')
 export class ChatThreadComponent extends LitElement {
@@ -42,67 +43,47 @@ export class ChatThreadComponent extends LitElement {
   @property({ type: Boolean })
   isFullscreen = false;
 
+  @property({ type: Object })
+  customConfig: Record<string, string> = {};
+
   @state()
   isResponseCopied = false;
 
   @state()
   isReasoningClosed = false;
 
-  @state()
-  reasoningTexts: { [key: string]: string } = {};
-
-  @state()
-  currentReasoningId: string | null = null;
-
-  @state()
-  pendingReasoningId: string | null = null; // Track reasoning waiting for an AI message
-
-  @state()
-  messageReasoningMap: { [messageId: string]: string } = {};
-
   @query('#chat-list-footer')
   chatFooter!: HTMLElement;
-
-  private previousChatThreadLength = 0;
 
   override async connectedCallback() {
     super.connectedCallback();
 
     await addIconSheet.bind(this)();     
+    
+    // Override config if customConfig is provided
+    this.overrideConfig();
+  }
+
+  private overrideConfig() {
+    if (this.customConfig && Object.keys(this.customConfig).length > 0) {
+      currentConfig = { ...globalConfig, ...this.customConfig };
+    } else {
+      currentConfig = globalConfig;
+    }
   }
 
   override willUpdate(changedProperties: PropertyValues) {
     super.willUpdate(changedProperties);
     
-    // Check if a new AI message was added and we have pending reasoning
-    if (changedProperties.has('chatThread') && this.pendingReasoningId) {
-      const newAIMessageIndex = this.findLatestAIMessageIndex();
-      
-      if (newAIMessageIndex >= 0) {
-        const latestAIMessage = this.chatThread[newAIMessageIndex];
-        
-        // Check if there's a new AI message OR if the latest AI message doesn't have reasoning yet
-        const shouldAssociate = (
-          newAIMessageIndex >= this.previousChatThreadLength || 
-          !this.messageReasoningMap[latestAIMessage.id]
-        );
-        
-        if (shouldAssociate) {
-          this.messageReasoningMap = {
-            ...this.messageReasoningMap,
-            [latestAIMessage.id]: this.pendingReasoningId
-          };
-          this.pendingReasoningId = null; // Clear pending reasoning
-        }
-      }
+    // Override config if customConfig changes
+    if (changedProperties.has('customConfig')) {
+      this.overrideConfig();
     }
-
+    
     // Auto-scroll to bottom when new messages are added
     if (changedProperties.has('chatThread') && this.chatThread.length) {
         this.scrollToBottom();
     }
-    
-    this.previousChatThreadLength = this.chatThread.length;
   }
 
   private scrollToBottom(): void {    
@@ -110,21 +91,6 @@ export class ChatThreadComponent extends LitElement {
     if (scrollContainer) {
       scrollContainer.scrollTop = scrollContainer.scrollHeight;
     }
-  }
-
-  private findLatestAIMessageIndex(): number {
-    for (let i = this.chatThread.length - 1; i >= 0; i--) {
-      if (!this.chatThread[i].isUserMessage) {
-        const reasoningComponent = this.shadowRoot?.querySelector('reasoning-viewer') as ReasoningViewer;
-        
-        if(reasoningComponent && reasoningComponent.dropdownShown){
-          this.isReasoningClosed = true;
-          reasoningComponent.close();
-        }    
-        return i;
-      }
-    }
-    return -1;
   }
 
   @property({ type: Object })
@@ -201,80 +167,7 @@ export class ChatThreadComponent extends LitElement {
     this.dispatchEvent(citationClickEvent);
   }
 
-  // Reasoning management methods
-  addReasoningStep(reasoningId: string, step: string) {
-    if (!this.reasoningTexts[reasoningId]) {
-      this.reasoningTexts[reasoningId] = '';
-    }
-
-    // Append the new text chunk to existing text
-    this.reasoningTexts = {
-      ...this.reasoningTexts,
-      [reasoningId]: this.reasoningTexts[reasoningId] + step
-    };
-    
-    // Set the current reasoning ID for the latest message
-    this.currentReasoningId = reasoningId;
-    
-    // Find the last AI message (non-user message) to associate reasoning with
-    let targetMessage: ChatThreadEntry | null = null;
-    for (let i = this.chatThread.length - 1; i >= 0; i--) {
-      if (!this.chatThread[i].isUserMessage) {
-        targetMessage = this.chatThread[i];
-        break;
-      }
-    }
-    
-    if (targetMessage) {
-      // AI message exists - associate reasoning immediately
-      this.messageReasoningMap = {
-        ...this.messageReasoningMap,
-        [targetMessage.id]: reasoningId
-      };
-      // Clear any pending reasoning since we found an AI message to associate with
-      this.pendingReasoningId = null;
-    } else {
-      // No AI message exists yet - store reasoning as pending
-      // It will be associated when the AI message is added to the chat thread
-      this.pendingReasoningId = reasoningId;
-    }
-    
-    this.requestUpdate();
-  }
-
-  getReasoningText(reasoningId: string): string {
-    return this.reasoningTexts[reasoningId] || '';
-  }
-
-  clearReasoningText(reasoningId: string) {
-    const newTexts = { ...this.reasoningTexts };
-    delete newTexts[reasoningId];
-    this.reasoningTexts = newTexts;
-    
-    // Clear current reasoning ID if it matches
-    if (this.currentReasoningId === reasoningId) {
-      this.currentReasoningId = null;
-    }
-    
-    // Remove from message mapping
-    const newMapping = { ...this.messageReasoningMap };
-    Object.keys(newMapping).forEach(messageId => {
-      if (newMapping[messageId] === reasoningId) {
-        delete newMapping[messageId];
-      }
-    });
-    this.messageReasoningMap = newMapping;
-    
-    this.requestUpdate();
-  }
-
-  // Method to clear current reasoning when starting a new message
-  startNewMessage() {
-    // Don't clear the reasoning ID immediately - let it persist until the message is complete
-    // this.currentReasoningId = null;
-    this.requestUpdate();
-  }
-
+  // Copy response to clipboard
   renderResponseActions(entry: ChatThreadEntry) {
     return html`
       <header class="chat__header">
@@ -291,13 +184,13 @@ export class ChatThreadComponent extends LitElement {
               `,
           )}
           <chat-action-button
-            .label="${globalConfig.COPY_RESPONSE_BUTTON_LABEL_TEXT}"
+            .label="${currentConfig.COPY_RESPONSE_BUTTON_LABEL_TEXT}"
             .svgIcon="${this.isResponseCopied ? iconSuccess : iconCopyToClipboard}"
             .isDisabled="${this.isDisabled}"
             actionId="copy-to-clipboard"
             .tooltip="${this.isResponseCopied
-        ? globalConfig.COPIED_SUCCESSFULLY_MESSAGE
-        : globalConfig.COPY_RESPONSE_BUTTON_LABEL_TEXT}"
+        ? currentConfig.COPIED_SUCCESSFULLY_MESSAGE
+        : currentConfig.COPY_RESPONSE_BUTTON_LABEL_TEXT}"
             @click="${() => this.copyResponseToClipboard(entry)}"
           ></chat-action-button>
         </div>
@@ -331,7 +224,7 @@ export class ChatThreadComponent extends LitElement {
         <div class="chat__citations">
           <citation-list
             .citations="${citations}"
-            .label="${globalConfig.CITATIONS_LABEL}"
+            .label="${currentConfig.CITATIONS_LABEL}"
             .selectedCitation=${this.selectedCitation}
             @on-citation-click="${(event: CustomEvent) =>
           this.handleCitationClick(event.detail.citation, entry, event)}"
@@ -378,45 +271,24 @@ export class ChatThreadComponent extends LitElement {
   }
 
   renderReasoningViewer(messageIndex: number) {
-    // Get the message at this index and check if it has reasoning associated with it
+    // Get the message at this index and check if it has reasoning
     const message = this.chatThread[messageIndex];
-    if (!message) return '';
+    if (!message || !message.reasoning) return '';
+
+    console.log({currentConfig});
     
-    const reasoningId = this.messageReasoningMap[message.id];
-    
-    if (reasoningId && this.reasoningTexts[reasoningId]) {
-      return html`
-        <reasoning-viewer
-          component-id="${reasoningId}"
-          .reasoningText="${this.reasoningTexts[reasoningId]}"
-          .closed="${this.isReasoningClosed}"
-        ></reasoning-viewer>
-      `;
-    }
-    return '';
+    return html`
+      <reasoning-viewer
+        component-id="${message.id}"
+        label="${currentConfig.REASONING_LABEL}"
+        .reasoningText="${message.reasoning}"
+        .closed="${this.isReasoningClosed}"
+      ></reasoning-viewer>
+    `;
   }
 
   renderPendingReasoning() {
-    // Show pending reasoning if there are reasoning steps but no AI message yet
-    if (this.pendingReasoningId && this.reasoningTexts[this.pendingReasoningId]) {
-      return html`
-        <li class="chat__listItem ai-message">
-          <div class="message-avatar">
-            <div class="ai-avatar">AI</div>
-          </div>
-          
-          <div class="message-content">
-            <div class="chat__txt">
-              <reasoning-viewer
-                component-id="${this.pendingReasoningId}"
-                .reasoningText="${this.reasoningTexts[this.pendingReasoningId]}"
-              ></reasoning-viewer>
-              <loading-indicator label=""></loading-indicator>
-            </div>
-          </div>
-        </li>
-      `;
-    }
+    // No longer needed since we create messages immediately when reasoning starts
     return '';
   }
 

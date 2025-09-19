@@ -238,11 +238,9 @@ export class ChatComponent extends LitElement {
     await addIconSheet.bind(this)();
 
     // Set up reasoning callback for chat controller
-    this.chatController.setReasoningCallback((reasoningId: string, step: string) => {       
-      const chatThreadComponent = this.renderRoot?.querySelector('chat-thread-component');
-      if (chatThreadComponent && typeof (chatThreadComponent as any).addReasoningStep === 'function') {
-        (chatThreadComponent as any).addReasoningStep(reasoningId, step);
-      }
+    this.chatController.setReasoningCallback((_reasoningId: string, step: string) => {       
+      // Add reasoning directly to the processing message in the controller
+      this.chatController.addReasoningToProcessingMessage(step);
     });
 
     if (this.dataWebSearch === true) {
@@ -345,6 +343,7 @@ export class ChatComponent extends LitElement {
     this.chatThread = [];
     this.isChatStarted = false;
     this.isDefaultPromptsEnabled = true;
+    
     this.resetCurrentChat(new Event('clear-chat'), true);
   }
 
@@ -535,6 +534,13 @@ export class ChatComponent extends LitElement {
     this.isDefaultPromptsEnabled = true;
     this.selectedCitation = undefined;
     this.chatController.reset();
+    
+    // Clear all reasoning when resetting chat
+    const chatThreadComponent = this.renderRoot?.querySelector('chat-thread-component');
+    if (chatThreadComponent && typeof (chatThreadComponent as any).clearAllReasoning === 'function') {
+      (chatThreadComponent as any).clearAllReasoning();
+    }
+    
     // clean up the current session content from the history too
     this.chatHistoryController.saveChatHistory(this.chatThread);
     this.collapseAside(event);
@@ -755,6 +761,7 @@ export class ChatComponent extends LitElement {
     return html`<chat-thread-component
       .chatThread="${chatThread}"
       .conversationTitle="${this.overrides.conversationTitle}"
+      .customConfig="${this.customConfig}"
       .actionButtons="${[
         // {
         //   id: 'chat-show-thought-process',

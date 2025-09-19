@@ -27,16 +27,20 @@ export class ReasoningViewer extends LitElement {
   }
 
   close(){
-    this.dropdownShown = false;
+    // Add a slight delay to make the transition visible
+    if (this.dropdownShown) {
+      this.dropdownShown = false;
+      this.requestUpdate();
+    }
   }
 
   override render() {
     return html`
-      <div class="reasoning-container">
+      <div class="reasoning-container ${this.streaming ? 'streaming' : ''}">
         <div class="reasoning-header" @click="${this.toggleDropdown}">
           <div class="header-content">
             <i class="simple-icon-lightbulb"></i>
-            <h4 class="reasoning-title">Reasoning</h4>          
+            <h4 class="reasoning-title">${this.label}</h4>          
           </div>
           <i class="simple-icon-arrow-${this.dropdownShown ? 'up' : 'down'}"></i>
         </div>
@@ -50,6 +54,7 @@ export class ReasoningViewer extends LitElement {
 
   private toggleDropdown() {
     this.dropdownShown = !this.dropdownShown;
+    this.requestUpdate();
   }
 
   updateReasoning(text: string) {

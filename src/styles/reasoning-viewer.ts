@@ -8,6 +8,40 @@ export const styles = css`
     background: #f8f9fc;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: scaleIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95) translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  .reasoning-container:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+  }
+
+  .reasoning-container.streaming {
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0% {
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    50% {
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+    }
+    100% {
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
   }
 
   .reasoning-header {
@@ -20,11 +54,35 @@ export const styles = css`
     border-radius: 8px 8px 0 0;
     cursor: pointer;
     user-select: none;
-    transition: background 0.3s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .reasoning-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.6s ease;
   }
 
   .reasoning-header:hover {
     background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  }
+
+  .reasoning-header:hover::before {
+    left: 100%;
+  }
+
+  .reasoning-header:active {
+    transform: translateY(0);
+    transition: transform 0.1s ease;
   }
 
   .header-content {
@@ -63,26 +121,39 @@ export const styles = css`
     width: 16px;
     height: 16px;
     display: inline-block;
-    transition: transform 0.3s ease;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: center;
   }
 
   .toggle-icon::before {
     font-family: 'simple-line-icons';
     font-size: 16px;
     content: '\e09b'; /* icon-arrow-down */
+    transition: all 0.3s ease;
+  }
+
+  .toggle-icon.collapsed {
+    transform: rotate(180deg);
   }
 
   .toggle-icon.collapsed::before {
-    content: '\e096'; /* icon-arrow-up */
+    content: '\e09b'; /* Keep same icon, just rotate it */
   }
 
   .reasoning-content {    
     overflow: hidden;
-    transition: max-height 0.3s ease-out;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    max-height: 1000px; /* Large enough for content */
+    opacity: 1;
+    transform: translateY(0);
   }
 
   .reasoning-content.collapsed {
     max-height: 0;
+    opacity: 0;
+    transform: translateY(-10px);
+    padding-top: 0;
+    padding-bottom: 0;
   }
 
   .reasoning-steps {
@@ -124,6 +195,18 @@ export const styles = css`
     line-height: 1.5;
     color: #2d3748;
     padding: 15px;
+    animation: fadeInUp 0.5s ease-out;
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .step-content strong {

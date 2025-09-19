@@ -53,6 +53,7 @@ const globalConfig = {
   // Deep Search Configuration
   DEEP_SEARCH_CHECKBOX_LABEL: 'Use deep search',
   DEEP_SEARCH_CHECKBOX_ENABLED: true,
+  REASONING_LABEL: 'Reasoning',
 };
 
 const teaserListTexts = {

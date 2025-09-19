@@ -24,6 +24,7 @@ declare interface ChatThreadEntry {
     message: string;
   };
   thoughts?: string;
+  reasoning?: string; // Add reasoning property
   dataPoints?: string[];
   rawContent?: string;
   cost?: IPromptCost;
