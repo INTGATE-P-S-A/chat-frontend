@@ -28,6 +28,7 @@ declare interface ChatThreadEntry {
   dataPoints?: string[];
   rawContent?: string;
   cost?: IPromptCost;
+  costs?: IPromptCost[]; // Add costs array to support backend format
 }
 
 declare interface Citation {

@@ -214,6 +214,10 @@ export class ChatComponent extends LitElement {
           i++;
         }
 
+        if(message.thoughts){
+          message.thoughts = parseFullMessage(message.thoughts);
+        }
+
         if (message.tools) {
           for (const tool of message.tools) {
             message.text[message.text.length - 1].value = parseTool({ name: tool.toolName, data: tool.data }) + message.text[message.text.length - 1].value
@@ -788,6 +792,7 @@ export class ChatComponent extends LitElement {
       .customConfig="${this.customConfig}"
       .isTalking="${this.isTalking}"
       .upperLoader="${this.upperLoader}"
+      .showInitialMessagesReasoningClosed="${true}"
       .actionButtons="${[
         // {
         //   id: 'chat-show-thought-process',

@@ -37,6 +37,9 @@ export class ChatThreadComponent extends LitElement {
   @property({ type: Boolean })
   isProcessingResponse = false;
 
+  @property({ type: Boolean })
+  showInitialMessagesReasoningClosed = true;
+
   @property({ type: String })
   conversationTitle;
 
@@ -277,18 +280,26 @@ export class ChatThreadComponent extends LitElement {
   }
 
   renderReasoningViewer(messageIndex: number) {
-    // Get the message at this index and check if it has reasoning
+    // Get the message at this index and check if it has reasoning or thoughts
     const message = this.chatThread[messageIndex];
-    if (!message || !message.reasoning) return '';
+    if (!message || (!message.reasoning && !message.thoughts)) return '';
 
     console.log({currentConfig});
+    
+    // Use reasoning if available, otherwise use thoughts
+    const reasoningText = message.reasoning || message.thoughts;
+    
+    // For initial messages (loaded from backend), they should be closed by default
+    // if showInitialMessagesReasoningClosed is true
+    // During active processing, use the global isReasoningClosed setting
+    const shouldBeClosed = this.isProcessingResponse ? this.isReasoningClosed : this.showInitialMessagesReasoningClosed;
     
     return html`
       <reasoning-viewer
         component-id="${message.id}"
         label="${currentConfig.REASONING_LABEL}"
-        .reasoningText="${message.reasoning}"
-        .closed="${this.isReasoningClosed}"
+        .reasoningText="${reasoningText}"
+        .closed="${shouldBeClosed}"
       ></reasoning-viewer>
     `;
   }
@@ -307,11 +318,36 @@ export class ChatThreadComponent extends LitElement {
   }
 
   private renderCostInfo(entry: ChatThreadEntry) {
-    if (!entry.cost || entry.isUserMessage) {
+    if (entry.isUserMessage) {
       return '';
     }
 
-    const { prompt_tokens, completion_tokens, total_tokens, cost } = entry.cost;
+    // Handle both single cost and costs array formats
+    let costData: IPromptCost | null = null;
+    
+    if (entry.cost) {
+      costData = entry.cost;
+    } else if (entry.costs && entry.costs.length > 0) {
+      // If we have multiple costs, sum them up or take the first one
+      if (entry.costs.length === 1) {
+        costData = entry.costs[0];
+      } else {
+        // Sum up all costs
+        costData = entry.costs.reduce((total, current) => ({
+          prompt_tokens: total.prompt_tokens + current.prompt_tokens,
+          completion_tokens: total.completion_tokens + current.completion_tokens,
+          total_tokens: total.total_tokens + current.total_tokens,
+          cost: total.cost + current.cost,
+          reasoning_tokens: (total.reasoning_tokens || 0) + (current.reasoning_tokens || 0)
+        }));
+      }
+    }
+
+    if (!costData) {
+      return '';
+    }
+
+    const { prompt_tokens, completion_tokens, total_tokens, cost } = costData;
     
     return html`
       <span class="cost-info" title="Tokens: ${prompt_tokens} + ${completion_tokens} = ${total_tokens}">
