@@ -264,6 +264,10 @@ export class ChatComponent extends LitElement {
     // Add progress event listeners
     this.addEventListener('chat:progress', this.handleProgressEvent.bind(this) as EventListener);
 
+    this.addEventListener('rws_modal:chat_settings:close', () => {
+      this.showSettings = false;
+    });
+
     this.addEventListener('code:show', (event) => {
       const theEvent: CustomEvent<{code: string, id: string, language: string}> = event as CustomEvent<{code: string, id: string, language: string}>;      
       
@@ -601,11 +605,8 @@ export class ChatComponent extends LitElement {
   }
 
   handleSettingsExpandAside(event: Event | undefined = undefined): void {
-    event?.preventDefault();
-    this.showCode = null;
-    this.showSettings = true;
-    
-    this.openAside();
+    event?.preventDefault();    
+    this.showSettings = true;      
   }
 
   openAside(){
@@ -617,8 +618,7 @@ export class ChatComponent extends LitElement {
   // hide thought process aside
   collapseAside(event: Event): void {
     event.preventDefault();
-    this.showCode = null;
-    this.showSettings = false;
+    this.showCode = null;    
     this.selectedCitation = undefined;
     this.shadowRoot?.querySelector('#chat__containerWrapper')?.classList.remove('aside-open');
     this.shadowRoot?.querySelector('#overlay')?.classList.remove('active');
@@ -1009,9 +1009,9 @@ export class ChatComponent extends LitElement {
         : ''}
         ${this.showSettings
         ? html`
-              <aside class="aside">
-                <chat-settings></chat-settings>
-              </aside>
+            <rws-modal name="chat_settings" centerTop="true"}">
+              <chat-settings></chat-settings>
+            </rws-modal>
             `
         : ''}
       </section>
