@@ -493,6 +493,13 @@ export class ChatComponent extends LitElement {
     event.preventDefault();
     this.collapseAside(event);
     const question = DOMPurify.sanitize(this.questionInput.value);
+    
+    // Reset scroll state for every new message to enable auto-scrolling
+    const chatThreadComponent = this.renderRoot?.querySelector('chat-thread-component');
+    if (chatThreadComponent && typeof (chatThreadComponent as any).resetScrollState === 'function') {
+      (chatThreadComponent as any).resetScrollState();
+    }
+    
     this.isChatStarted = true;
     this.isDefaultPromptsEnabled = false;
 
@@ -523,6 +530,14 @@ export class ChatComponent extends LitElement {
       this.apiUrl // Pass WebSocket URL (same as API URL)
     );
 
+    // Ensure auto-scrolling is working after starting the response
+    setTimeout(() => {
+      const chatThreadComponent = this.renderRoot?.querySelector('chat-thread-component');
+      if (chatThreadComponent && typeof (chatThreadComponent as any).ensureAutoScroll === 'function') {
+        (chatThreadComponent as any).ensureAutoScroll();
+      }
+    }, 100);
+
     if (this.interactionModel === 'chat') {
       this.chatHistoryController.saveChatHistory(this.chatThread);
     }
@@ -552,6 +567,11 @@ export class ChatComponent extends LitElement {
     const chatThreadComponent = this.renderRoot?.querySelector('chat-thread-component');
     if (chatThreadComponent && typeof (chatThreadComponent as any).clearAllReasoning === 'function') {
       (chatThreadComponent as any).clearAllReasoning();
+    }
+    
+    // Reset scroll state to allow auto-scrolling again
+    if (chatThreadComponent && typeof (chatThreadComponent as any).resetScrollState === 'function') {
+      (chatThreadComponent as any).resetScrollState();
     }
     
     // clean up the current session content from the history too

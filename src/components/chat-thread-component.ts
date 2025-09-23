@@ -64,6 +64,11 @@ export class ChatThreadComponent extends LitElement {
   @property({ type: Boolean })
   private upperLoader = false;
 
+  @state()
+  private isUserScrolledUp = false;
+
+  private scrollTimeout: any = null;
+
   override async connectedCallback() {
     super.connectedCallback();
 
@@ -71,6 +76,52 @@ export class ChatThreadComponent extends LitElement {
     
     // Override config if customConfig is provided
     this.overrideConfig();
+    
+    // Set up scroll listener after component is rendered
+    this.updateComplete.then(() => {
+      this.setupScrollListener();
+    });
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    this.removeScrollListener();
+  }
+
+  private setupScrollListener(): void {
+    const scrollContainer = this.shadowRoot?.querySelector('#chat__thread-container ul.chat__list');
+    if (scrollContainer) {
+      scrollContainer.addEventListener('scroll', this.handleScroll.bind(this));
+      
+      // Initialize scroll state based on current position
+      const threshold = 10;
+      const isAtBottom = scrollContainer.scrollHeight - scrollContainer.scrollTop - scrollContainer.clientHeight < threshold;
+      this.isUserScrolledUp = !isAtBottom;
+    }
+  }
+
+  private removeScrollListener(): void {
+    const scrollContainer = this.shadowRoot?.querySelector('#chat__thread-container ul.chat__list');
+    if (scrollContainer) {
+      scrollContainer.removeEventListener('scroll', this.handleScroll.bind(this));
+    }
+  }
+
+  private handleScroll(event: Event): void {
+    const scrollContainer = event.target as HTMLElement;
+    const threshold = 10; // smaller threshold for more precise detection
+    
+    const isAtBottom = scrollContainer.scrollHeight - scrollContainer.scrollTop - scrollContainer.clientHeight < threshold;
+    
+    // Clear any pending scroll timeout
+    if (this.scrollTimeout) {
+      clearTimeout(this.scrollTimeout);
+    }
+    
+    // Set a timeout to determine if user has stopped scrolling
+    this.scrollTimeout = setTimeout(() => {
+      this.isUserScrolledUp = !isAtBottom;
+    }, 100); // shorter timeout for more responsive detection
   }
 
   private overrideConfig() {
@@ -89,13 +140,97 @@ export class ChatThreadComponent extends LitElement {
       this.overrideConfig();
     }
     
-    // Auto-scroll to bottom when new messages are added
+    // Auto-scroll to bottom when new messages are added or when processing responses
     if (changedProperties.has('chatThread') && this.chatThread.length) {
         this.scrollToBottom();
     }
+    
+    // Also scroll when processing response changes (for streaming text)
+    if (changedProperties.has('isProcessingResponse')) {
+      if (this.isProcessingResponse) {
+        // When processing starts, ensure we're ready to scroll
+        setTimeout(() => this.scrollToBottom(), 10);
+      }
+    }
   }
 
-  private scrollToBottom(): void {    
+  override updated(changedProperties: PropertyValues) {
+    super.updated(changedProperties);
+    
+    // Scroll after DOM updates if we're processing a response
+    if (this.isProcessingResponse && !this.isUserScrolledUp) {
+      this.scrollToBottom();
+    }
+    
+    // Also scroll when chat thread changes during processing
+    if (changedProperties.has('chatThread') && this.isProcessingResponse && !this.isUserScrolledUp) {
+      setTimeout(() => this.scrollToBottom(), 5);
+    }
+  }
+
+  private scrollToBottom(): void {
+    // Only auto-scroll if user hasn't manually scrolled up
+    if (this.isUserScrolledUp) {
+      return;
+    }
+    
+    const scrollContainer = this.shadowRoot?.querySelector('#chat__thread-container ul.chat__list');
+    if (scrollContainer) {
+      scrollContainer.scrollTop = scrollContainer.scrollHeight;
+    }
+  }
+
+  /**
+   * Reset the scroll state to allow auto-scrolling again
+   * Can be called when starting a new conversation
+   */
+  public resetScrollState(): void {
+    this.isUserScrolledUp = false;
+    // Immediately scroll to bottom to ensure we're positioned correctly
+    setTimeout(() => {
+      const scrollContainer = this.shadowRoot?.querySelector('#chat__thread-container ul.chat__list');
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      }
+    }, 10);
+  }
+
+  /**
+   * Ensure auto-scrolling is working properly for streaming
+   */
+  public ensureAutoScroll(): void {
+    if (!this.isUserScrolledUp) {
+      this.scrollToBottom();
+    }
+  }
+
+  /**
+   * Debug method to check scroll state - can be called from browser console
+   */
+  public debugScrollState() {
+    const scrollContainer = this.shadowRoot?.querySelector('#chat__thread-container ul.chat__list');
+    if (scrollContainer) {
+      const threshold = 10;
+      const isAtBottom = scrollContainer.scrollHeight - scrollContainer.scrollTop - scrollContainer.clientHeight < threshold;
+      
+      return {
+        isUserScrolledUp: this.isUserScrolledUp,
+        isAtBottom,
+        scrollHeight: scrollContainer.scrollHeight,
+        scrollTop: scrollContainer.scrollTop,
+        clientHeight: scrollContainer.clientHeight,
+        distanceFromBottom: scrollContainer.scrollHeight - scrollContainer.scrollTop - scrollContainer.clientHeight,
+        isProcessingResponse: this.isProcessingResponse
+      };
+    }
+    return null;
+  }
+
+  /**
+   * Force scroll to bottom regardless of user scroll state
+   * Can be called when explicitly wanting to scroll to bottom
+   */
+  public forceScrollToBottom(): void {
     const scrollContainer = this.shadowRoot?.querySelector('#chat__thread-container ul.chat__list');
     if (scrollContainer) {
       scrollContainer.scrollTop = scrollContainer.scrollHeight;
@@ -128,10 +263,15 @@ export class ChatThreadComponent extends LitElement {
 
   // debounce dispatching must-scroll event
   debounceScrollIntoView(): void {
+    // Only auto-scroll if user hasn't manually scrolled up
+    if (this.isUserScrolledUp) {
+      return;
+    }
+    
     let timeout: any = 0;
     clearTimeout(timeout);
     timeout = setTimeout(() => {
-      if (this.chatFooter) {
+      if (this.chatFooter && !this.isUserScrolledUp) {
         this.chatFooter.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     }, 500);
@@ -222,6 +362,10 @@ export class ChatThreadComponent extends LitElement {
     }
     if (this.isProcessingResponse) {
       this.debounceScrollIntoView();
+      // Also do an immediate scroll for streaming content - more frequent
+      setTimeout(() => this.scrollToBottom(), 0);
+      // And another one slightly delayed to catch any layout changes
+      setTimeout(() => this.scrollToBottom(), 50);
     }
     return html`<div class="chat_txt--entry-container">${entries}</div>`;
   }
