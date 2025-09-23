@@ -269,15 +269,14 @@ export class ChatComponent extends LitElement {
     });
 
     this.addEventListener('code:show', (event) => {
-      const theEvent: CustomEvent<{code: string, id: string, language: string}> = event as CustomEvent<{code: string, id: string, language: string}>;      
-      
-      if(this.showCode && this.showCode.id === theEvent.detail.id){
-        this.collapseAside(event);
-        return
-      }
+      const theEvent: CustomEvent<{code: string, id: string, language: string}> = event as CustomEvent<{code: string, id: string, language: string}>;             
 
       this.handleCodeExpandAside(event, theEvent.detail);
     });
+
+     this.addEventListener('code:close', (event) => {
+       this.collapseAside(event);      
+    });    
 
     this.addEventListener('chat_settings:submit', (e: Event) =>{
       const theEvent = e as CustomEvent<IChatSettings>;
