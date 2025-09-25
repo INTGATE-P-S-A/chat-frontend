@@ -110,6 +110,9 @@ export class ChatComponent extends LitElement {
   @property({ type: Boolean, attribute: 'data-web-search', converter: (value) => value === 'true' })
   dataWebSearch: boolean = false;
 
+  @property({ type: Boolean, attribute: 'data-can-talk', converter: (value) => value === 'true' })
+  dataCanTalk: boolean = false;
+
   @property({ type: Boolean, attribute: 'data-deep-search', converter: (value) => value === 'true' })
   dataDeepSearch: boolean = false;
 
@@ -140,6 +143,12 @@ export class ChatComponent extends LitElement {
 
   @state()
   isFullscreen = false;
+
+  @state()
+  showControls = true;
+
+  @state()
+  liveChatOn = false;
 
   @state()
   showSettings = false;
@@ -308,6 +317,8 @@ export class ChatComponent extends LitElement {
       composed: true
     });
     this.dispatchEvent(ev);
+
+
   }
 
   override disconnectedCallback() {
@@ -318,6 +329,9 @@ export class ChatComponent extends LitElement {
     document.removeEventListener('webkitfullscreenchange', this.handleFullscreenChange.bind(this));
     document.removeEventListener('mozfullscreenchange', this.handleFullscreenChange.bind(this));
     document.removeEventListener('MSFullscreenChange', this.handleFullscreenChange.bind(this));
+
+    this.showControls = false;
+    this.liveChatOn = false;
   }
 
   /**
@@ -553,6 +567,14 @@ export class ChatComponent extends LitElement {
     this.currentQuestion = '';
     this.isResetInput = false;
   }
+
+  startLiveChat(event: Event): void {
+    event.preventDefault();
+    this.showControls = false;
+    this.liveChatOn = true;
+  }
+
+ 
 
   // Reset the chat and show the default prompts
   resetCurrentChat(event: Event, forced = false): void {
@@ -921,8 +943,10 @@ export class ChatComponent extends LitElement {
                   ></teaser-list-component>
                 </div>`
         : ''}
+
+          ${this.liveChatOn && (this.overrides.avatar || this.overrides.selectedModel) ? html`<voice-chat voice="${this.chatSettings.voice}" ${this.overrides.selectedModel ? `model="${this.overrides.selectedModel.value}"` : ''} ${this.overrides.avatar ? `avatar="${this.overrides.avatar}"` : ''}></voice-chat>` : ''}
         
-          <form
+          ${ this.showControls ? html`<form
             id="chat-form"
             class="form__container ${this.inputPosition === 'sticky' ? 'form__container-sticky' : ''}"
           >
@@ -955,15 +979,15 @@ export class ChatComponent extends LitElement {
                     <i class="simple-icon-ban"></i>
                   </button>` : ''}
                   ${this.renderChatOrCancelButton()}
-                  ${this.isResetInput ? '' : html`<voice-input-button @on-voice-input="${this.handleVoiceInput}" class="chatbox__button btn-outline-secondary" />`}
-                  ${!this.hideDeleteButton && this.isChatStarted ? html`<button
-                        class="chatbox__button btn-outline-danger"
-                        .label="${globalConfig.RESET_CHAT_BUTTON_TITLE}"
-                        actionId="chat-reset-button"
-                        @click="${this.resetCurrentChat}"
-                        title="${globalConfig.RESET_CHAT_BUTTON_TITLE}"
-                      >
-                        ${unsafeSVG(iconDelete)}
+                  ${this.isResetInput ? '' : html`<voice-input-button label="${globalConfig.CHAT_VOICE_BUTTON_LABEL_TEXT}" @on-voice-input="${this.handleVoiceInput}" class="chatbox__button btn-outline-secondary" />`}
+                  ${this.dataCanTalk ? html`<button
+                    title="${globalConfig.LIVE_CHAT_BUTTON_LABEL_TEXT}"
+                    class="chatbox__button btn-outline-secondary live-chat"
+                    type="reset"
+                    id="resetBtn"
+                    @click="${this.startLiveChat}"
+                  >
+                    <i class="simple-icon-speech"></i>
                   </button>` : ''}
                 </div>
               </div>
@@ -1017,7 +1041,7 @@ export class ChatComponent extends LitElement {
             ${this.isDefaultPromptsEnabled
         ? ''
         : ''}
-          </form>
+          </form>` : ''}
         </section>        
         ${this.showCode?.id
         ? html`

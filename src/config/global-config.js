@@ -12,6 +12,7 @@ const globalConfig = {
   CHAT_CANCEL_BUTTON_LABEL_TEXT: 'Cancel Generation',
   CHAT_VOICE_BUTTON_LABEL_TEXT: 'Voice input',
   CHAT_VOICE_REC_BUTTON_LABEL_TEXT: 'Listening to voice input',
+  LIVE_CHAT_BUTTON_LABEL_TEXT: 'Live Chat',
   CHAT_INPUT_PLACEHOLDER: 'Type your question, eg. "How to search and book rentals?"',
   USER_IS_BOT: 'Support Assistant',
   RESET_BUTTON_LABEL_TEXT: 'X',

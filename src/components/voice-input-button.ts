@@ -1,8 +1,6 @@
 import { LitElement, html } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
+import { customElement, property, state } from 'lit/decorators.js';
 import { styles } from '../styles/voice-input-button.js';
-import { globalConfig } from '../config/global-config.js';
-
 import { addIconSheet } from '../utils/index.js';
 
 @customElement('voice-input-button')
@@ -14,6 +12,9 @@ export class VoiceInputButton extends LitElement {
 
   @state()
   enableVoiceListening = false;
+
+  @property({ type: String })
+  label: string = 'Voice input';
 
   override async connectedCallback() {
     super.connectedCallback();
@@ -39,9 +40,7 @@ export class VoiceInputButton extends LitElement {
   renderVoiceButton() {
     return html`
       <button
-        title="${this.enableVoiceListening
-          ? globalConfig.CHAT_VOICE_REC_BUTTON_LABEL_TEXT
-          : globalConfig.CHAT_VOICE_BUTTON_LABEL_TEXT}"
+        title="${this.label}
         class="${this.enableVoiceListening ? 'recording' : 'not-recording'}"
         @click="${this.handleVoiceInput}"
       >
