@@ -39,7 +39,7 @@ export class ReasoningViewer extends LitElement {
       <div class="reasoning-container ${this.streaming ? 'streaming' : ''}">
         <div class="reasoning-header" @click="${this.toggleDropdown}">
           <div class="header-content">
-            <i class="simple-icon-lightbulb"></i>
+            <i class="simple-icon-bulb"></i>
             <h4 class="reasoning-title">${this.label}</h4>          
           </div>
           <i class="simple-icon-arrow-${this.dropdownShown ? 'up' : 'down'}"></i>
