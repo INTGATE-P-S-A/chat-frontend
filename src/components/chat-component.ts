@@ -293,6 +293,12 @@ export class ChatComponent extends LitElement {
       this.chatSettings = theEvent.detail;
     });
 
+    this.addEventListener('voice-chat:conversation-end', (e: Event) =>{
+      this.liveChatOn = false;
+      this.showControls = true;
+      this.initialMessages = [];
+    });
+
     this.addEventListener('chat_settings:close', (e: Event) =>{      
       this.collapseAside(e);
     });
@@ -316,9 +322,7 @@ export class ChatComponent extends LitElement {
       bubbles: true,
       composed: true
     });
-    this.dispatchEvent(ev);
-
-
+    this.dispatchEvent(ev);    
   }
 
   override disconnectedCallback() {
@@ -370,6 +374,10 @@ export class ChatComponent extends LitElement {
     this.chatThread = [];
     this.isChatStarted = false;
     this.isDefaultPromptsEnabled = true;
+    this.liveChatOn = false;
+    this.showControls = true;
+    this.showCode = null;    
+
     
     this.resetCurrentChat(new Event('clear-chat'), true);
   }
@@ -943,8 +951,8 @@ export class ChatComponent extends LitElement {
                   ></teaser-list-component>
                 </div>`
         : ''}
-
-          ${this.liveChatOn && (this.overrides.avatar || this.overrides.selectedModel) ? html`<voice-chat voice="${this.chatSettings.voice}" ${this.overrides.selectedModel ? `model="${this.overrides.selectedModel.value}"` : ''} ${this.overrides.avatar ? `avatar="${this.overrides.avatar}"` : ''}></voice-chat>` : ''}
+        
+          ${this.liveChatOn && (this.overrides.avatar || this.overrides.selectedModel) ? html`<voice-chat voice="${this.chatSettings.voice}" model="${this.overrides.selectedModel ? `${this.overrides.selectedModel.model.value}` : ''}" avatar="${this.overrides.avatar ? `${this.overrides.avatar}` : ''}"></voice-chat>` : ''}
         
           ${ this.showControls ? html`<form
             id="chat-form"
