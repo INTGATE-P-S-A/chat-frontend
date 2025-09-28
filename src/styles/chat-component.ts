@@ -196,6 +196,21 @@ export const chatStyle = css`
     overflow: hidden;
     min-height: 0;
   }
+  #chat__containerWrapper .fullscreen-col{
+    display: none;
+  }
+  #chat__containerWrapper.has-fullscreen {
+    display: flex;
+    flex-direction: row;
+    gap: 15px;
+  }
+  #chat__containerWrapper.has-fullscreen #chat-container{
+    min-width: auto;
+    width: auto;
+  }
+  #chat__containerWrapper.has-fullscreen .fullscreen-col{
+    display: block;
+  }
   .chat__containerWrapper.aside-open {
     display: grid;
     grid-template-columns: 1fr;

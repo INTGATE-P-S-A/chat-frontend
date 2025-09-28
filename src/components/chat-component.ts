@@ -460,8 +460,8 @@ export class ChatComponent extends LitElement {
   }
 
   handleFullscreenToggle(): void {
-    this.isFullscreen = !this.isFullscreen;
-    
+    this.isFullscreen = !this.isFullscreen;      
+
     if (this.isFullscreen) {
       this.requestFullscreen?.();
     } else {
@@ -872,7 +872,7 @@ export class ChatComponent extends LitElement {
   override render() {
     return html`
       <div id="overlay" class="overlay"></div>
-      <section id="chat__containerWrapper" class="chat__containerWrapper">            
+      <section id="chat__containerWrapper" class="chat__containerWrapper ${this.isFullscreen ? ' has-fullscreen' : ''}">
         ${this.isCustomBranding && !this.isChatStarted
         ? html` <chat-stage
               svgIcon="${iconLogo}"
@@ -881,7 +881,10 @@ export class ChatComponent extends LitElement {
             >
             </chat-stage>`
         : ''}
-        <section class="chat__container" id="chat-container">         
+        ${this.isFullscreen ? html`<div class="fullscreen-col"><conversation-list fullmode="true"></conversation-list></div>` : ''}            
+
+        <section class="chat__container" id="chat-container"> 
+        
           ${this.isChatStarted
         ? html`
                 <div class="chat__header--thread">                 
