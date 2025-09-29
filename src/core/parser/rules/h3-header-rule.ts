@@ -3,7 +3,7 @@ import { BufferState } from '../bufferer';
 
 export class H3HeaderRule extends BufferingRule {
   readonly name = 'h3-header';
-  readonly priority = 1;
+  readonly priority = 2;
   
   private partialSequence = ''; // Track partial ### sequences across chunks
 
@@ -11,29 +11,54 @@ export class H3HeaderRule extends BufferingRule {
     // Combine any partial sequence from previous chunks with current chunk
     const combinedChunk = this.partialSequence + chunk;
     
-    // Detect ### at start of chunk or after newline, with optional space
-    const hasH3Marker = /(?:^|\n)###(\s|$)/.test(combinedChunk) || /(?:^|\n)###/.test(combinedChunk);
+    // Detect ### at start of chunk or after newline
+    const hasH3Marker = /(?:^|\n)###/.test(combinedChunk);
     
     if (hasH3Marker) {
       this.partialSequence = ''; // Reset partial sequence
       return true;
     }
     
-    // Check for partial ### sequence at the end of chunk (after newline)
-    const partialMatch = chunk.match(/(\n#{1,3})$/);
-    if (partialMatch && partialMatch[1].length > 1) {
-      this.partialSequence = partialMatch[1];
+    // Check for partial sequences that could lead to ### headers
+    // Handle cases where newline + # or newline + ## or newline + ### appears at end of chunk
+    if (chunk.endsWith('\n#')) {
+      this.partialSequence = '\n#';
       return null; // Wait for more chunks
-    } else {
-      this.partialSequence = '';
+    }
+    if (chunk.endsWith('\n##')) {
+      this.partialSequence = '\n##';
+      return null; // Wait for more chunks  
+    }
+    if (chunk.endsWith('\n###')) {
+      this.partialSequence = '\n###';
+      return null; // Wait for more chunks  
     }
     
+    // Check if chunk completes a ### sequence
+    if (this.partialSequence === '\n#' && chunk.startsWith('##')) {
+      this.partialSequence = '';
+      return true;
+    }
+    if (this.partialSequence === '\n##' && chunk.startsWith('#')) {
+      this.partialSequence = '';
+      return true;
+    }
+    if (this.partialSequence === '\n###') {
+      this.partialSequence = '';
+      return true;
+    }
+    
+    // Reset partial sequence if no match
+    this.partialSequence = '';
     return false;
   }
 
   tryCompleteMatch(chunk: string, _bufferState?: BufferState): CompleteMatchResult | null {
+    // Combine partial sequence with current chunk
+    const combinedChunk = this.partialSequence + chunk;
+    
     // First try to match complete header with single newline (most common in streaming)
-    const singleNewlineMatch = chunk.match(/(^|\n)(###\s*)(.*?)(\n)/);
+    const singleNewlineMatch = combinedChunk.match(/(^|\n)(###\s*)(.*?)(\n)/);
     if (singleNewlineMatch) {
       const [fullMatch, lineStart, , headerContent, lineEnd] = singleNewlineMatch;
       return this.createCompleteMatch(
@@ -44,7 +69,7 @@ export class H3HeaderRule extends BufferingRule {
     }
     
     // Then try to match complete header with double newline
-    const headerMatch = chunk.match(/(^|\n)(###\s*)(.*?)(\n\n)/);
+    const headerMatch = combinedChunk.match(/(^|\n)(###\s*)(.*?)(\n\n)/);
     if (headerMatch) {
       const [fullMatch, lineStart, , headerContent, lineEnd] = headerMatch;
       return this.createCompleteMatch(

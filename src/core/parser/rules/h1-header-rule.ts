@@ -3,7 +3,7 @@ import { BufferState } from '../bufferer';
 
 export class H1HeaderRule extends BufferingRule {
   readonly name = 'h1-header';
-  readonly priority = 3;
+  readonly priority = 0; // Highest priority - process H1 before H2 and H3
   
   private partialSequence = ''; // Track partial # sequences across chunks
 
@@ -11,47 +11,60 @@ export class H1HeaderRule extends BufferingRule {
     // Combine any partial sequence from previous chunks with current chunk
     const combinedChunk = this.partialSequence + chunk;
     
-    // Detect # at start of chunk or after newline, with optional space, but not ## or ###
-    const hasH1Marker = /(?:^|\n)#(?!#)(\s|$)/.test(combinedChunk) || /(?:^|\n)#(?!#)/.test(combinedChunk);
+    // Detect # at start of chunk or after newline, but not ## or ###
+    const hasH1Marker = /(?:^|\n)#(?!#)/.test(combinedChunk);
     
     if (hasH1Marker) {
       this.partialSequence = ''; // Reset partial sequence
       return true;
     }
     
-    // Check for partial # sequence at the end of chunk (after newline)
-    const partialMatch = chunk.match(/(\n#?)$/);
-    if (partialMatch && partialMatch[1].length > 1) {
-      this.partialSequence = partialMatch[1];
+    // Check for partial sequences that could lead to # headers
+    if (chunk.endsWith('\n')) {
+      this.partialSequence = '\n';
       return null; // Wait for more chunks
-    } else {
+    }
+    // Check if chunk starts with # and we have a pending newline
+    if (this.partialSequence === '\n' && chunk.startsWith('#') && !chunk.startsWith('##')) {
       this.partialSequence = '';
+      return true;
     }
     
+    // Reset partial sequence if no match
+    this.partialSequence = '';
     return false;
   }
 
   tryCompleteMatch(chunk: string, _bufferState?: BufferState): CompleteMatchResult | null {
+    // Combine partial sequence with current chunk
+    const combinedChunk = this.partialSequence + chunk;
+    
     // First try to match complete header with single newline (most common in streaming)
-    const singleNewlineMatch = chunk.match(/(^|\n)(#\s*)(.*?)(\n)/);
+    const singleNewlineMatch = combinedChunk.match(/(^|\n)(#\s*)(.*?)(\n)/);
     if (singleNewlineMatch) {
       const [fullMatch, lineStart, , headerContent, lineEnd] = singleNewlineMatch;
-      return this.createCompleteMatch(
-        fullMatch,
-        headerContent,
-        `${lineStart}<h1>${headerContent}</h1>${lineEnd}`
-      );
+      // Only process if this is a complete header (not part of ## or ###)
+      if (!fullMatch.includes('##')) {
+        return this.createCompleteMatch(
+          fullMatch,
+          headerContent,
+          `${lineStart}<h1>${headerContent}</h1>${lineEnd}`
+        );
+      }
     }
     
     // Then try to match complete header with double newline
-    const headerMatch = chunk.match(/(^|\n)(#\s*)(.*?)(\n\n)/);
+    const headerMatch = combinedChunk.match(/(^|\n)(#\s*)(.*?)(\n\n)/);
     if (headerMatch) {
       const [fullMatch, lineStart, , headerContent, lineEnd] = headerMatch;
-      return this.createCompleteMatch(
-        fullMatch,
-        headerContent,
-        `${lineStart}<h1>${headerContent}</h1>${lineEnd}`
-      );
+      // Only process if this is a complete header (not part of ## or ###)
+      if (!fullMatch.includes('##')) {
+        return this.createCompleteMatch(
+          fullMatch,
+          headerContent,
+          `${lineStart}<h1>${headerContent}</h1>${lineEnd}`
+        );
+      }
     }
     
     return null;
