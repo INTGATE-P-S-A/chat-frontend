@@ -4,6 +4,11 @@ import { createReader, readStream } from '../stream/index.js';
 import { createBufferState, processChunkWithBuffering, parseText } from './bufferer.js';
 import { parseTool } from './toolsParser.js';
 
+function getCodeViewer(host: ReactiveControllerHost, coderId: string): { updateRenderer: (text: string) => void, endStream: () => void } {
+  const hoster = (host as any);
+  return hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[componentId="' + coderId + '"]');
+}
+
 export async function parseStreamedMessages({
   chatEntry,
   apiResponseBody,
@@ -171,6 +176,7 @@ export async function parseStreamedMessages({
       // Accumulate code content instead of directly updating code-viewer
       if (bufferInfo.buffering && bufferInfo.currentRule === 'code-block' && coderId) {
         accumulatedCodeContent += chunk;
+        getCodeViewer(host, coderId)?.updateRenderer(chunk);
       }
     });
 
@@ -181,11 +187,7 @@ export async function parseStreamedMessages({
       // Code-viewer buffering just completed - render all accumulated content at once
       if (accumulatedCodeContent && coderId) {
         try {
-          const hoster = (host as any);
-          const codeViewer: { updateRenderer: (text: string) => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[componentId="' + coderId + '"]');
-          if (codeViewer && typeof codeViewer.updateRenderer === 'function') {
-            codeViewer.updateRenderer(accumulatedCodeContent);
-          }
+          getCodeViewer(host, coderId)?.endStream();
         } catch (e) {
           console.error('Error rendering accumulated code content:', e);
         }

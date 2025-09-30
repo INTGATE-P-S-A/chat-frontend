@@ -158,7 +158,7 @@ export const chatStyle = css`
   /* Chat header styling */
   .chat-header {
     padding: 1rem;
-    border-bottom: 1px solid #e3e6f0;
+    border-bottom: 1px solid var(--chat_header_color, #e3e6f0);
     background: #f8f9fc;
     border-radius: 0.35rem 0.35rem 0 0;
     flex-shrink: 0;
@@ -178,7 +178,7 @@ export const chatStyle = css`
     margin-top: 1rem;
     padding: 1rem;
     background: white;
-    border: 1px solid #e3e6f0;
+    border: 1px solid var(--chat_header_color, #e3e6f0);
     border-radius: 0.35rem;
     flex-shrink: 0;
   }
@@ -276,7 +276,7 @@ export const chatStyle = css`
     background: white;
     box-shadow: none;
     padding: 0;
-    border: 1px solid #e3e6f0;
+    border: 1px solid var(--chat_header_color, #e3e6f0);
     flex-shrink: 0;
   }
   .form__label {

@@ -3,7 +3,7 @@ import { css } from 'lit';
 export const styles = css`
   .reasoning-container {
     margin: 16px 0;
-    border: 1px solid #e3e6f0;
+    border: 1px solid var(--chat_header_color, #e3e6f0);
     border-radius: 8px;
     background: #f8f9fc;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -164,7 +164,7 @@ export const styles = css`
 
   .reasoning-step {
     padding: 12px 16px;
-    border-bottom: 1px solid #e3e6f0;
+    border-bottom: 1px solid var(--chat_header_color, #e3e6f0);
     position: relative;
   }
 
@@ -235,7 +235,7 @@ export const styles = css`
     transform: translateX(-50%);
     width: 2px;
     height: 20px;
-    background: #e3e6f0;
+    background: var(--chat_header_color, #e3e6f0);
     z-index: 0;
   }
 

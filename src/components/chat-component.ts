@@ -158,7 +158,7 @@ export class ChatComponent extends LitElement {
 
   // Is showing thought process panel
   @state()
-  showCode: { code: string, id: string, language: string } | null = null;
+  showCode: { code: string, id: string, language: string, preview?: boolean } | null = null;
 
   @state()
   isDefaultPromptsEnabled: boolean = globalConfig.IS_DEFAULT_PROMPTS_ENABLED && !this.isChatStarted;
@@ -278,12 +278,27 @@ export class ChatComponent extends LitElement {
     });
 
     this.addEventListener('code:show', (event) => {
-      const theEvent: CustomEvent<{code: string, id: string, language: string}> = event as CustomEvent<{code: string, id: string, language: string}>;             
-
+      const theEvent: CustomEvent<{code: string, id: string, language: string}> = event as CustomEvent<{code: string, id: string, language: string}>;                   
       this.handleCodeExpandAside(event, theEvent.detail);
     });
 
-     this.addEventListener('code:close', (event) => {
+    this.addEventListener('code:preview', (event) => {
+      const theEvent: CustomEvent<{codeId: string}> = event as CustomEvent<{codeId: string}>;             
+
+      if(this.showCode && this.showCode.id === theEvent.detail.codeId){
+        this.showCode = this.showCode ? {...this.showCode, preview: true} : null;        
+      }      
+    }); 
+
+    this.addEventListener('code:update', (event) => {
+      const theEvent: CustomEvent<{chunk: string, componentId: string}> = event as CustomEvent<{chunk: string, componentId: string, language: string}>;             
+
+      if(this.showCode && this.showCode.id === theEvent.detail.componentId){
+        this.showCode = {...this.showCode, code: this.showCode.code + theEvent.detail.chunk };        
+      }
+    });
+
+    this.addEventListener('code:close', (event) => {
        this.collapseAside(event);      
     });    
 
@@ -648,7 +663,12 @@ export class ChatComponent extends LitElement {
   // show thought process aside
   handleCodeExpandAside(event: Event | undefined = undefined, code: { id: string, code: string, language: string } | null = null): void {
     event?.preventDefault();
-    this.showCode = code;
+
+    if(this.showCode){
+      this.showCode = { ...this.showCode, ...code};
+    }else{
+      this.showCode = code;
+    }    
     
     this.openAside();
   }
@@ -1057,7 +1077,7 @@ export class ChatComponent extends LitElement {
         ${this.showCode?.id
         ? html`
               <aside class="aside">
-                <code-screen language="${this.showCode.language}" componentId=${this.showCode.id}>${this.showCode.code}</code-screen>
+                <code-screen language="${this.showCode.language}" componentId=${this.showCode.id} .passedContent=${this.showCode.code} .activatePreview="${this.showCode.preview}"></code-screen>
               </aside>
             `
         : ''}

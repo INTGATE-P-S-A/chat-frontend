@@ -158,8 +158,6 @@ export class CodeBlockRule extends BufferingRule {
   }
 
   tryCompleteMatch(chunk: string, bufferState?: BufferState): CompleteMatchResult | null {
-                console.log('REPL')
-
     // Check for complete code block pattern in the chunk
     // Pattern: ```language\ncontent``` - only process if language is specified and ``` is at start of line
     const codeBlockMatch = chunk.match(/(?:^|\s)(```(\w+)\n?([\s\S]*?)```)/);

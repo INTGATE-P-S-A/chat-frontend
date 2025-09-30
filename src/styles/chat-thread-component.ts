@@ -60,7 +60,7 @@ export const styles = css`
     margin-block-end: 0;
     position: relative;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    border: 1px solid #e3e6f0;
+    border: 1px solid var(--chat_header_color, #e3e6f0);
     border-bottom-left-radius: 0.25rem;
     padding: 0.75rem 1rem;
     max-width: 100%;
@@ -261,7 +261,7 @@ export const styles = css`
   }
   #chat__thread-container {    
     margin: 0;
-    border: 1px solid #e3e6f0;
+    border: 1px solid var(--chat_header_color, #e3e6f0);
     border-radius: 0.35rem;
     background: #f8f9fc;
     height: 100%;
@@ -272,7 +272,7 @@ export const styles = css`
   }  
   .chat-topic {    
     padding: 1rem;
-    border-bottom: 1px solid #e3e6f0;
+    border-bottom: 1px solid var(--chat_header_color, #e3e6f0);
     background: #f8f9fc;
     border-radius: 0.35rem 0.35rem 0 0;
     flex-shrink: 0;
