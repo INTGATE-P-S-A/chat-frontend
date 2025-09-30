@@ -187,7 +187,7 @@ export async function parseStreamedMessages({
       // Code-viewer buffering just completed - render all accumulated content at once
       if (accumulatedCodeContent && coderId) {
         try {
-          getCodeViewer(host, coderId)?.endStream();
+          // getCodeViewer(host, coderId)?.endStream();
         } catch (e) {
           console.error('Error rendering accumulated code content:', e);
         }
@@ -294,7 +294,7 @@ export async function parseStreamedMessages({
         }
 
         if (codeViewer && typeof codeViewer.updateRenderer === 'function') {
-          codeViewer.updateRenderer(accumulatedCodeContent);
+          // codeViewer.updateRenderer(accumulatedCodeContent);
 
           // Clear state after successful update
           accumulatedCodeContent = '';
