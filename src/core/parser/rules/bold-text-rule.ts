@@ -8,10 +8,6 @@ export class BoldTextRule extends BufferingRule {
   private partialMarker = ''; // Track partial ** sequences across chunks
 
   detect(chunk: string, _bufferState?: BufferState): boolean | null {
-    console.log('Bold Text Rule - detect called with chunk:', JSON.stringify(chunk.substring(0, 100)));
-    console.log('Bold pre checking', { chunk })
-
-    console.log('Bold checking', { chunk })
 
     // Combine any partial marker from previous chunks with current chunk
     const combinedChunk = this.partialMarker + chunk;

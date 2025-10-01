@@ -84,9 +84,7 @@ export class ChatController implements ReactiveController {
   private closeReasoningViewer(messageId: string) {    
     // Find the reasoning-viewer component for this message and close it
     const hostElement = this.host as any;
-     const root = hostElement.shadowRoot;
-
-      console.log('ROOT', root)
+     const root = hostElement.shadowRoot;      
 
       const reasoningViewer = root.querySelector(`chat-thread-component`).shadowRoot.querySelector(`reasoning-viewer[component-id="${messageId}"]`);
       if (reasoningViewer && typeof reasoningViewer.close === 'function') {

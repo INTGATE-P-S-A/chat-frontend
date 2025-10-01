@@ -69,21 +69,16 @@ export class BufferingRuleManager {
     chunk: string,
     bufferState: BufferState
   ): { processedChunk: string | null; bufferState: BufferState; ruleApplied?: string } | null {
-    console.log('BufferingRuleManager.processChunk called with:', { chunk: chunk.substring(0, 100), buffering: bufferState.buffering });
-    console.log('Available rules:', this.rules.map(r => `${r.name}(priority:${r.priority})`));
     
     if (bufferState.buffering) {
-      console.log('Already buffering, checking processing mode:', bufferState.ruleProcessingMode);
       
       // If in exclusive buffering mode (code-block), only allow the buffering rule to process
       if (bufferState.ruleProcessingMode === 'buffering-exclusive') {
-        console.log('In exclusive buffering mode (code-block), blocking all other rules');
         return null; // Block all rule processing during exclusive buffering
       }
       
       // In sequential mode, check if any rules are allowed during buffering
       if (bufferState.allowedRulesWhileBuffering && bufferState.allowedRulesWhileBuffering.length > 0) {
-        console.log('Some rules allowed during buffering:', bufferState.allowedRulesWhileBuffering);
         // Continue with limited rule processing
       } else {
         return null; // No rules allowed during buffering
@@ -98,24 +93,19 @@ export class BufferingRuleManager {
     let rulesToProcess = this.rules;
     
     // Process ALL rules sequentially - each rule gets the processed content from previous rules
-    console.log('Starting rule processing loop with rules:', rulesToProcess.map(r => r.name));
     for (const rule of rulesToProcess) {
-      console.log(`Checking rule: ${rule.name} (priority: ${rule.priority}) with chunk:`, currentChunk.substring(0, 50) + '...');
       
       // Skip line break rule if we're in a linebreakProof context
       if (rule.name === 'line-break' && bufferState.linebreakProof) {
-        console.log('Skipping line-break rule due to linebreakProof context');
         continue;
       }
 
       const ruleDetected = rule.detect(currentChunk, bufferState);
-      console.log(`Rule ${rule.name} detection result:`, ruleDetected);
       
       if (ruleDetected === true) {
         // Try to complete immediately if possible
         const completeMatch = rule.tryCompleteMatch(currentChunk, bufferState);
         if (completeMatch) {
-          console.log(`Rule ${rule.name} has complete match, applying transformation`);
           // For text formatting rules, apply all instances using processFullText
           if (rule.name === 'bold-text' || rule.name === 'italic-text') {
             currentChunk = rule.processFullText(currentChunk);
@@ -124,11 +114,9 @@ export class BufferingRuleManager {
           }
           hasAppliedRule = true;
           appliedRuleName = rule.name;
-          console.log(`Rule ${rule.name} applied, new chunk:`, currentChunk.substring(0, 50) + '...');
           // Continue to check next rules with the processed content
         } else {
           // Rule requires buffering - start buffering immediately
-          console.log(`Starting buffering with rule ${rule.name}`);
           const bufferingResult = rule.startBuffering(currentChunk, bufferState);
           bufferState.buffering = true;
           bufferState.bufferingFinisher = bufferingResult.finisher || null;
@@ -171,7 +159,6 @@ export class BufferingRuleManager {
         }
       } else if (ruleDetected === null) {
         // checking on composite detection chunks
-        console.log(`Rule ${rule.name} returned null (waiting for more chunks)`);
         return {
           processedChunk: '', 
           bufferState
@@ -181,7 +168,6 @@ export class BufferingRuleManager {
 
     // If we applied immediate rules, return the processed chunk
     if (hasAppliedRule) {
-      console.log('Immediate rules applied, returning processed chunk:', { appliedRuleName, processedChunk: currentChunk });
       return {
         processedChunk: currentChunk,
         bufferState,
@@ -189,7 +175,6 @@ export class BufferingRuleManager {
       };
     }
 
-    console.log('No rules matched for chunk:', chunk.substring(0, 50) + '...');
     return null; // No rule matched
   }
 
@@ -341,12 +326,10 @@ export class BufferingRuleManager {
     if (mode === 'buffering-exclusive') {
       bufferState.exclusiveBufferingRule = exclusiveRule;
       bufferState.allowedRulesWhileBuffering = allowedRules || [];
-      console.log(`Set exclusive buffering mode for rule: ${exclusiveRule}, allowed rules:`, allowedRules);
     } else {
       // Reset exclusive mode settings
       bufferState.exclusiveBufferingRule = undefined;
       bufferState.allowedRulesWhileBuffering = undefined;
-      console.log('Set sequential processing mode');
     }
   }
 
@@ -357,6 +340,5 @@ export class BufferingRuleManager {
     bufferState.ruleProcessingMode = 'sequential';
     bufferState.exclusiveBufferingRule = undefined;
     bufferState.allowedRulesWhileBuffering = undefined;
-    console.log('Reset to sequential processing mode');
   }
 }

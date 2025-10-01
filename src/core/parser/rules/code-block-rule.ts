@@ -39,7 +39,6 @@ export class CodeBlockRule extends BufferingRule {
    */
 
   detect(chunk: string, bufferState?: BufferState): boolean | null {
-    console.log('Code Block Rule - detect called with chunk:', JSON.stringify(chunk.substring(0, 100)));
     // Check if this chunk contains ``` followed by language
     if(this.checkLang(chunk, bufferState)){
         return true;
@@ -455,7 +454,6 @@ export class CodeBlockRule extends BufferingRule {
     return {
       pattern: /```(\w+)?\n?([\s\S]*?)```/g,
       replacement: (_match: string, language: string, content: string) => {
-        console.log(content);
         const normalizedLanguage = language ? this.normalizeLanguage(language) : 'plaintext';
         return `<code-viewer language="${normalizedLanguage}">${content}</code-viewer>`;
       }

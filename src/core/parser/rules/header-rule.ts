@@ -9,7 +9,6 @@ export class HeaderRule extends BufferingRule {
   private detectedLevel = 0; // Track the detected header level
 
   detect(chunk: string, _bufferState?: BufferState): boolean | null {
-    console.log('Header Rule - detect called with chunk:', JSON.stringify(chunk.substring(0, 100)));
     
     // Combine any partial sequence from previous chunks with current chunk
     const combinedChunk = this.partialSequence + chunk;
