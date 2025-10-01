@@ -21,6 +21,18 @@ export class LineBreakRule extends BufferingRule {
       return false;
     }
     
+    // Don't detect if code-block rule is currently active (even if not buffering yet)
+    if (bufferState?.currentRule === 'code-block') {
+      console.log('[line-break-rule] Skipping - code-block rule is active, chunk:', JSON.stringify(chunk));
+      return false;
+    }
+    
+    // Don't process chunks that contain code block patterns that code-block rule should handle
+    if (this.containsCodeBlockPattern(chunk)) {
+      console.log(`[line-break-rule] Skipping chunk due to code block pattern: "${chunk}"`);
+      return false;
+    }
+    
     // Check if we're inside an existing code-viewer or list-viewer tag by looking at the chunk content
     if (chunk.includes('<code-viewer') && !chunk.includes('</code-viewer>')) {
       return false;
@@ -47,6 +59,18 @@ export class LineBreakRule extends BufferingRule {
     
     // Don't process if we're currently buffering any rule - let the buffering rule handle line breaks
     if (bufferState?.buffering) {
+      return null;
+    }
+    
+    // Don't process if code-block rule is currently active (even if not buffering yet)
+    if (bufferState?.currentRule === 'code-block') {
+      console.log('[line-break-rule] Skipping tryCompleteMatch - code-block rule is active, chunk:', JSON.stringify(chunk));
+      return null;
+    }
+    
+    // Don't process chunks that contain code block patterns that code-block rule should handle
+    if (this.containsCodeBlockPattern(chunk)) {
+      console.log(`[line-break-rule] Skipping tryCompleteMatch due to code block pattern: "${chunk}"`);
       return null;
     }
     
@@ -107,6 +131,20 @@ export class LineBreakRule extends BufferingRule {
   startBuffering(_chunk: string): BufferingResult {
     // Line breaks should never buffer - they complete immediately
     throw new Error('LineBreakRule should never start buffering');
+  }
+
+  /**
+   * Check if chunk contains patterns that should be handled by code-block rule
+   * This prevents line-break rule from processing chunks before code-block rule can detect them
+   */
+  private containsCodeBlockPattern(chunk: string): boolean {
+    // Only skip if chunk actually contains ``` pattern
+    if (chunk.includes('```')) {
+      console.log('[line-break-rule] Found ``` pattern in chunk:', chunk);
+      return true;
+    }
+    
+    return false;
   }
 
   override processFullText(text: string): string {

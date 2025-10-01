@@ -4,7 +4,7 @@ import voucher from 'voucher-code-generator';
 
 export class CodeBlockRule extends BufferingRule {
   readonly name = 'code-block';
-  readonly priority = 100; // Lowest priority - only process raw content, not processed by other rules
+  readonly priority = 5; // Higher priority than line-break rule (10) - process BEFORE line breaks
   override readonly exclusiveBuffering = true; // Code blocks need pure content, no other rule processing
   override readonly allowedRulesWhileBuffering: string[] = []; // No other rules allowed
 
@@ -39,14 +39,35 @@ export class CodeBlockRule extends BufferingRule {
    */
 
   detect(chunk: string, bufferState?: BufferState): boolean | null {
+    console.log('[code-block-rule] detect() called with chunk:', JSON.stringify(chunk));
+    console.log('[code-block-rule] current state - openingCheck:', JSON.stringify(this.openingCheck), 'languageDetectionMode:', this.languageDetectionMode, 'detectedLanguage:', JSON.stringify(this.detectedLanguage));
+    
     // Check if this chunk contains ``` followed by language
     if(this.checkLang(chunk, bufferState)){
+        console.log('[code-block-rule] checkLang returned true - starting buffering');
         return true;
     }
 
     // Handle opening check for ``` sequence across chunks
-    if(this.openingCheck !== '```' && chunk.includes('`') && !chunk.endsWith('```')){
+    if(this.openingCheck !== '' && this.openingCheck !== '```' && chunk.includes('`')){
+      // Only continue accumulating if we're already building a ``` sequence
       this.openingCheck += chunk;
+      // Set currentRule to block other rules while we're accumulating ```
+      if (bufferState) {
+        bufferState.currentRule = 'code-block';
+      }
+      console.log('[code-block-rule] continuing to accumulate backticks, openingCheck now:', JSON.stringify(this.openingCheck));
+      return null;
+    }
+    
+    // Start accumulating only if chunk starts with backticks (potential ``` start)
+    if(this.openingCheck === '' && chunk.startsWith('`') && !chunk.includes('```')){
+      this.openingCheck = chunk;
+      // Set currentRule to block other rules while we're accumulating ```
+      if (bufferState) {
+        bufferState.currentRule = 'code-block';
+      }
+      console.log('[code-block-rule] starting to accumulate backticks, openingCheck now:', JSON.stringify(this.openingCheck));
       return null;
     }    
 
@@ -56,6 +77,10 @@ export class CodeBlockRule extends BufferingRule {
         const tripleBacktickIndex = this.openingCheck.indexOf('```');
         const textBeforeCodeBlock = this.openingCheck.substring(0, tripleBacktickIndex);
         const textAfterTripleBacktick = this.openingCheck.substring(tripleBacktickIndex + 3);
+        
+        console.log('[code-block-rule] found ``` in accumulated chunks');
+        console.log('[code-block-rule] textBeforeCodeBlock:', JSON.stringify(textBeforeCodeBlock));
+        console.log('[code-block-rule] textAfterTripleBacktick:', JSON.stringify(textAfterTripleBacktick));
         
         // Store text that should be preserved before code block starts
         if (textBeforeCodeBlock && bufferState) {
@@ -69,25 +94,44 @@ export class CodeBlockRule extends BufferingRule {
           this.detectedLanguage = this.languageCheck;
           this.languageDetectionMode = false;
           this.openingCheck = '';
+          // Keep currentRule set for buffering
+          if (bufferState) {
+            bufferState.currentRule = 'code-block';
+          }
+          console.log('[code-block-rule] language detected immediately:', this.detectedLanguage);
           return true;
         }
 
         this.detectedLanguage = '';
         this.languageDetectionMode = true;
         this.openingCheck = '';
+        // Set currentRule to block other rules during language detection
+        if (bufferState) {
+          bufferState.currentRule = 'code-block';
+        }
+        console.log('[code-block-rule] entering language detection mode');
         return null; // Wait for language detection
       }else{
         this.openingCheck = '';
+        // Clear currentRule if we didn't find ```
+        if (bufferState && bufferState.currentRule === 'code-block') {
+          bufferState.currentRule = undefined;
+        }
+        console.log('[code-block-rule] no ``` found in accumulated chunks, resetting');
         return false;
       }
     }
 
     // Detect ``` - this can appear at any position in the chunk
     if (chunk.includes('```') && this.openingCheck === '') {
+      console.log('[code-block-rule] found ``` in current chunk');
       // Extract text before ``` for preservation
       const tripleBacktickIndex = chunk.indexOf('```');
       const textBeforeCodeBlock = chunk.substring(0, tripleBacktickIndex);
       const textAfterTripleBacktick = chunk.substring(tripleBacktickIndex + 3);
+      
+      console.log('[code-block-rule] textBeforeCodeBlock:', JSON.stringify(textBeforeCodeBlock));
+      console.log('[code-block-rule] textAfterTripleBacktick:', JSON.stringify(textAfterTripleBacktick));
       
       // Store text that should be preserved before code block starts
       if (textBeforeCodeBlock && bufferState) {
@@ -99,37 +143,62 @@ export class CodeBlockRule extends BufferingRule {
       this.detectedLanguage = '';
       this.languageDetectionMode = true;
       
+      // Set currentRule to block other rules during language detection
+      if (bufferState) {
+        bufferState.currentRule = 'code-block';
+      }
+      
       // If we already have the language in the same chunk, process it immediately
       if(this.languageCheck.includes('\n')) {
+        console.log('[code-block-rule] language check contains newline, checking for immediate detection');
         if(this.checkLangInDetectionMode(this.languageCheck, bufferState)){
+          console.log('[code-block-rule] language detected in same chunk');
           return true;
         }
       }
       
+      console.log('[code-block-rule] waiting for language completion');
       return null; // Don't start buffering yet, wait for language
     }
 
     // Handle language detection phase (after ``` was detected)
     if (this.languageDetectionMode && this.detectedLanguage === '') {
+      console.log('[code-block-rule] in language detection mode, accumulating chunks');
       // We're in language detection mode - accumulate chunks until we get LANG\n
       this.languageCheck += chunk;
       
+      // Keep currentRule set during language detection
+      if (bufferState) {
+        bufferState.currentRule = 'code-block';
+      }
+      
+      console.log('[code-block-rule] languageCheck now:', JSON.stringify(this.languageCheck));
+      
       if(this.checkLangInDetectionMode(this.languageCheck, bufferState)){
         this.openingCheck = '';
+        console.log('[code-block-rule] language detection completed, starting buffering');
         return true;
       }
       
       // Still waiting for complete LANG\n pattern
+      console.log('[code-block-rule] still waiting for complete language pattern');
       return null;
     }
 
+    console.log('[code-block-rule] no patterns matched, returning false');
     return false;
   }
 
   private checkLang(checking: string, bufferState?: BufferState): boolean
   {
-    const languageMatch = checking.match(/(.*)```([a-zA-Z]+)\n(.*)$/);
+    console.log('[code-block-rule] checkLang called with:', JSON.stringify(checking));
+    const languageMatch = checking.match(/(.*)```([a-zA-Z]+)\n(.*)/);
     if (languageMatch) {
+      console.log('[code-block-rule] Language match found:', languageMatch);
+      console.log('[code-block-rule] Text before code block:', JSON.stringify(languageMatch[1]));
+      console.log('[code-block-rule] Detected language:', languageMatch[2]);
+      console.log('[code-block-rule] Content after language:', JSON.stringify(languageMatch[3]));
+      
       if(bufferState && languageMatch[1]){
         bufferState.textBeforeCodeBlock = languageMatch[1]
       }            
@@ -150,8 +219,12 @@ export class CodeBlockRule extends BufferingRule {
 
   private checkLangInDetectionMode(checking: string, bufferState?: BufferState): boolean
   {
+      console.log('[code-block-rule] checkLangInDetectionMode called with:', JSON.stringify(checking));
       const languageMatch = checking.match(/^([a-zA-Z][a-zA-Z0-9_-]*)\n/);
       if (languageMatch) {
+        console.log('[code-block-rule] Language detection match found:', languageMatch);
+        console.log('[code-block-rule] Detected language:', languageMatch[1]);
+        
         // Found complete language + newline, now we can start buffering
         this.detectedLanguage = this.normalizeLanguage(languageMatch[1]);
         this.languageDetectionMode = false; // Stop language detection
@@ -162,6 +235,8 @@ export class CodeBlockRule extends BufferingRule {
           bufferState.contentAfterLanguage = contentAfterLanguage;
         }
 
+        console.log('[code-block-rule] Final detected language:', this.detectedLanguage);
+        console.log('[code-block-rule] Content after language:', JSON.stringify(contentAfterLanguage));
         
         return true; // Start buffering now
       }
