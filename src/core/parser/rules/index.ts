@@ -2,9 +2,7 @@
 export { BufferingRule, CompleteMatchResult, BufferingResult, FullTextResult } from './base-rule';
 
 // Rule implementations
-import { H3HeaderRule } from './h3-header-rule';
-import { H2HeaderRule } from './h2-header-rule';
-import { H1HeaderRule } from './h1-header-rule';
+import { HeaderRule } from './header-rule';
 import { CodeBlockRule } from './code-block-rule';
 import { BoldTextRule } from './bold-text-rule';
 import { ItalicTextRule } from './italic-text-rule';
@@ -20,9 +18,7 @@ const ruleList: typeof BufferingRule[] = [
     ItalicTextRule,
     BoldTextRule,
     CodeBlockRule,
-    H1HeaderRule,
-    H2HeaderRule,
-    H3HeaderRule
+    HeaderRule
 ];
 
 export {
@@ -33,7 +29,5 @@ export {
     ItalicTextRule,
     BoldTextRule,
     CodeBlockRule,
-    H1HeaderRule,
-    H2HeaderRule,
-    H3HeaderRule
+    HeaderRule
 }

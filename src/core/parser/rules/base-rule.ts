@@ -21,6 +21,10 @@ export interface FullTextResult {
 export abstract class BufferingRule {
   abstract readonly name: string;
   abstract readonly priority: number;
+  
+  // Buffering control properties
+  readonly exclusiveBuffering: boolean = false;
+  readonly allowedRulesWhileBuffering: string[] = [];
 
   abstract detect(chunk: string, bufferState?: BufferState): boolean | null;
   abstract tryCompleteMatch(chunk: string, bufferState?: BufferState): CompleteMatchResult | null;

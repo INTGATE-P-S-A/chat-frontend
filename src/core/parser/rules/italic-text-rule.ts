@@ -7,12 +7,8 @@ export class ItalicTextRule extends BufferingRule {
   
   private partialMarker = ''; // Track partial * sequences across chunks
 
-  detect(chunk: string, bufferState?: BufferState): boolean | null {
-    // Don't detect if we're currently buffering (avoid conflicts)
-    if (bufferState?.buffering) {
-      return false;
-    }
-
+  detect(chunk: string, _bufferState?: BufferState): boolean | null {
+    console.log('Italic Text Rule - detect called with chunk:', JSON.stringify(chunk.substring(0, 100)));
     // Combine any partial marker from previous chunks with current chunk
     const combinedChunk = this.partialMarker + chunk;
     

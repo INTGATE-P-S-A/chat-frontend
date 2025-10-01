@@ -20,6 +20,11 @@ export interface BufferState {
   contentAfterLanguage?: string; // Store content that comes after language+newline in same chunk
   isFirstBufferingChunk?: boolean; // Track if this is the first chunk after starting buffering
   ruleManager?: BufferingRuleManager; // Rule manager instance - created once per message stream
+  
+  // Rule processing control
+  ruleProcessingMode?: 'sequential' | 'buffering-exclusive'; // Control how rules are processed
+  exclusiveBufferingRule?: string; // Which rule has exclusive access during buffering
+  allowedRulesWhileBuffering?: string[]; // Rules that can still process during exclusive buffering
 }
 
 export interface ParseOptions {

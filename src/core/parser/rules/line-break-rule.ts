@@ -6,6 +6,7 @@ export class LineBreakRule extends BufferingRule {
   readonly priority = 10; // Lowest priority - process after all other rules
 
   detect(chunk: string, bufferState?: BufferState): boolean {
+    console.log('Line Break Rule - detect called with chunk:', JSON.stringify(chunk.substring(0, 100)));
     // Don't detect line breaks if we're in a linebreak-proof context (code-viewer or list-viewer)
     if (bufferState?.linebreakProof) {
       return false;

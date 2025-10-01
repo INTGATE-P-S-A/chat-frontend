@@ -58,8 +58,7 @@ export class ReasoningViewer extends LitElement {
   }
 
   updateReasoning(text: string) {
-    if (text && text.trim()) {
-      console.log({text});
+    if (text && text.trim()) {      
       // Update the reasoningSteps array immutably to trigger re-render
       this.reasoningText += text;
       this.requestUpdate();

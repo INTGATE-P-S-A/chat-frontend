@@ -4,7 +4,9 @@ import voucher from 'voucher-code-generator';
 
 export class CodeBlockRule extends BufferingRule {
   readonly name = 'code-block';
-  readonly priority = 4;
+  readonly priority = 100; // Lowest priority - only process raw content, not processed by other rules
+  override readonly exclusiveBuffering = true; // Code blocks need pure content, no other rule processing
+  override readonly allowedRulesWhileBuffering: string[] = []; // No other rules allowed
 
   constructor() {
     super();
@@ -37,6 +39,8 @@ export class CodeBlockRule extends BufferingRule {
    */
 
   detect(chunk: string, bufferState?: BufferState): boolean | null {
+    console.log('Code Block Rule - detect called with chunk:', JSON.stringify(chunk.substring(0, 100)));
+    // Check if this chunk contains ``` followed by language
     if(this.checkLang(chunk, bufferState)){
         return true;
     }
@@ -71,7 +75,8 @@ export class CodeBlockRule extends BufferingRule {
 
         this.detectedLanguage = '';
         this.languageDetectionMode = true;
-        // return null; // Don't start buffering yet, wait for language
+        this.openingCheck = '';
+        return null; // Wait for language detection
       }else{
         this.openingCheck = '';
         return false;
@@ -94,6 +99,14 @@ export class CodeBlockRule extends BufferingRule {
       this.languageCheck = textAfterTripleBacktick;
       this.detectedLanguage = '';
       this.languageDetectionMode = true;
+      
+      // If we already have the language in the same chunk, process it immediately
+      if(this.languageCheck.includes('\n')) {
+        if(this.checkLangInDetectionMode(this.languageCheck, bufferState)){
+          return true;
+        }
+      }
+      
       return null; // Don't start buffering yet, wait for language
     }
 
@@ -157,7 +170,7 @@ export class CodeBlockRule extends BufferingRule {
       return false;
   }
 
-  tryCompleteMatch(chunk: string, bufferState?: BufferState): CompleteMatchResult | null {
+  tryCompleteMatch(chunk: string, _bufferState?: BufferState): CompleteMatchResult | null {
     // Check for complete code block pattern in the chunk
     // Pattern: ```language\ncontent``` - only process if language is specified and ``` is at start of line
     const codeBlockMatch = chunk.match(/(?:^|\s)(```(\w+)\n?([\s\S]*?)```)/);
@@ -196,7 +209,7 @@ export class CodeBlockRule extends BufferingRule {
     return null;
   }
 
-  startBuffering(chunk: string, bufferState?: BufferState): BufferingResult {
+  startBuffering(_chunk: string, bufferState?: BufferState): BufferingResult {
     // Generate unique ID for the code-viewer
     const codeId = voucher.generate({ count: 1, length: 8 })[0].toLowerCase();
     

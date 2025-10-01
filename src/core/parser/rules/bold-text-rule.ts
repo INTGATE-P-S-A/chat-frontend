@@ -7,18 +7,17 @@ export class BoldTextRule extends BufferingRule {
   
   private partialMarker = ''; // Track partial ** sequences across chunks
 
-  detect(chunk: string, bufferState?: BufferState): boolean | null {
-    // Don't detect if we're currently buffering (avoid conflicts)
-    if (bufferState?.buffering) {
-      return false;
-    }
+  detect(chunk: string, _bufferState?: BufferState): boolean | null {
+    console.log('Bold Text Rule - detect called with chunk:', JSON.stringify(chunk.substring(0, 100)));
+    console.log('Bold pre checking', { chunk })
+
+    console.log('Bold checking', { chunk })
 
     // Combine any partial marker from previous chunks with current chunk
     const combinedChunk = this.partialMarker + chunk;
     
-    // Check for complete ** sequence in combined chunk
-    const boldPattern = /\*\*(?!\s)/; // ** not followed by whitespace
-    if (boldPattern.test(combinedChunk)) {
+    // Check for any ** sequence in combined chunk (simplified detection)
+    if (combinedChunk.includes('**')) {
       this.partialMarker = ''; // Reset partial marker
       return true;
     }
@@ -42,11 +41,12 @@ export class BoldTextRule extends BufferingRule {
   }
 
   tryCompleteMatch(chunk: string, _bufferState?: BufferState): CompleteMatchResult | null {
-    // Try to find complete bold text pattern in chunk: **text**
-    const boldPattern = /\*\*([^*]+?)\*\*/g;
+    // Check if there are any complete bold text patterns in the chunk
+    const boldPattern = /\*\*([^*]+?)\*\*/;
     const match = boldPattern.exec(chunk);
     
     if (match) {
+      // Return the first match for detection, but the replacement will handle all instances
       return {
         match: true,
         fullMatch: match[0],

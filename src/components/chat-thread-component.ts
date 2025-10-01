@@ -427,8 +427,6 @@ export class ChatThreadComponent extends LitElement {
     // Get the message at this index and check if it has reasoning or thoughts
     const message = this.chatThread[messageIndex];
     if (!message || (!message.reasoning && !message.thoughts)) return '';
-
-    console.log({currentConfig});
     
     // Use reasoning if available, otherwise use thoughts
     const reasoningText = message.reasoning || message.thoughts;
