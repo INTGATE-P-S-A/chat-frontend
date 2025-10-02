@@ -104,12 +104,17 @@ export class BufferingRuleManager {
         // Try to complete immediately if possible
         const completeMatch = rule.tryCompleteMatch(currentChunk, bufferState);
         if (completeMatch) {
-          currentChunk = currentChunk.replace(completeMatch.fullMatch, completeMatch.replacement);
+          // For text formatting rules, apply all instances using processFullText
+          if (rule.name === 'text-formatting') {
+            currentChunk = rule.processFullText(currentChunk);
+          } else {
+            currentChunk = currentChunk.replace(completeMatch.fullMatch, completeMatch.replacement);
+          }
           hasAppliedRule = true;
           appliedRuleName = rule.name;
           // Continue to check next rules with the processed content
         } else {
-          // No complete match found - start buffering for incomplete patterns
+          // Rule requires buffering - start buffering immediately
           const bufferingResult = rule.startBuffering(currentChunk, bufferState);
           bufferState.buffering = true;
           bufferState.bufferingFinisher = bufferingResult.finisher || null;

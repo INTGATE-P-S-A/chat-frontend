@@ -48,71 +48,54 @@ export class TextFormattingRule extends BufferingRule {
   }
 
   tryCompleteMatch(chunk: string, _bufferState?: BufferState): CompleteMatchResult | null {
-    // Check if we have both complete and incomplete patterns
-    const hasCompletePatterns = this.hasCompletePatterns(chunk);
-    const hasIncompletePatterns = this.hasIncompletePatterns(chunk);
+    // Try bold first (**text**)
+    const boldPattern = /\*\*([^*]+?)\*\*/g;
+    const boldMatch = boldPattern.exec(chunk);
     
-    if (hasCompletePatterns && hasIncompletePatterns) {
-      // We have both complete and incomplete patterns - return null so buffering can start
-      return null;
+    if (boldMatch) {
+      return {
+        match: true,
+        fullMatch: boldMatch[0],
+        content: boldMatch[1],
+        replacement: `<strong>${boldMatch[1]}</strong>`
+      };
     }
     
-    if (hasCompletePatterns) {
-      // Only complete patterns - return the first one for normal processing
-      const boldPattern = /\*\*([^*]+?)\*\*/g;
-      const firstBoldMatch = boldPattern.exec(chunk);
-      if (firstBoldMatch) {
-        return {
-          match: true,
-          fullMatch: firstBoldMatch[0],
-          content: firstBoldMatch[1],
-          replacement: `<strong>${firstBoldMatch[1]}</strong>`
-        };
-      }
-      
-      const italicPattern = /(?<!\*)\*([^*\n]+?)\*(?!\*)/g;
-      const firstItalicMatch = italicPattern.exec(chunk);
-      if (firstItalicMatch) {
-        return {
-          match: true,
-          fullMatch: firstItalicMatch[0],
-          content: firstItalicMatch[1],
-          replacement: `<em>${firstItalicMatch[1]}</em>`
-        };
-      }
+    // Try italic (*text*) but avoid bold sequences
+    const italicPattern = /(?<!\*)\*([^*\n]+?)\*(?!\*)/g;
+    const italicMatch = italicPattern.exec(chunk);
+    
+    if (italicMatch) {
+      return {
+        match: true,
+        fullMatch: italicMatch[0],
+        content: italicMatch[1],
+        replacement: `<em>${italicMatch[1]}</em>`
+      };
     }
     
     return null;
   }
 
   startBuffering(chunk: string, bufferState?: BufferState): BufferingResult {
-    // Find the position of the opening marker for incomplete patterns
+    // Find the position of the opening marker
     let markerIndex = -1;
     let markerLength = 0;
     
-    // Look for incomplete bold patterns first (**text without closing **)
-    const incompletePattern = /\*\*([^*]*?)$/;
-    const boldMatch = incompletePattern.exec(chunk);
-    if (boldMatch) {
-      markerIndex = boldMatch.index!;
+    // Check for ** first (bold)
+    const boldIndex = chunk.indexOf('**');
+    if (boldIndex !== -1) {
+      markerIndex = boldIndex;
       markerLength = 2;
       this.bufferingType = 'bold';
     } else {
-      // Check for ** first (bold) - fallback to any **
-      const boldIndex = chunk.indexOf('**');
-      if (boldIndex !== -1) {
-        markerIndex = boldIndex;
-        markerLength = 2;
-        this.bufferingType = 'bold';
-      } else {
-        // Check for single * (italic) that's not part of **
-        const singleAsteriskPattern = /(?<!\*)\*(?!\*)/;
-        const match = singleAsteriskPattern.exec(chunk);
-        if (match) {
-          markerIndex = match.index!;
-          markerLength = 1;
-          this.bufferingType = 'italic';
-        }
+      // Check for single * (italic) that's not part of **
+      const singleAsteriskPattern = /(?<!\*)\*(?!\*)/;
+      const match = singleAsteriskPattern.exec(chunk);
+      if (match) {
+        markerIndex = match.index!;
+        markerLength = 1;
+        this.bufferingType = 'italic';
       }
     }
     
@@ -255,37 +238,5 @@ export class TextFormattingRule extends BufferingRule {
         return match;
       }
     };
-  }
-
-  private hasCompletePatterns(chunk: string): boolean {
-    // Check for complete bold patterns
-    const boldPattern = /\*\*([^*]+?)\*\*/g;
-    if (boldPattern.test(chunk)) {
-      return true;
-    }
-    
-    // Check for complete italic patterns
-    const italicPattern = /(?<!\*)\*([^*\n]+?)\*(?!\*)/g;
-    if (italicPattern.test(chunk)) {
-      return true;
-    }
-    
-    return false;
-  }
-
-  private hasIncompletePatterns(chunk: string): boolean {
-    // Check for incomplete bold patterns (**text without closing **)
-    const incompleteBoldPattern = /\*\*([^*]*?)$/;
-    if (incompleteBoldPattern.test(chunk)) {
-      return true;
-    }
-    
-    // Check for incomplete italic patterns (*text without closing *)
-    const incompleteItalicPattern = /(?<!\*)\*([^*\n]*?)$/;
-    if (incompleteItalicPattern.test(chunk)) {
-      return true;
-    }
-    
-    return false;
   }
 }
