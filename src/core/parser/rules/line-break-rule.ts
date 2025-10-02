@@ -11,6 +11,16 @@ export class LineBreakRule extends BufferingRule {
       return false;
     }
     
+    // Don't detect if code-block rule is currently active (even if not buffering yet)
+    if (bufferState?.currentRule === 'code-block') {
+      return false;
+    }
+    
+    // Don't process chunks that contain code block patterns that code-block rule should handle
+    if (this.containsCodeBlockPattern(chunk)) {
+      return false;
+    }
+    
     // Don't detect if we're inside code-viewer or list-viewer components
     if (bufferState?.insideCodeViewer || bufferState?.insideListViewer) {
       return false;

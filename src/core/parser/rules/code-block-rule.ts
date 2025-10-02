@@ -4,528 +4,123 @@ import voucher from 'voucher-code-generator';
 
 export class CodeBlockRule extends BufferingRule {
   readonly name = 'code-block';
-  readonly priority = 5; // Higher priority than line-break rule (10) - process BEFORE line breaks
-  override readonly exclusiveBuffering = true; // Code blocks need pure content, no other rule processing
-  override readonly allowedRulesWhileBuffering: string[] = []; // No other rules allowed
+  readonly priority = 5;
+  override readonly exclusiveBuffering = true;
+  override readonly allowedRulesWhileBuffering: string[] = [];
 
-  constructor() {
-    super();
-  }
-
-  private openingCheck = '';  
-  private languageCheck = '';
-  private detectedLanguage = '';
-  private languageDetectionMode = false;
-
-  private static createdCodeViewers = new Set<string>(); // Track created code-viewer IDs
-
-  // Common programming languages for detection
-  private readonly supportedLanguages = new Set([
-    'javascript', 'js', 'typescript', 'ts', 'python', 'py', 'java', 'c', 'cpp', 'c++',
-    'csharp', 'cs', 'php', 'ruby', 'go', 'rust', 'swift', 'kotlin', 'scala',
-    'html', 'css', 'scss', 'sass', 'json', 'xml', 'yaml', 'yml', 'sql',
-    'bash', 'sh', 'shell', 'powershell', 'cmd', 'dockerfile', 'docker',
-    'markdown', 'md', 'text', 'plaintext', 'diff', 'git', 'makefile',
-    'r', 'matlab', 'perl', 'lua', 'haskell', 'clojure', 'erlang', 'elixir'
-  ]);
-
-  /**
-   * Check if we should skip processing due to existing code-viewer context
-   */
-
-
-  /**
-   * Normalize and validate the detected language
-   */
+  private languageBuffer = '';
+  private isDetectingLanguage = false;
 
   detect(chunk: string, bufferState?: BufferState): boolean | null {
-    console.log('[code-block-rule] detect() called with chunk:', JSON.stringify(chunk));
-    console.log('[code-block-rule] current state - openingCheck:', JSON.stringify(this.openingCheck), 'languageDetectionMode:', this.languageDetectionMode, 'detectedLanguage:', JSON.stringify(this.detectedLanguage));
+    // Simple pattern: ``` followed by language
+    const codeBlockStart = chunk.match(/```([a-zA-Z][a-zA-Z0-9_-]*)?/);
     
-    // Check if this chunk contains ``` followed by language
-    if(this.checkLang(chunk, bufferState)){
-        console.log('[code-block-rule] checkLang returned true - starting buffering');
-        return true;
-    }
-
-    // Handle opening check for ``` sequence across chunks
-    if(this.openingCheck !== '' && this.openingCheck !== '```' && chunk.includes('`')){
-      // Only continue accumulating if we're already building a ``` sequence
-      this.openingCheck += chunk;
-      // Set currentRule to block other rules while we're accumulating ```
-      if (bufferState) {
-        bufferState.currentRule = 'code-block';
-      }
-      console.log('[code-block-rule] continuing to accumulate backticks, openingCheck now:', JSON.stringify(this.openingCheck));
-      return null;
-    }
-    
-    // Start accumulating only if chunk starts with backticks (potential ``` start)
-    if(this.openingCheck === '' && chunk.startsWith('`') && !chunk.includes('```')){
-      this.openingCheck = chunk;
-      // Set currentRule to block other rules while we're accumulating ```
-      if (bufferState) {
-        bufferState.currentRule = 'code-block';
-      }
-      console.log('[code-block-rule] starting to accumulate backticks, openingCheck now:', JSON.stringify(this.openingCheck));
-      return null;
-    }    
-
-    if(this.openingCheck !== '' && this.openingCheck.length >= 3){
-      if(this.openingCheck.includes('```')){        
-        // Found ``` in accumulated chunks - extract text before ``` for preservation
-        const tripleBacktickIndex = this.openingCheck.indexOf('```');
-        const textBeforeCodeBlock = this.openingCheck.substring(0, tripleBacktickIndex);
-        const textAfterTripleBacktick = this.openingCheck.substring(tripleBacktickIndex + 3);
-        
-        console.log('[code-block-rule] found ``` in accumulated chunks');
-        console.log('[code-block-rule] textBeforeCodeBlock:', JSON.stringify(textBeforeCodeBlock));
-        console.log('[code-block-rule] textAfterTripleBacktick:', JSON.stringify(textAfterTripleBacktick));
-        
-        // Store text that should be preserved before code block starts
-        if (textBeforeCodeBlock && bufferState) {
-          bufferState.textBeforeCodeBlock = textBeforeCodeBlock;
-        }
-                
-        // Start language detection phase with remaining content
-        this.languageCheck = textAfterTripleBacktick;
-
-        if(this.languageCheck !== ''){
-          this.detectedLanguage = this.languageCheck;
-          this.languageDetectionMode = false;
-          this.openingCheck = '';
-          // Keep currentRule set for buffering
-          if (bufferState) {
-            bufferState.currentRule = 'code-block';
-          }
-          console.log('[code-block-rule] language detected immediately:', this.detectedLanguage);
-          return true;
-        }
-
-        this.detectedLanguage = '';
-        this.languageDetectionMode = true;
-        this.openingCheck = '';
-        // Set currentRule to block other rules during language detection
-        if (bufferState) {
-          bufferState.currentRule = 'code-block';
-        }
-        console.log('[code-block-rule] entering language detection mode');
-        return null; // Wait for language detection
-      }else{
-        this.openingCheck = '';
-        // Clear currentRule if we didn't find ```
-        if (bufferState && bufferState.currentRule === 'code-block') {
-          bufferState.currentRule = undefined;
-        }
-        console.log('[code-block-rule] no ``` found in accumulated chunks, resetting');
-        return false;
-      }
-    }
-
-    // Detect ``` - this can appear at any position in the chunk
-    if (chunk.includes('```') && this.openingCheck === '') {
-      console.log('[code-block-rule] found ``` in current chunk');
-      // Extract text before ``` for preservation
-      const tripleBacktickIndex = chunk.indexOf('```');
-      const textBeforeCodeBlock = chunk.substring(0, tripleBacktickIndex);
-      const textAfterTripleBacktick = chunk.substring(tripleBacktickIndex + 3);
-      
-      console.log('[code-block-rule] textBeforeCodeBlock:', JSON.stringify(textBeforeCodeBlock));
-      console.log('[code-block-rule] textAfterTripleBacktick:', JSON.stringify(textAfterTripleBacktick));
-      
-      // Store text that should be preserved before code block starts
-      if (textBeforeCodeBlock && bufferState) {
-        bufferState.textBeforeCodeBlock = textBeforeCodeBlock;
-      }
-      
-      // Start language detection phase with remaining content
-      this.languageCheck = textAfterTripleBacktick;
-      this.detectedLanguage = '';
-      this.languageDetectionMode = true;
-      
-      // Set currentRule to block other rules during language detection
+    if (codeBlockStart) {
       if (bufferState) {
         bufferState.currentRule = 'code-block';
       }
       
-      // If we already have the language in the same chunk, process it immediately
-      if(this.languageCheck.includes('\n')) {
-        console.log('[code-block-rule] language check contains newline, checking for immediate detection');
-        if(this.checkLangInDetectionMode(this.languageCheck, bufferState)){
-          console.log('[code-block-rule] language detected in same chunk');
-          return true;
-        }
-      }
-      
-      console.log('[code-block-rule] waiting for language completion');
-      return null; // Don't start buffering yet, wait for language
-    }
-
-    // Handle language detection phase (after ``` was detected)
-    if (this.languageDetectionMode && this.detectedLanguage === '') {
-      console.log('[code-block-rule] in language detection mode, accumulating chunks');
-      // We're in language detection mode - accumulate chunks until we get LANG\n
-      this.languageCheck += chunk;
-      
-      // Keep currentRule set during language detection
-      if (bufferState) {
-        bufferState.currentRule = 'code-block';
-      }
-      
-      console.log('[code-block-rule] languageCheck now:', JSON.stringify(this.languageCheck));
-      
-      if(this.checkLangInDetectionMode(this.languageCheck, bufferState)){
-        this.openingCheck = '';
-        console.log('[code-block-rule] language detection completed, starting buffering');
+      // If language is in the same chunk, start buffering
+      if (codeBlockStart[1]) {
         return true;
       }
       
-      // Still waiting for complete LANG\n pattern
-      console.log('[code-block-rule] still waiting for complete language pattern');
+      // Wait for language in next chunk
+      this.isDetectingLanguage = true;
       return null;
     }
-
-    console.log('[code-block-rule] no patterns matched, returning false');
-    return false;
-  }
-
-  private checkLang(checking: string, bufferState?: BufferState): boolean
-  {
-    console.log('[code-block-rule] checkLang called with:', JSON.stringify(checking));
-    const languageMatch = checking.match(/(.*)```([a-zA-Z]+)\n(.*)/);
-    if (languageMatch) {
-      console.log('[code-block-rule] Language match found:', languageMatch);
-      console.log('[code-block-rule] Text before code block:', JSON.stringify(languageMatch[1]));
-      console.log('[code-block-rule] Detected language:', languageMatch[2]);
-      console.log('[code-block-rule] Content after language:', JSON.stringify(languageMatch[3]));
+    
+    // Continue language detection
+    if (this.isDetectingLanguage) {
+      this.languageBuffer += chunk;
       
-      if(bufferState && languageMatch[1]){
-        bufferState.textBeforeCodeBlock = languageMatch[1]
-      }            
-
-      this.detectedLanguage = this.normalizeLanguage(languageMatch[2]);
-      this.languageDetectionMode = false;
-
-      // Store content after language+newline as first chunk for the component
-      if (bufferState && languageMatch[3]) {
-        bufferState.contentAfterLanguage = languageMatch[3];
+      const langMatch = this.languageBuffer.match(/^([a-zA-Z][a-zA-Z0-9_-]*)\n/);
+      if (langMatch) {
+        this.isDetectingLanguage = false;
+        this.languageBuffer = '';
+        return true;
       }
-
-      return true; // Start buffering now
+      
+      return null;
     }
-
+    
     return false;
   }
 
-  private checkLangInDetectionMode(checking: string, bufferState?: BufferState): boolean
-  {
-      console.log('[code-block-rule] checkLangInDetectionMode called with:', JSON.stringify(checking));
-      const languageMatch = checking.match(/^([a-zA-Z][a-zA-Z0-9_-]*)\n/);
-      if (languageMatch) {
-        console.log('[code-block-rule] Language detection match found:', languageMatch);
-        console.log('[code-block-rule] Detected language:', languageMatch[1]);
-        
-        // Found complete language + newline, now we can start buffering
-        this.detectedLanguage = this.normalizeLanguage(languageMatch[1]);
-        this.languageDetectionMode = false; // Stop language detection
-        
-        // Store any content that comes after the language+newline in bufferState
-        const contentAfterLanguage = this.languageCheck.replace(/^[a-zA-Z][a-zA-Z0-9_-]*\n/, '');
-        if (contentAfterLanguage && bufferState) {
-          bufferState.contentAfterLanguage = contentAfterLanguage;
-        }
-
-        console.log('[code-block-rule] Final detected language:', this.detectedLanguage);
-        console.log('[code-block-rule] Content after language:', JSON.stringify(contentAfterLanguage));
-        
-        return true; // Start buffering now
-      }
-
-      return false;
-  }
-
-  tryCompleteMatch(chunk: string, _bufferState?: BufferState): CompleteMatchResult | null {
-    // Check for complete code block pattern in the chunk
-    // Pattern: ```language\ncontent``` - only process if language is specified and ``` is at start of line
-    const codeBlockMatch = chunk.match(/(?:^|\s)(```(\w+)\n?([\s\S]*?)```)/);
+  tryCompleteMatch(chunk: string): CompleteMatchResult | null {
+    const codeBlockMatch = chunk.match(/(```(\w+)\n?([\s\S]*?)```)/);
     if (codeBlockMatch) {
-      const fullMatch = codeBlockMatch[1]; // The entire code block without leading whitespace
-      const rawLanguage = codeBlockMatch[2];
+      const fullMatch = codeBlockMatch[1];
+      const language = codeBlockMatch[2];
       const content = codeBlockMatch[3];
       
-      // Only create code-viewer if language is explicitly provided
-      if (rawLanguage && rawLanguage.trim()) {
-        const language = this.normalizeLanguage(rawLanguage);
-        const codeId = voucher.generate({ count: 1 ,length:8 })[0].toLowerCase();
+      if (language?.trim()) {
+        const normalizedLanguage = this.normalizeLanguage(language);
+        const codeId = voucher.generate({ count: 1, length: 8 })[0].toLowerCase();
+        const replacement = `<code-viewer componentId="${codeId}" language="${normalizedLanguage}" streaming="false">${content}</code-viewer>`;
         
-        // Track this code-viewer to prevent duplicates
-        CodeBlockRule.createdCodeViewers.add(codeId);
-        setTimeout(() => CodeBlockRule.createdCodeViewers.delete(codeId), 30000);
-        
-
-        const replacement = `<code-viewer componentId="${codeId}" language="${language}" streaming="false">${content}</code-viewer>`;
-
-        // Find the position of the match in the chunk
-        const matchIndex = chunk.indexOf(fullMatch);
-        const beforeMatch = chunk.substring(0, matchIndex);
-        const afterMatch = chunk.substring(matchIndex + fullMatch.length);
-        
-        const finalReplacement = beforeMatch + replacement + afterMatch;
-        
-        return this.createCompleteMatch(
-          chunk,
-          fullMatch,
-          finalReplacement
-        );
+        return this.createCompleteMatch(chunk, fullMatch, chunk.replace(fullMatch, replacement));
       }
     }
-    
     return null;
   }
 
-  startBuffering(_chunk: string, bufferState?: BufferState): BufferingResult {
-    // Generate unique ID for the code-viewer
+  startBuffering(chunk: string, _bufferState?: BufferState): BufferingResult {
     const codeId = voucher.generate({ count: 1, length: 8 })[0].toLowerCase();
     
-    // Store the componentId in buffer state for later use
-    if (bufferState) {
-      bufferState.currentCodeViewerId = codeId;
-      bufferState.isFirstBufferingChunk = true; // Mark that the next chunk will be the first buffering chunk
+    // Extract language from chunk or buffer
+    let language = 'plaintext';
+    if (this.languageBuffer) {
+      const langMatch = this.languageBuffer.match(/^([a-zA-Z][a-zA-Z0-9_-]*)/);
+      language = langMatch ? this.normalizeLanguage(langMatch[1]) : 'plaintext';
+      this.languageBuffer = '';
+    } else {
+      const langMatch = chunk.match(/```([a-zA-Z][a-zA-Z0-9_-]*)/);
+      language = langMatch ? this.normalizeLanguage(langMatch[1]) : 'plaintext';
     }
     
-    // Use the detected language from detect() method, or default to plaintext
-    let language = this.detectedLanguage || 'plaintext';
-    
-    // Prepare the text to output before code-viewer tag
-    let textBeforeTag = '';
-    if (bufferState?.textBeforeCodeBlock) {
-      textBeforeTag = bufferState.textBeforeCodeBlock;
-      // Clear it after using
-      delete bufferState.textBeforeCodeBlock;
-    }
-    
-    // Create the code-viewer tag immediately with the detected language
     const openTag = `<code-viewer componentId="${codeId}" language="${language}" streaming="true"></code-viewer>`;
-    const closeTag = '</code-viewer>';
-    
-    // Track this code-viewer to prevent duplicates
-    CodeBlockRule.createdCodeViewers.add(codeId);
-    setTimeout(() => CodeBlockRule.createdCodeViewers.delete(codeId), 30000);
-    
-    // Reset detection state for next code block
-    this.openingCheck = '';
-    this.languageCheck = '';
-    this.detectedLanguage = '';
-    this.languageDetectionMode = false;
-    
-    // Skip the language part in the chunk and start buffering from the content
-    let processedChunk = textBeforeTag + openTag;
-    
-    // Note: Content that came after language+newline is stored in bufferState.contentAfterLanguage
-    // and will be handled in the first call to continueBuffering
     
     return {
-      processedChunk: processedChunk,
-      finisher: undefined, // Use detectFinish() method instead
-      closure: closeTag
+      processedChunk: openTag,
+      finisher: '```',
+      closure: '</code-viewer>'
     };
   }
 
-  /**
-   * Extract plain text content from potentially HTML-containing text
-   * This ensures only text content is passed inside code-viewer tags
-   */
-  private extractPlainText(content: string): string {
-    if (!content) return content;
-    
-    // For code blocks, we want to preserve all text as-is, including any HTML-like content
-    // The code-viewer component will handle proper escaping and display
-    return content;
+  override detectFinish(chunk: string): boolean {
+    return chunk.includes('```');
   }
 
-  /**
-   * Detect if code block should finish (when finisher is undefined)
-   */
-  override detectFinish(chunk: string, _currentBuffer: string, bufferState?: BufferState): boolean {
-    // Handle partial ``` sequences from previous chunks
-    const partialClosing = bufferState?.partialClosing || '';
-    const combinedChunk = partialClosing + chunk;    
-    
-
-    // Check if combined chunk contains complete finisher ```
-    const stopIt =  combinedChunk.includes('```');
-
-    if(stopIt && bufferState){
-      // Set the finisher so handleBufferingCompletion can process it properly
-      bufferState.bufferingFinisher = '```';
-      bufferState.buffering = false;
-    }
-
-    return stopIt;
-  }
-
-  /**
-   * Handle continuation of buffering for code block special cases
-   */
-  override continueBuffering(chunk: string, _currentBuffer: string, _finisher: string, closure: string, _bufferState?: any): BufferingResult | null {
-    // For normal code-viewer buffering (after opening tag was created)
-    if (closure === '</code-viewer>') {
-      let processedChunk = chunk;
-      
-      // Check if this is the very first chunk after starting buffering
-      if (_bufferState?.isFirstBufferingChunk) {
-        // This is the first chunk - check if we have initial content from language detection
-        const initialContent = _bufferState.contentAfterLanguage || '';
-        delete _bufferState.contentAfterLanguage; // Clear it
-        _bufferState.isFirstBufferingChunk = false; // Mark that we've processed the first chunk
-        
-        // Combine initial content with current chunk
-        processedChunk = initialContent + chunk;
-      }
-      
-      // Handle partial ``` sequences from previous chunks
-      const partialClosing = _bufferState?.partialClosing || '';
-      const combinedChunk = partialClosing + processedChunk;
-      
-      // Check if combined chunk contains complete finisher ```
-      if (combinedChunk.includes('```')) {
-        return null; // Let main completion logic handle it
-      }
-      
-      // Check if current processed chunk ends with partial ` or `` for next chunk
-      let newPartialClosing = '';
-      if (processedChunk.endsWith('``')) {
-        newPartialClosing = '``';
-      } else if (processedChunk.endsWith('`')) {
-        newPartialClosing = '`';
-      }
-      
-      // Update buffer state with new partial sequence
-      if (_bufferState && newPartialClosing !== '') {
-        _bufferState.partialClosing = newPartialClosing;
-        
-        // Extract the content before the partial sequence and process it
-        const contentBeforePartial = processedChunk.substring(0, processedChunk.length - newPartialClosing.length);
-        if (contentBeforePartial) {
-          return {
-            processedChunk: this.extractPlainText(contentBeforePartial),
-            finisher: undefined,
-            closure: '</code-viewer>'
-          };
-        }
-        
-        return null; // Only return null if there's no content to process
-      }
-      
-      // Normal chunk processing - use the processed chunk (which may include initial content)
-      return {
-        processedChunk: this.extractPlainText(processedChunk),
-        finisher: undefined,
-        closure: '</code-viewer>'
-      };
-    }
-    
-    return null; // Not handled by this rule, let parent handle
-  }
-
-  /**
-   * Handle special completion logic for code blocks with partial ``` detection
-   */
-  override handleBufferingCompletion(chunk: string, currentBuffer: string, finisher: string, closure: string, bufferState?: any): { finalChunk: string; remainingChunk: string; shouldContinue: boolean } | null {
-    
-    // Only handle code-viewer completion
+  override handleBufferingCompletion(chunk: string, _currentBuffer: string, finisher: string, closure: string, bufferState?: any): { finalChunk: string; remainingChunk: string; shouldContinue: boolean } | null {
     if (closure !== '</code-viewer>' || finisher !== '```') {
       return null;
     }
 
-    // Handle partial ``` sequences
-    let partialClosing = bufferState?.partialClosing || '';
-    let processedChunk = partialClosing + chunk;
-    
-    // Check if the processed chunk creates a complete ``` anywhere
-    if (processedChunk.includes('```')) {
+    const finisherIndex = chunk.indexOf('```');
+    if (finisherIndex !== -1) {
+      const beforeFinisher = chunk.substring(0, finisherIndex);
+      const afterFinisher = chunk.substring(finisherIndex + 3);
       
-      // Found complete ``` - END THE CODE BLOCK immediately
-      const finisherIndex = processedChunk.indexOf('```');
-      const beforeFinisher = processedChunk.substring(0, finisherIndex);
-      const afterFinisher = processedChunk.substring(finisherIndex + 3);
-      
-      // Clear partial closing and currentCodeViewerId BEFORE returning
       if (bufferState) {
-        bufferState.partialClosing = undefined;
-        bufferState.currentCodeViewerId = null;
-        bufferState.buffering = false;
         bufferState.currentRule = undefined;
       }
 
-      const finalChunk = beforeFinisher ? this.extractPlainText(beforeFinisher) : '';
-
       return {
-        finalChunk,
+        finalChunk: beforeFinisher,
         remainingChunk: afterFinisher,
-        shouldContinue: false
+        shouldContinue: true
       };
-    } else {
-      // No complete ``` found yet, check if we have a new partial sequence
-      const fullCurrentContent = currentBuffer + processedChunk;
-      
-      let newPartialMatch = '';
-      
-      // Check for partial sequences at the very end: ` or ``
-      if (fullCurrentContent.endsWith('``')) {
-        newPartialMatch = '``';
-      } else if (fullCurrentContent.endsWith('`')) {
-        newPartialMatch = '`';
-      }
-      
-      if (newPartialMatch) {
-        // Found new partial sequence at end
-        const contentBeforePartial = fullCurrentContent.substring(0, fullCurrentContent.length - newPartialMatch.length);
-        
-        // The buffer should contain everything except the partial sequence
-        const bufferTextLength = currentBuffer.length;
-        let contentToAdd = '';
-        if (contentBeforePartial.length > bufferTextLength) {
-          // Some content from this chunk should be added to buffer
-          contentToAdd = contentBeforePartial.substring(bufferTextLength);
-        }
-        
-        // Update buffer state with new partial
-        if (bufferState) {
-          bufferState.partialClosing = newPartialMatch;
-        }
-        
-        // Return content if any
-        return {
-          finalChunk: contentToAdd ? this.extractPlainText(contentToAdd) : '',
-          remainingChunk: '',
-          shouldContinue: true
-        };
-      } else {
-        // No partial sequence detected, process content normally
-        // Clear any previous partial closing since it's not completing and should be included as content
-        if (bufferState) {
-          bufferState.partialClosing = undefined;
-        }
-        
-        // Return processed content
-        return {
-          finalChunk: processedChunk ? this.extractPlainText(processedChunk) : '',
-          remainingChunk: '',
-          shouldContinue: true
-        };
-      }
     }
+
+    return {
+      finalChunk: chunk,
+      remainingChunk: '',
+      shouldContinue: true
+    };
   }
 
-  /**
-   * Process content for code-viewer buffering (ensure plain text)
-   */
-  override processBufferContent(content: string): string {
-    return this.extractPlainText(content);
-  }
-
-  protected override getFullTextPattern(): FullTextResult {    
+  protected override getFullTextPattern(): FullTextResult {
     return {
       pattern: /```(\w+)?\n?([\s\S]*?)```/g,
       replacement: (_match: string, language: string, content: string) => {
@@ -535,18 +130,24 @@ export class CodeBlockRule extends BufferingRule {
     };
   }
 
-  // Make normalizeLanguage accessible for the full text pattern
+  private readonly supportedLanguages = new Set([
+    'javascript', 'js', 'typescript', 'ts', 'python', 'py', 'java', 'c', 'cpp', 'c++',
+    'csharp', 'cs', 'php', 'ruby', 'go', 'rust', 'swift', 'kotlin', 'scala',
+    'html', 'css', 'scss', 'sass', 'json', 'xml', 'yaml', 'yml', 'sql',
+    'bash', 'sh', 'shell', 'powershell', 'cmd', 'dockerfile', 'docker',
+    'markdown', 'md', 'text', 'plaintext', 'diff', 'git', 'makefile',
+    'r', 'matlab', 'perl', 'lua', 'haskell', 'clojure', 'erlang', 'elixir'
+  ]);
+
   public normalizeLanguage(rawLanguage: string): string {
     if (!rawLanguage) return 'plaintext';
     
     const normalized = rawLanguage.toLowerCase().trim();
     
-    // Direct match
     if (this.supportedLanguages.has(normalized)) {
       return normalized;
     }
     
-    // Common aliases
     const aliases: Record<string, string> = {
       'node': 'javascript',
       'js': 'javascript',
@@ -564,7 +165,6 @@ export class CodeBlockRule extends BufferingRule {
       return aliases[normalized];
     }
     
-    // Default fallback - preserve the original if it's a valid identifier
     if (/^[a-z][a-z0-9_-]*$/i.test(normalized)) {
       return normalized;
     }
