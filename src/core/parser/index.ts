@@ -56,7 +56,6 @@ export async function parseStreamedMessages({
       return;
     }
 
-
     if ((chunk as BotResponseChunk).cost) {
       promptCost.prompt_tokens += (chunk as BotResponseChunk).cost?.prompt_tokens || 0;
       promptCost.completion_tokens += (chunk as BotResponseChunk).cost?.completion_tokens || 0;
@@ -70,7 +69,6 @@ export async function parseStreamedMessages({
       };
       onVisit(updatedEntry);
       continue;
-
     }
 
     if ('error' in chunk) {
@@ -146,6 +144,7 @@ export async function parseStreamedMessages({
     // content is filtered during the output streaming
     // https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/content-filter?tabs=javascrit
     if (chunk.choices[0].finish_reason === 'content_filter') {
+      console.log('e149');
       throw new ChatResponseError('Content filtered', 400);
     }
 
@@ -153,14 +152,15 @@ export async function parseStreamedMessages({
     if (context?.data_points) {
       updatedEntry.dataPoints = context.data_points ?? [];
       updatedEntry.thoughts = context.thoughts ?? '';
-
+      console.log('e156');
       continue;
     }
     let chunkValue = content ?? '';
 
     if (chunkValue === '') {
+      console.log('e162');
       continue;
-    }
+    }    
 
     // Accumulate raw content before applying parsing rules
     rawContentAccumulator += chunkValue;
@@ -170,13 +170,28 @@ export async function parseStreamedMessages({
     // Store previous buffering state to detect completion
     const wasBufferingCodeViewer = bufferState.buffering && bufferState.currentRule === 'code-block';
 
-
     // Process chunk with buffering
-    const { processedChunk, bufferState: updatedBufferState } = processChunkWithBuffering(chunkValue, bufferState, (bufferInfo, chunk) => {
-      // Accumulate code content instead of directly updating code-viewer
+    const { processedChunk, bufferState: updatedBufferState } = processChunkWithBuffering(chunkValue, bufferState, (bufferInfo, chunk) => {            
+      console.log('[PARSER] duringBuffering called:', JSON.stringify({
+        buffering: bufferInfo.buffering,
+        currentRule: bufferInfo.currentRule,
+        coderId: coderId,
+        hasCodeViewer: coderId ? !!getCodeViewer(host, coderId) : false,
+        chunkLength: chunk.length,
+        chunkPreview: chunk.substring(0, 100) + '...'
+      }));
+      
       if (bufferInfo.buffering && bufferInfo.currentRule === 'code-block' && coderId) {
-        accumulatedCodeContent += chunk;
+        console.log('[PARSER] Sending chunk to code-viewer during buffering');
         getCodeViewer(host, coderId)?.updateRenderer(chunk);
+      } else if (bufferInfo.currentRule === 'code-block' && coderId) {
+        console.log('[PARSER] Code-block chunk but not buffering - this is likely the final chunk!');
+        getCodeViewer(host, coderId)?.updateRenderer(chunk);
+      } else if (wasBufferingCodeViewer && coderId) {
+        console.log('[PARSER] Final chunk for completed code-viewer');
+        getCodeViewer(host, coderId)?.updateRenderer(chunk);
+      } else {
+        console.log('[PARSER] duringBuffering called but conditions not met for code-viewer');
       }
     });
 
@@ -184,14 +199,7 @@ export async function parseStreamedMessages({
     const codeViewerJustCompleted = wasBufferingCodeViewer && !updatedBufferState.buffering && startedCoding;
 
     if (codeViewerJustCompleted) {
-      // Code-viewer buffering just completed - render all accumulated content at once
-      if (accumulatedCodeContent && coderId) {
-        try {
-          // getCodeViewer(host, coderId)?.endStream();
-        } catch (e) {
-          console.error('Error rendering accumulated code content:', e);
-        }
-      }
+      // Code-viewer buffering just completed - content was already sent via duringBuffering
 
       // Stop code generation after rendering content
       try {
@@ -293,7 +301,7 @@ export async function parseStreamedMessages({
           codeViewer = hoster.renderRoot?.querySelector('chat-thread-component .message:last-child code-viewer:last-of-type');
         }
 
-        if (codeViewer && typeof codeViewer.updateRenderer === 'function') {
+        if (codeViewer && typeof codeViewer.updateRenderer === 'function') {          
           // codeViewer.updateRenderer(accumulatedCodeContent);
 
           // Clear state after successful update

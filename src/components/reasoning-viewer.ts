@@ -46,7 +46,7 @@ export class ReasoningViewer extends LitElement {
         </div>
         
         <div class="reasoning-content ${this.dropdownShown ? '' : 'collapsed'}">
-             ${html`<div class="step-content" .innerHTML="${this.reasoningText}"></div>`}
+             ${html`<div class="step-content" .innerHTML="${this.sanitizeHtml(this.reasoningText)}"></div>`}
         </div>
       </div>
     `;
@@ -55,6 +55,25 @@ export class ReasoningViewer extends LitElement {
   private toggleDropdown() {
     this.dropdownShown = !this.dropdownShown;
     this.requestUpdate();
+  }
+
+  private sanitizeHtml(text: string): string {
+    // First escape all HTML
+    const escaped = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#x27;');
+    
+    // Then allow specific tags back
+    return escaped
+      .replace(/&lt;br\s*\/&gt;/gi, '<br/>')
+      .replace(/&lt;br&gt;/gi, '<br>')
+      .replace(/&lt;strong&gt;/gi, '<strong>')
+      .replace(/&lt;\/strong&gt;/gi, '</strong>')
+      .replace(/&lt;em&gt;/gi, '<em>')
+      .replace(/&lt;\/em&gt;/gi, '</em>');
   }
 
   updateReasoning(text: string) {

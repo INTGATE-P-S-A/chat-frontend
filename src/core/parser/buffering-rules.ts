@@ -72,6 +72,11 @@ export class BufferingRuleManager {
       
       // If in exclusive buffering mode (code-block), only allow the buffering rule to process
       if (bufferState.ruleProcessingMode === 'buffering-exclusive') {
+        console.log('[BUFFERING-RULES] Blocking rule processing during exclusive buffering:', JSON.stringify({
+          currentRule: bufferState.currentRule,
+          ruleProcessingMode: bufferState.ruleProcessingMode,
+          chunkPreview: chunk.substring(0, 50) + '...'
+        }));
         return null; // Block all rule processing during exclusive buffering
       }
       
@@ -123,6 +128,10 @@ export class BufferingRuleManager {
 
           // Set rule processing mode based on the rule's configuration
           if (rule.exclusiveBuffering) {
+            console.log('[BUFFERING-RULES] Setting exclusive buffering mode:', JSON.stringify({
+              ruleName: rule.name,
+              allowedRules: rule.allowedRulesWhileBuffering
+            }));
             this.setRuleProcessingMode(
               bufferState,
               'buffering-exclusive',
@@ -265,12 +274,22 @@ export class BufferingRuleManager {
     bufferState: BufferState,
     ruleApplied: string
   ): boolean | null {
+    console.log('[BUFFERING-RULES] detectFinish called:', JSON.stringify({
+      rule: ruleApplied,
+      chunkLength: chunk.length,
+      chunkPreview: chunk.substring(0, 50) + '...',
+      hasClosingBackticks: chunk.includes('```')
+    }));
+    
     const rule = this.getRule(ruleApplied);
     if (!rule) {
+      console.log('[BUFFERING-RULES] Rule not found for detectFinish');
       return false;
     }
 
-    return rule.detectFinish(chunk, bufferState.bufferText, bufferState);
+    const result = rule.detectFinish(chunk, bufferState.bufferText, bufferState);
+    console.log('[BUFFERING-RULES] detectFinish result:', JSON.stringify({ result, rule: ruleApplied }));
+    return result;
   }
 
   /**

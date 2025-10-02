@@ -141,6 +141,14 @@ export function processChunkWithBuffering(
     if (ruleResult) {
       bufferState.currentRule = ruleResult.ruleApplied;
       
+      console.log('[BUFFERER] Rule applied:', JSON.stringify({
+        rule: ruleResult.ruleApplied,
+        buffering: bufferState.buffering,
+        processedChunkLength: ruleResult.processedChunk?.length,
+        processedChunkPreview: ruleResult.processedChunk?.substring(0, 100) + '...',
+        bufferTextAfterRule: bufferState.bufferText?.length || 0
+      }));
+      
       if (!bufferState.buffering) {
         // Rule completed immediately (not buffering), return the result
         return { processedChunk: ruleResult.processedChunk, bufferState: ruleResult.bufferState };
@@ -196,12 +204,22 @@ export function processChunkWithBuffering(
         // Rule handled continuation, add to buffer if needed
         if (continuationResult.processedChunk) {
           bufferState.bufferText += continuationResult.processedChunk;
+          console.log('[BUFFERER] Adding to buffer:', JSON.stringify({
+            currentRule: bufferState.currentRule,
+            addedChunk: continuationResult.processedChunk,
+            addedChunkLength: continuationResult.processedChunk.length,
+            totalBufferLength: bufferState.bufferText.length,
+            bufferPreview: bufferState.bufferText.substring(0, 100) + '...'
+          }));
           duringBuffering(bufferState, continuationResult.processedChunk);
         }
         return { processedChunk: null, bufferState };
       }
     } else {
       // Should finish buffering - handle completion
+      
+      // IMPORTANT: Check currentRule BEFORE calling rule completion (rule may clear it)
+      const wasCodeViewer = bufferState.currentRule === 'code-block';
       
       // Try rule-specific completion logic first
       const completionResult = ruleManager.handleCompletion(
@@ -211,6 +229,25 @@ export function processChunkWithBuffering(
       );
 
       if (completionResult) {
+        console.log('[BUFFERER] Rule handled completion:', JSON.stringify({
+          currentRule: bufferState.currentRule,
+          finalChunkLength: completionResult.finalChunk?.length,
+          bufferTextLength: bufferState.bufferText?.length,
+          hasRemainingChunk: !!completionResult.remainingChunk,
+          remainingChunkLength: completionResult.remainingChunk?.length,
+          remainingChunkPreview: completionResult.remainingChunk?.substring(0, 100) + '...'
+        }));
+        
+        // Send the final chunk to code-viewer BEFORE processing remaining content
+        if (wasCodeViewer && completionResult.finalChunk) {
+          console.log('[BUFFERER] Sending final completion chunk to duringBuffering:', JSON.stringify({
+            currentRule: bufferState.currentRule,
+            finalChunk: completionResult.finalChunk,
+            finalChunkLength: completionResult.finalChunk.length
+          }));
+          duringBuffering(bufferState, completionResult.finalChunk);
+        }
+        
         // Rule handled completion
         let finalContent = '';
         let normalText = '';
@@ -221,9 +258,16 @@ export function processChunkWithBuffering(
           finalContent = bufferState.bufferText + completionResult.finalChunk + bufferState.bufferingClosure;
           normalText = finalContent;
         } else {
-          // For other rules (like code-block), treat as code content
-          finalContent = completionResult.finalChunk;
+          // For code-block rules, only send the actual code content (exclude text that appeared before the code block)
+          // The bufferText should only contain the code content, not any introductory text
+          finalContent = bufferState.bufferText + completionResult.finalChunk;
         }
+        
+        console.log('[BUFFERER] Final content prepared:', JSON.stringify({
+          currentRule: bufferState.currentRule,
+          finalContentLength: finalContent?.length,
+          finalContentPreview: finalContent?.substring(0, 100) + '...'
+        }));
         
         // Handle any remaining content after completion
         if (completionResult.remainingChunk) {
@@ -260,8 +304,21 @@ export function processChunkWithBuffering(
           Object.assign(bufferState, remainingResult.bufferState);
         }
 
+        // Send final content to code-viewer BEFORE clearing buffer state
+        console.log('[BUFFERER] DEBUG final content check:', JSON.stringify({
+          wasCodeViewer,
+          finalContentLength: finalContent?.length || 0,
+          finalContentEmpty: !finalContent,
+          bufferTextLength: bufferState.bufferText?.length || 0
+        }));
+        
+        // Don't send final chunk here - it's handled in the parser via wasBufferingCodeViewer condition
+        // This prevents duplication of the final chunk
+        if (wasCodeViewer && completionResult.finalChunk) {
+          console.log('[BUFFERER] Skipping final completion chunk send to avoid duplication - handled in parser');
+        }
+
         // Always reset buffer state after completion
-        const wasCodeViewer = bufferState.currentRule === 'code-block';
         bufferState.bufferingFinisher = null;
         bufferState.bufferingClosure = null;
         bufferState.bufferText = '';
@@ -277,11 +334,6 @@ export function processChunkWithBuffering(
           bufferState.codeViewerDepth = Math.max(0, (bufferState.codeViewerDepth || 1) - 1);
           bufferState.insideCodeViewer = bufferState.codeViewerDepth > 0;
           // Don't re-enable linebreakProof here - let line break rule process subsequent content
-        }
-
-        // Send ONLY the code content to code-viewer, not the remaining text
-        if (bufferState.currentRule === 'code-block' && finalContent) {
-          duringBuffering({ buffering: true, currentRule: 'code-block' } as any, finalContent);
         }
 
         // Return the normal text for regular processing
