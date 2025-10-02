@@ -240,7 +240,9 @@ export function processChunkWithBuffering(
               currentRule: undefined,
               currentCodeViewerId: undefined, // Explicitly clear this
               waitingForLanguage: undefined,
-              linebreakProof: bufferState.insideCodeViewer && bufferState.codeViewerDepth > 1,
+              linebreakProof: false, // CRITICAL: Ensure line breaks are allowed for remaining content
+              insideCodeViewer: false, // Reset code viewer state for remaining content
+              codeViewerDepth: 0, // Reset depth for remaining content
               ruleManager: bufferState.ruleManager // Preserve rule manager instance
             },
             undefined // NO duringBuffering callback - process as normal text
@@ -265,7 +267,7 @@ export function processChunkWithBuffering(
         bufferState.bufferText = '';
         bufferState.buffering = false;
         bufferState.skipOne = false;
-        bufferState.linebreakProof = false;
+        bufferState.linebreakProof = false; // CRITICAL: Always reset linebreakProof to allow line breaks after any rule completion
         bufferState.partialClosing = undefined;
         bufferState.currentRule = undefined;
         bufferState.currentCodeViewerId = undefined;
@@ -274,9 +276,7 @@ export function processChunkWithBuffering(
         if (wasCodeViewer) {
           bufferState.codeViewerDepth = Math.max(0, (bufferState.codeViewerDepth || 1) - 1);
           bufferState.insideCodeViewer = bufferState.codeViewerDepth > 0;
-          if (bufferState.insideCodeViewer) {
-            bufferState.linebreakProof = true;
-          }
+          // Don't re-enable linebreakProof here - let line break rule process subsequent content
         }
 
         // Send ONLY the code content to code-viewer, not the remaining text
@@ -304,7 +304,7 @@ export function processChunkWithBuffering(
         bufferState.bufferText = '';
         bufferState.buffering = false;
         bufferState.skipOne = false;
-        bufferState.linebreakProof = false;
+        bufferState.linebreakProof = false; // CRITICAL: Reset to allow line breaks after completion
         bufferState.partialClosing = undefined;
         bufferState.currentRule = undefined;
         bufferState.currentCodeViewerId = undefined;
@@ -322,7 +322,7 @@ export function processChunkWithBuffering(
         bufferState.bufferText = '';
         bufferState.buffering = false;
         bufferState.skipOne = false;
-        bufferState.linebreakProof = false;
+        bufferState.linebreakProof = false; // CRITICAL: Reset to allow line breaks after completion
         bufferState.partialClosing = undefined;
         bufferState.currentRule = undefined;
         bufferState.currentCodeViewerId = undefined;
