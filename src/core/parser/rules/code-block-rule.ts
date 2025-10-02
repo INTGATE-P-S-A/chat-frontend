@@ -10,15 +10,50 @@ export class CodeBlockRule extends BufferingRule {
 
   private languageBuffer = '';
   private isDetectingLanguage = false;
+  private partialBackticks = ''; // Track partial ``` sequences across chunks
 
   detect(chunk: string, bufferState?: BufferState): boolean | null {
-    // Check for ``` pattern anywhere in chunk
-    const codeBlockIndex = chunk.indexOf('```');
+    // If we're already buffering, don't start a new code block - let detectFinish handle closing
+    if (bufferState?.currentRule === 'code-block' && bufferState?.buffering) {
+      return false; // Don't detect new code blocks while already buffering
+    }
+    
+    // Combine any partial backticks from previous chunks
+    const combinedChunk = this.partialBackticks + chunk;
+    
+    // Look for exactly ``` (three backticks) - not just any occurrence
+    let searchIndex = 0;
+    let codeBlockIndex = -1;
+    
+    while (searchIndex < combinedChunk.length) {
+      const foundIndex = combinedChunk.indexOf('```', searchIndex);
+      if (foundIndex === -1) {
+        break; // No more ``` found
+      }
+      
+      // Check if this is exactly ``` (not part of a longer sequence like `````)
+      const beforeChar = foundIndex > 0 ? combinedChunk[foundIndex - 1] : '';
+      const afterChar = foundIndex + 3 < combinedChunk.length ? combinedChunk[foundIndex + 3] : '';
+      
+      // Valid if:
+      // - No backtick before (or start of chunk)
+      // - No backtick after (or end of chunk) 
+      if (beforeChar !== '`' && afterChar !== '`') {
+        codeBlockIndex = foundIndex;
+        break;
+      }
+      
+      // Continue searching after this ``` sequence
+      searchIndex = foundIndex + 3;
+    }
     
     if (codeBlockIndex !== -1) {
-      // Found ``` - preserve content before it
-      const textBefore = chunk.substring(0, codeBlockIndex);
-      const textAfter = chunk.substring(codeBlockIndex + 3);
+      // Found valid ``` - calculate text before and after
+      const textBefore = combinedChunk.substring(0, codeBlockIndex);
+      const textAfter = combinedChunk.substring(codeBlockIndex + 3);
+      
+      // Clear partial backticks since we found complete ```
+      this.partialBackticks = '';
       
       if (bufferState) {
         bufferState.currentRule = 'code-block';
@@ -48,6 +83,20 @@ export class CodeBlockRule extends BufferingRule {
       return null;
     }
     
+    // Check for partial ``` sequences at chunk boundaries
+    if (chunk.endsWith('``') || chunk.endsWith('`')) {
+      // Might be start of ``` split across chunks
+      if (chunk.endsWith('``')) {
+        this.partialBackticks = '``';
+      } else if (chunk.endsWith('`')) {
+        this.partialBackticks = '`';
+      }
+      return null; // Wait for next chunk
+    }
+    
+    // Clear partial backticks if no potential ``` found
+    this.partialBackticks = '';
+    
     // Continue language detection if we're in that mode
     if (this.isDetectingLanguage) {
       this.languageBuffer += chunk;
@@ -74,20 +123,64 @@ export class CodeBlockRule extends BufferingRule {
   }
 
   tryCompleteMatch(chunk: string): CompleteMatchResult | null {
-    const codeBlockMatch = chunk.match(/(```(\w+)\n?([\s\S]*?)```)/);
-    if (codeBlockMatch) {
-      const fullMatch = codeBlockMatch[1];
-      const language = codeBlockMatch[2];
-      const content = codeBlockMatch[3];
+    // Find first valid ``` opening
+    let openIndex = -1;
+    let searchIndex = 0;
+    
+    while (searchIndex < chunk.length) {
+      const foundIndex = chunk.indexOf('```', searchIndex);
+      if (foundIndex === -1) break;
       
-      if (language?.trim()) {
-        const normalizedLanguage = this.normalizeLanguage(language);
-        const codeId = voucher.generate({ count: 1, length: 8 })[0].toLowerCase();
-        const replacement = `<code-viewer componentId="${codeId}" language="${normalizedLanguage}" streaming="false">${content}</code-viewer>`;
-        
-        return this.createCompleteMatch(chunk, fullMatch, chunk.replace(fullMatch, replacement));
+      const beforeChar = foundIndex > 0 ? chunk[foundIndex - 1] : '';
+      const afterChar = foundIndex + 3 < chunk.length ? chunk[foundIndex + 3] : '';
+      
+      if (beforeChar !== '`' && afterChar !== '`') {
+        openIndex = foundIndex;
+        break;
       }
+      
+      searchIndex = foundIndex + 3;
     }
+    
+    if (openIndex === -1) return null;
+    
+    // Find matching closing ``` after the opening
+    let closeIndex = -1;
+    searchIndex = openIndex + 3;
+    
+    while (searchIndex < chunk.length) {
+      const foundIndex = chunk.indexOf('```', searchIndex);
+      if (foundIndex === -1) break;
+      
+      const beforeChar = foundIndex > 0 ? chunk[foundIndex - 1] : '';
+      const afterChar = foundIndex + 3 < chunk.length ? chunk[foundIndex + 3] : '';
+      
+      if (beforeChar !== '`' && afterChar !== '`') {
+        closeIndex = foundIndex;
+        break;
+      }
+      
+      searchIndex = foundIndex + 3;
+    }
+    
+    if (closeIndex === -1) return null;
+    
+    // Extract the code block content
+    const codeBlockContent = chunk.substring(openIndex + 3, closeIndex);
+    const langMatch = codeBlockContent.match(/^(\w+)\n?([\s\S]*)$/);
+    
+    if (langMatch && langMatch[1]?.trim()) {
+      const language = langMatch[1];
+      const content = langMatch[2] || '';
+      const fullMatch = chunk.substring(openIndex, closeIndex + 3);
+      
+      const normalizedLanguage = this.normalizeLanguage(language);
+      const codeId = voucher.generate({ count: 1, length: 8 })[0].toLowerCase();
+      const replacement = `<code-viewer componentId="${codeId}" language="${normalizedLanguage}" streaming="false">${content}</code-viewer>`;
+      
+      return this.createCompleteMatch(chunk, fullMatch, chunk.replace(fullMatch, replacement));
+    }
+    
     return null;
   }
 
@@ -148,8 +241,54 @@ export class CodeBlockRule extends BufferingRule {
     };
   }
 
-  override detectFinish(chunk: string): boolean {
-    return chunk.includes('```');
+  override detectFinish(chunk: string, _currentBuffer: string, bufferState?: any): boolean {
+    // Combine any partial backticks from previous chunks
+    const combinedChunk = (bufferState?.partialClosingBackticks || '') + chunk;
+    
+    // Look for exactly ``` (three backticks) - not part of longer sequence
+    let searchIndex = 0;
+    
+    while (searchIndex < combinedChunk.length) {
+      const foundIndex = combinedChunk.indexOf('```', searchIndex);
+      if (foundIndex === -1) {
+        break; // No more ``` found
+      }
+      
+      // Check if this is exactly ``` (not part of a longer sequence)
+      const beforeChar = foundIndex > 0 ? combinedChunk[foundIndex - 1] : '';
+      const afterChar = foundIndex + 3 < combinedChunk.length ? combinedChunk[foundIndex + 3] : '';
+      
+      // Valid if no backticks before or after
+      if (beforeChar !== '`' && afterChar !== '`') {
+        // Clear partial backticks since we found complete closing ```
+        if (bufferState) {
+          bufferState.partialClosingBackticks = '';
+        }
+        return true; // Found valid closing ```
+      }
+      
+      // Continue searching after this ``` sequence
+      searchIndex = foundIndex + 3;
+    }
+    
+    // Check for partial ``` at end of chunk
+    if (chunk.endsWith('``') || chunk.endsWith('`')) {
+      if (bufferState) {
+        if (chunk.endsWith('``')) {
+          bufferState.partialClosingBackticks = '``';
+        } else {
+          bufferState.partialClosingBackticks = '`';
+        }
+      }
+      return false; // Wait for more chunks
+    }
+    
+    // Clear partial backticks if no potential ``` found
+    if (bufferState) {
+      bufferState.partialClosingBackticks = '';
+    }
+    
+    return false;
   }
 
   override handleBufferingCompletion(chunk: string, _currentBuffer: string, finisher: string, closure: string, bufferState?: any): { finalChunk: string; remainingChunk: string; shouldContinue: boolean } | null {
@@ -157,27 +296,85 @@ export class CodeBlockRule extends BufferingRule {
       return null;
     }
 
-    const finisherIndex = chunk.indexOf('```');
+    // Combine any partial backticks from previous chunks
+    const combinedChunk = (bufferState?.partialClosingBackticks || '') + chunk;
+
+    // Find the first valid ``` (exactly three backticks, not part of longer sequence)
+    let searchIndex = 0;
+    let finisherIndex = -1;
+    
+    while (searchIndex < combinedChunk.length) {
+      const foundIndex = combinedChunk.indexOf('```', searchIndex);
+      if (foundIndex === -1) {
+        break; // No more ``` found
+      }
+      
+      // Check if this is exactly ``` (not part of a longer sequence)
+      const beforeChar = foundIndex > 0 ? combinedChunk[foundIndex - 1] : '';
+      const afterChar = foundIndex + 3 < combinedChunk.length ? combinedChunk[foundIndex + 3] : '';
+      
+      // Valid if no backticks before or after
+      if (beforeChar !== '`' && afterChar !== '`') {
+        finisherIndex = foundIndex;
+        break;
+      }
+      
+      // Continue searching after this ``` sequence
+      searchIndex = foundIndex + 3;
+    }
+    
     if (finisherIndex !== -1) {
-      const beforeFinisher = chunk.substring(0, finisherIndex);
-      const afterFinisher = chunk.substring(finisherIndex + 3);
+      // Calculate content before and after the closing ```
+      const partialLength = bufferState?.partialClosingBackticks?.length || 0;
+      
+      const beforeFinisher = combinedChunk.substring(0, finisherIndex);
+      const afterFinisher = combinedChunk.substring(finisherIndex + 3);
       
       // Clear rule state
       if (bufferState) {
         bufferState.currentRule = undefined;
+        bufferState.partialClosingBackticks = '';
         delete bufferState.detectedLanguage;
         delete bufferState.contentAfterLanguage;
         delete bufferState.isFirstChunk;
       }
+      
+      // Clear instance state to prevent interference with remaining chunk processing
+      this.partialBackticks = '';
+      this.languageBuffer = '';
+      this.isDetectingLanguage = false;
 
       return {
-        finalChunk: beforeFinisher,
+        finalChunk: beforeFinisher.substring(partialLength), // Remove partial backticks from final content
         remainingChunk: afterFinisher,
         shouldContinue: true
       };
     }
 
+    // Check for partial ``` at end of chunk
+    if (chunk.endsWith('``') || chunk.endsWith('`')) {
+      if (bufferState) {
+        if (chunk.endsWith('``')) {
+          bufferState.partialClosingBackticks = '``';
+        } else {
+          bufferState.partialClosingBackticks = '`';
+        }
+      }
+      
+      // Return content without the partial backticks
+      const contentLength = chunk.endsWith('``') ? chunk.length - 2 : chunk.length - 1;
+      return {
+        finalChunk: chunk.substring(0, contentLength),
+        remainingChunk: '',
+        shouldContinue: true
+      };
+    }
+
     // No finisher found - continue buffering
+    if (bufferState) {
+      bufferState.partialClosingBackticks = '';
+    }
+    
     return {
       finalChunk: chunk,
       remainingChunk: '',
@@ -187,10 +384,12 @@ export class CodeBlockRule extends BufferingRule {
 
   protected override getFullTextPattern(): FullTextResult {
     return {
-      pattern: /```(\w+)?\n?([\s\S]*?)```/g,
-      replacement: (_match: string, language: string, content: string) => {
+      // More precise pattern that looks for word boundaries around ```
+      pattern: /(?:^|[^`])(```(\w+)?\n?([\s\S]*?)```)(?:[^`]|$)/g,
+      replacement: (match: string, fullCodeBlock: string, language: string, content: string) => {
         const normalizedLanguage = language ? this.normalizeLanguage(language) : 'plaintext';
-        return `<code-viewer language="${normalizedLanguage}">${content}</code-viewer>`;
+        const replacement = `<code-viewer language="${normalizedLanguage}">${content}</code-viewer>`;
+        return match.replace(fullCodeBlock, replacement);
       }
     };
   }

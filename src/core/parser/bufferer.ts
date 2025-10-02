@@ -167,10 +167,16 @@ export function processChunkWithBuffering(
       // No finisher set, use rule-specific detectFinish()
       shouldFinish = ruleManager.detectFinish(processedChunk, bufferState, bufferState.currentRule) === true;
     } else {
-      // Check for finisher including partial sequences
-      const partialClosing = bufferState.partialClosing || '';
-      const combinedChunk = partialClosing + processedChunk;
-      shouldFinish = combinedChunk.includes(bufferState.bufferingFinisher);
+      // First try rule-specific detectFinish() for sophisticated detection
+      const ruleDetection = ruleManager.detectFinish(processedChunk, bufferState, bufferState.currentRule);
+      if (ruleDetection === true) {
+        shouldFinish = true;
+      } else {
+        // Fallback to generic finisher detection only if rule doesn't have custom logic
+        const partialClosing = bufferState.partialClosing || '';
+        const combinedChunk = partialClosing + processedChunk;
+        shouldFinish = combinedChunk.includes(bufferState.bufferingFinisher);
+      }
     }
 
     if (!shouldFinish) {

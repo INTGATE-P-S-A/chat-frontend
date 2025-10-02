@@ -3,8 +3,7 @@ import {
   BufferingRule,
   HeaderRule,
   CodeBlockRule,
-  BoldTextRule,
-  ItalicTextRule,
+  TextFormattingRule,
   LineBreakRule,  
   // ListRule
 } from './rules';
@@ -24,8 +23,7 @@ export class BufferingRuleManager {
   private initializeDefaultRules(): void {
     this.rules = [
       new HeaderRule(),
-      new BoldTextRule(),
-      new ItalicTextRule(),
+      new TextFormattingRule(),
       new CodeBlockRule(),
       new LineBreakRule()
     ];

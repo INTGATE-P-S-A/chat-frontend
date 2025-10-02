@@ -4,8 +4,7 @@ export { BufferingRule, CompleteMatchResult, BufferingResult, FullTextResult } f
 // Rule implementations
 import { HeaderRule } from './header-rule';
 import { CodeBlockRule } from './code-block-rule';
-import { BoldTextRule } from './bold-text-rule';
-import { ItalicTextRule } from './italic-text-rule';
+import { TextFormattingRule } from './text-formatting-rule';
 import { LineBreakRule } from './line-break-rule';
 import { LinkRule } from './link-rule';
 import { ListRule } from './list-rule';
@@ -15,8 +14,7 @@ const ruleList: typeof BufferingRule[] = [
     LinkRule,
     ListRule,
     LineBreakRule,
-    ItalicTextRule,
-    BoldTextRule,
+    TextFormattingRule,
     CodeBlockRule,
     HeaderRule
 ];
@@ -26,8 +24,7 @@ export {
     LinkRule,
     ListRule,
     LineBreakRule,
-    ItalicTextRule,
-    BoldTextRule,
+    TextFormattingRule,
     CodeBlockRule,
     HeaderRule
 }
