@@ -105,7 +105,7 @@ export class BufferingRuleManager {
         const completeMatch = rule.tryCompleteMatch(currentChunk, bufferState);
         if (completeMatch) {
           // For text formatting rules, apply all instances using processFullText
-          if (rule.name === 'bold-text' || rule.name === 'italic-text') {
+          if (rule.name === 'text-formatting') {
             currentChunk = rule.processFullText(currentChunk);
           } else {
             currentChunk = currentChunk.replace(completeMatch.fullMatch, completeMatch.replacement);

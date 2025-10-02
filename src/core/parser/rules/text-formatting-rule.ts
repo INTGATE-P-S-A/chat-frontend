@@ -3,19 +3,23 @@ import { BufferState } from '../bufferer';
 
 export class TextFormattingRule extends BufferingRule {
   readonly name = 'text-formatting';
-  readonly priority = 5; // Same priority as old bold rule
+  readonly priority = 5;
   
   private partialMarker = ''; // Track partial * sequences across chunks
-  private isProcessingBold = false; // Track if we're in bold mode
+  private bufferingType: 'bold' | 'italic' | null = null;
 
   detect(chunk: string, _bufferState?: BufferState): boolean | null {
+    // Don't detect new formatting while already buffering
+    if (_bufferState?.currentRule === 'text-formatting' && _bufferState?.buffering) {
+      return false;
+    }
+
     // Combine any partial marker from previous chunks with current chunk
     const combinedChunk = this.partialMarker + chunk;
     
     // Check for ** (bold) first - higher priority
     if (combinedChunk.includes('**')) {
       this.partialMarker = '';
-      this.isProcessingBold = true;
       return true;
     }
     
@@ -23,7 +27,6 @@ export class TextFormattingRule extends BufferingRule {
     const singleAsteriskPattern = /(?<!\*)\*(?!\*)/;
     if (singleAsteriskPattern.test(combinedChunk)) {
       this.partialMarker = '';
-      this.isProcessingBold = false;
       return true;
     }
     
@@ -36,7 +39,6 @@ export class TextFormattingRule extends BufferingRule {
     if (chunk.startsWith('*') && this.partialMarker === '*') {
       // We have ** from previous chunk ending with * and current starting with *
       this.partialMarker = '';
-      this.isProcessingBold = true;
       return true;
     }
     
@@ -75,23 +77,93 @@ export class TextFormattingRule extends BufferingRule {
     return null;
   }
 
-  startBuffering(chunk: string, _bufferState?: BufferState): BufferingResult {
-    let processedChunk = chunk;
-    let finisher = '*';
-    let closure = '</em>';
+  startBuffering(chunk: string, bufferState?: BufferState): BufferingResult {
+    // Find the position of the opening marker
+    let markerIndex = -1;
+    let markerLength = 0;
     
-    if (this.isProcessingBold) {
-      // Replace ** with <strong>
-      processedChunk = chunk.replace(/\*\*/, '<strong>');
-      finisher = '**';
-      closure = '</strong>';
+    // Check for ** first (bold)
+    const boldIndex = chunk.indexOf('**');
+    if (boldIndex !== -1) {
+      markerIndex = boldIndex;
+      markerLength = 2;
+      this.bufferingType = 'bold';
     } else {
-      // Replace single * with <em>
-      processedChunk = chunk.replace(/(?<!\*)\*(?!\*)/, '<em>');
-      finisher = '*';
-      closure = '</em>';
+      // Check for single * (italic) that's not part of **
+      const singleAsteriskPattern = /(?<!\*)\*(?!\*)/;
+      const match = singleAsteriskPattern.exec(chunk);
+      if (match) {
+        markerIndex = match.index!;
+        markerLength = 1;
+        this.bufferingType = 'italic';
+      }
     }
     
+    // Text before the marker gets output immediately
+    const textBeforeMarker = chunk.substring(0, markerIndex);
+    // Content after the marker needs to be buffered
+    const contentAfterMarker = chunk.substring(markerIndex + markerLength);
+    
+    // Store content after marker to be processed in first continueBuffering call
+    if (bufferState && contentAfterMarker) {
+      (bufferState as any).contentAfterMarker = contentAfterMarker;
+      (bufferState as any).isFirstBufferingChunk = true;
+    }
+    
+    const finisher = this.bufferingType === 'bold' ? '**' : '*';
+    const closure = this.bufferingType === 'bold' ? '</strong>' : '</em>';
+    const openTag = this.bufferingType === 'bold' ? '<strong>' : '<em>';
+    
+    // Output the text before marker + opening tag
+    const immediateOutput = textBeforeMarker + openTag;
+    
+    return {
+      processedChunk: immediateOutput,
+      finisher,
+      closure
+    };
+  }
+
+  override detectFinish(chunk: string, _currentBuffer: string, bufferState?: any): boolean {
+    let chunkToCheck = chunk;
+    
+    // If this is the first buffering chunk and we have content after marker, combine them
+    if (bufferState?.isFirstBufferingChunk && bufferState?.contentAfterMarker) {
+      chunkToCheck = bufferState.contentAfterMarker + chunk;
+    }
+    
+    if (this.bufferingType === 'bold') {
+      return chunkToCheck.includes('**');
+    } else {
+      // Look for closing * that's not part of **
+      const closingPattern = /(?<!\*)\*(?!\*)/;
+      return closingPattern.test(chunkToCheck);
+    }
+  }
+
+  override continueBuffering(chunk: string, _currentBuffer: string, finisher: string, closure: string, bufferState?: any): BufferingResult | null {
+    let processedChunk = chunk;
+    
+    // Handle content that was after the opening marker in the first chunk
+    if (bufferState?.isFirstBufferingChunk) {
+      bufferState.isFirstBufferingChunk = false;
+      
+      if (bufferState?.contentAfterMarker) {
+        processedChunk = bufferState.contentAfterMarker + chunk;
+        delete bufferState.contentAfterMarker;
+      }
+    }
+    
+    // Check if this processed chunk contains the finisher
+    if (this.detectFinish(processedChunk, _currentBuffer, bufferState)) {
+      // Store the processed chunk for handleBufferingCompletion to use
+      if (bufferState) {
+        (bufferState as any).finalChunkToProcess = processedChunk;
+      }
+      return null; // Let handleBufferingCompletion handle it
+    }
+    
+    // Continue buffering - pass through the processed chunk
     return {
       processedChunk,
       finisher,
@@ -99,52 +171,44 @@ export class TextFormattingRule extends BufferingRule {
     };
   }
 
-  override detectFinish(chunk: string, _currentBuffer: string, _bufferState?: any): boolean {
-    if (this.isProcessingBold) {
-      // Look for closing ** 
-      return chunk.includes('**');
-    } else {
-      // Look for closing * that's not part of **
-      const closingPattern = /(?<!\*)\*(?!\*)/;
-      return closingPattern.test(chunk);
-    }
-  }
-
-  override continueBuffering(chunk: string, currentBuffer: string, finisher: string, closure: string, _bufferState?: any): BufferingResult | null {
-    // Check if this chunk contains the finisher
-    if (this.detectFinish(chunk, currentBuffer, _bufferState)) {
-      return null; // Let the default completion logic handle it
+  override handleBufferingCompletion(chunk: string, _currentBuffer: string, _finisher: string, _closure: string, bufferState?: any): { finalChunk: string; remainingChunk: string; shouldContinue: boolean } | null {
+    // Use the processed chunk if available, otherwise fall back to the original chunk
+    let chunkToProcess = bufferState?.finalChunkToProcess || chunk;
+    
+    // CRITICAL FIX: If we have contentAfterMarker that wasn't processed yet, prepend it
+    if (bufferState?.contentAfterMarker) {
+      chunkToProcess = bufferState.contentAfterMarker + chunkToProcess;
+      delete bufferState.contentAfterMarker;
     }
     
-    // Continue buffering - pass through the chunk as-is
-    return {
-      processedChunk: chunk,
-      finisher,
-      closure
-    };
-  }
-
-  override handleBufferingCompletion(chunk: string, _currentBuffer: string, _finisher: string, _closure: string, _bufferState?: any): { finalChunk: string; remainingChunk: string; shouldContinue: boolean } | null {
     let finisherIndex = -1;
     
-    if (this.isProcessingBold) {
-      finisherIndex = chunk.indexOf('**');
+    if (this.bufferingType === 'bold') {
+      finisherIndex = chunkToProcess.indexOf('**');
     } else {
       // Find single * that's not part of **
       const singleAsteriskPattern = /(?<!\*)\*(?!\*)/;
-      const match = singleAsteriskPattern.exec(chunk);
+      const match = singleAsteriskPattern.exec(chunkToProcess);
       if (match) {
         finisherIndex = match.index!;
       }
     }
     
     if (finisherIndex !== -1) {
-      const finisherLength = this.isProcessingBold ? 2 : 1;
-      const beforeFinisher = chunk.substring(0, finisherIndex);
-      const afterFinisher = chunk.substring(finisherIndex + finisherLength);
+      const finisherLength = this.bufferingType === 'bold' ? 2 : 1;
+      const beforeFinisher = chunkToProcess.substring(0, finisherIndex);
+      const afterFinisher = chunkToProcess.substring(finisherIndex + finisherLength);
+      
+      // Clean up stored state
+      if (bufferState?.finalChunkToProcess) {
+        delete bufferState.finalChunkToProcess;
+      }
+      if (bufferState?.isFirstBufferingChunk) {
+        delete bufferState.isFirstBufferingChunk;
+      }
       
       // Reset state
-      this.isProcessingBold = false;
+      this.bufferingType = null;
       this.partialMarker = '';
       
       return {
@@ -154,9 +218,9 @@ export class TextFormattingRule extends BufferingRule {
       };
     }
     
-    // No finisher found - continue buffering
+    // No finisher found - this shouldn't happen if detectFinish returned true
     return {
-      finalChunk: chunk,
+      finalChunk: chunkToProcess,
       remainingChunk: '',
       shouldContinue: true
     };

@@ -212,8 +212,18 @@ export function processChunkWithBuffering(
 
       if (completionResult) {
         // Rule handled completion
-        let codeContent = completionResult.finalChunk; // This is just the code before ```
+        let finalContent = '';
         let normalText = '';
+        
+        // For text formatting rules, we need to build the complete formatted output
+        if (bufferState.currentRule === 'text-formatting') {
+          // Build: buffer + content + closure + remaining
+          finalContent = bufferState.bufferText + completionResult.finalChunk + bufferState.bufferingClosure;
+          normalText = finalContent;
+        } else {
+          // For other rules (like code-block), treat as code content
+          finalContent = completionResult.finalChunk;
+        }
         
         // Handle any remaining content after completion
         if (completionResult.remainingChunk) {
@@ -237,7 +247,12 @@ export function processChunkWithBuffering(
           );
           
           if (remainingResult.processedChunk) {
-            normalText = remainingResult.processedChunk;
+            // For text formatting, append remaining to the formatted output
+            if (bufferState.currentRule === 'text-formatting') {
+              normalText = normalText + remainingResult.processedChunk;
+            } else {
+              normalText = remainingResult.processedChunk;
+            }
           }
           
           Object.assign(bufferState, remainingResult.bufferState);
@@ -265,8 +280,8 @@ export function processChunkWithBuffering(
         }
 
         // Send ONLY the code content to code-viewer, not the remaining text
-        if (codeContent) {
-          duringBuffering({ buffering: true, currentRule: 'code-block' } as any, codeContent);
+        if (bufferState.currentRule === 'code-block' && finalContent) {
+          duringBuffering({ buffering: true, currentRule: 'code-block' } as any, finalContent);
         }
 
         // Return the normal text for regular processing
