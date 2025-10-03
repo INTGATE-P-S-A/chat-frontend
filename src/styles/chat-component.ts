@@ -382,7 +382,7 @@ export const chatStyle = css`
     z-index: 2;
     margin-left: 0;
     border-radius: 0;
-    height: 40px;
+    height: 44px;
     align-self: flex-start;
   }
   

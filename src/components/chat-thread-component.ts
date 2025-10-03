@@ -109,7 +109,7 @@ export class ChatThreadComponent extends LitElement {
 
   private handleScroll(event: Event): void {
     const scrollContainer = event.target as HTMLElement;
-    const threshold = 10; // smaller threshold for more precise detection
+    const threshold = 10;
     
     const isAtBottom = scrollContainer.scrollHeight - scrollContainer.scrollTop - scrollContainer.clientHeight < threshold;
     
@@ -118,10 +118,16 @@ export class ChatThreadComponent extends LitElement {
       clearTimeout(this.scrollTimeout);
     }
     
-    // Set a timeout to determine if user has stopped scrolling
+    // During streaming, immediately detect if user scrolls up
+    if (this.isProcessingResponse && !isAtBottom) {
+      this.isUserScrolledUp = true;
+      return;
+    }
+    
+    // Set a timeout for non-streaming scenarios or when user scrolls to bottom
     this.scrollTimeout = setTimeout(() => {
       this.isUserScrolledUp = !isAtBottom;
-    }, 100); // shorter timeout for more responsive detection
+    }, 100);
   }
 
   private overrideConfig() {
@@ -140,15 +146,26 @@ export class ChatThreadComponent extends LitElement {
       this.overrideConfig();
     }
     
-    // Auto-scroll to bottom when new messages are added or when processing responses
+    // Handle chat thread changes
     if (changedProperties.has('chatThread') && this.chatThread.length) {
+      const oldChatThread = changedProperties.get('chatThread') as ChatThreadEntry[] || [];
+      const hasNewMessage = this.chatThread.length > oldChatThread.length;
+      
+      // Only reset scroll state when a completely new message is added (new turn in conversation)
+      // Don't reset during streaming updates of existing messages
+      if (hasNewMessage && !this.isProcessingResponse) {
+        this.isUserScrolledUp = false;
+      }
+      
+      // Only auto-scroll if user hasn't manually scrolled up
+      if (!this.isUserScrolledUp) {
         this.scrollToBottom();
+      }
     }
     
-    // Also scroll when processing response changes (for streaming text)
+    // When processing starts, don't reset scroll state, just try to scroll if allowed
     if (changedProperties.has('isProcessingResponse')) {
-      if (this.isProcessingResponse) {
-        // When processing starts, ensure we're ready to scroll
+      if (this.isProcessingResponse && !this.isUserScrolledUp) {
         setTimeout(() => this.scrollToBottom(), 10);
       }
     }
@@ -182,7 +199,7 @@ export class ChatThreadComponent extends LitElement {
 
   /**
    * Reset the scroll state to allow auto-scrolling again
-   * Can be called when starting a new conversation
+   * Should be called when starting a new conversation turn (new user message)
    */
   public resetScrollState(): void {
     this.isUserScrolledUp = false;
@@ -193,6 +210,13 @@ export class ChatThreadComponent extends LitElement {
         scrollContainer.scrollTop = scrollContainer.scrollHeight;
       }
     }, 10);
+  }
+
+  /**
+   * Call this when a new user message is sent to reset auto-scroll behavior
+   */
+  public onNewUserMessage(): void {
+    this.isUserScrolledUp = false;
   }
 
   /**
@@ -362,10 +386,6 @@ export class ChatThreadComponent extends LitElement {
     }
     if (this.isProcessingResponse) {
       this.debounceScrollIntoView();
-      // Also do an immediate scroll for streaming content - more frequent
-      setTimeout(() => this.scrollToBottom(), 0);
-      // And another one slightly delayed to catch any layout changes
-      setTimeout(() => this.scrollToBottom(), 50);
     }
     return html`<div class="chat_txt--entry-container">${entries}</div>`;
   }
