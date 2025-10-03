@@ -144,7 +144,6 @@ export async function parseStreamedMessages({
     // content is filtered during the output streaming
     // https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/content-filter?tabs=javascrit
     if (chunk.choices[0].finish_reason === 'content_filter') {
-      console.log('e149');
       throw new ChatResponseError('Content filtered', 400);
     }
 
@@ -152,13 +151,11 @@ export async function parseStreamedMessages({
     if (context?.data_points) {
       updatedEntry.dataPoints = context.data_points ?? [];
       updatedEntry.thoughts = context.thoughts ?? '';
-      console.log('e156');
       continue;
     }
     let chunkValue = content ?? '';
 
     if (chunkValue === '') {
-      console.log('e162');
       continue;
     }    
 
@@ -171,27 +168,13 @@ export async function parseStreamedMessages({
     const wasBufferingCodeViewer = bufferState.buffering && bufferState.currentRule === 'code-block';
 
     // Process chunk with buffering
-    const { processedChunk, bufferState: updatedBufferState } = processChunkWithBuffering(chunkValue, bufferState, (bufferInfo, chunk) => {            
-      console.log('[PARSER] duringBuffering called:', JSON.stringify({
-        buffering: bufferInfo.buffering,
-        currentRule: bufferInfo.currentRule,
-        coderId: coderId,
-        hasCodeViewer: coderId ? !!getCodeViewer(host, coderId) : false,
-        chunkLength: chunk.length,
-        chunkPreview: chunk.substring(0, 100) + '...'
-      }));
-      
+    const { processedChunk, bufferState: updatedBufferState } = processChunkWithBuffering(chunkValue, bufferState, (bufferInfo, chunk) => {
       if (bufferInfo.buffering && bufferInfo.currentRule === 'code-block' && coderId) {
-        console.log('[PARSER] Sending chunk to code-viewer during buffering');
         getCodeViewer(host, coderId)?.updateRenderer(chunk);
       } else if (bufferInfo.currentRule === 'code-block' && coderId) {
-        console.log('[PARSER] Code-block chunk but not buffering - this is likely the final chunk!');
         getCodeViewer(host, coderId)?.updateRenderer(chunk);
       } else if (wasBufferingCodeViewer && coderId) {
-        console.log('[PARSER] Final chunk for completed code-viewer');
         getCodeViewer(host, coderId)?.updateRenderer(chunk);
-      } else {
-        console.log('[PARSER] duringBuffering called but conditions not met for code-viewer');
       }
     });
 

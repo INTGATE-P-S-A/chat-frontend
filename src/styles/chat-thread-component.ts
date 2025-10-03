@@ -366,4 +366,8 @@ export const styles = css`
     font-size: 0.75rem;
     color: #999;
   }
+
+  .model-info {
+    margin-left: 0.5rem;
+  }
 `;

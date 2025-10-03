@@ -17,6 +17,7 @@ export class ChatController implements ReactiveController {
   private _useWebSocket: boolean = false;
   private _onReasoningStep?: (reasoningId: string, step: string) => void;
   private _hasReceivedFirstTextContent: boolean = false;
+  private _currentRequestOptions?: ChatRequestOptions;
 
   get isAwaitingResponse() {
     return this._isAwaitingResponse;
@@ -207,16 +208,20 @@ export class ChatController implements ReactiveController {
     });
   }
 
-  async processResponse(response: string | BotResponse, isUserMessage: boolean = false, useStream: boolean = false) {
+  async processResponse(response: string | BotResponse, isUserMessage: boolean = false, useStream: boolean = false, overrides?: RequestOverrides) {
     const timestamp = getTimestamp();
     const citations: Citation[] = [];
     let followupQuestions: string[] = [];
     let followingSteps: string[] = [];
     let thoughts: string | undefined;
     let dataPoints: string[] | undefined;
+    
+    // Use provided overrides or fall back to current request options
+    const effectiveOverrides = overrides || this._currentRequestOptions?.overrides;
             
 
     const updateChatWithMessageOrChunk = async (message: string | BotResponse, chunked: boolean) => {
+      console.log({mod: effectiveOverrides?.selectedModel});
       if (chunked) {
         // Always create a new AI message for each response
         const initialEntry: ChatThreadEntry = {
@@ -234,6 +239,7 @@ export class ChatController implements ReactiveController {
           thoughts: undefined,
           dataPoints: undefined,
           rawContent: '', // Will be populated by the parser
+          model: !isUserMessage && effectiveOverrides?.selectedModel ? effectiveOverrides.selectedModel.model.value : undefined,
         };
 
         this.isProcessingResponse = true;
@@ -277,6 +283,7 @@ export class ChatController implements ReactiveController {
           // For user messages, rawContent is the same as the message content
           // For AI responses in non-streaming mode, we don't have true rawContent, so use the message
           rawContent: isUserMessage ? (message as string) : (message as string),
+          model: !isUserMessage && effectiveOverrides?.selectedModel ? effectiveOverrides.selectedModel : undefined,
         };
       }
     };
@@ -308,6 +315,9 @@ export class ChatController implements ReactiveController {
 
     if (question) {
       try {
+        // Store current request options for use in processResponse
+        this._currentRequestOptions = requestOptions;
+        
         this.generatingAnswer = true;
         
         // Create a new AbortController for this request
@@ -315,7 +325,7 @@ export class ChatController implements ReactiveController {
 
         // for chat messages, process user question as a chat entry
         if (requestOptions.type === 'chat') {
-          await this.processResponse(question, true, false);
+          await this.processResponse(question, true, false, requestOptions.overrides);
         }
 
         this.isAwaitingResponse = true;
@@ -338,6 +348,7 @@ export class ChatController implements ReactiveController {
             thoughts: undefined,
             dataPoints: undefined,
             rawContent: '', // Will be populated by WebSocket parser
+            model: requestOptions.overrides?.selectedModel || undefined,
           };          // Use WebSocket - initialize processing message for WebSocket immediately
           this._hasReceivedFirstTextContent = false; // Reset for new WebSocket message
           this.processingMessage = initialMessage;
@@ -363,7 +374,7 @@ export class ChatController implements ReactiveController {
           const response = (await getAPIResponse(requestOptions, updatedHttpOptions)) as BotResponse;
           this.isAwaitingResponse = false;
 
-          await this.processResponse(response, false, httpOptions.stream);
+          await this.processResponse(response, false, httpOptions.stream, requestOptions.overrides);
         }
       } catch (error_: any) {
         const error = error_ as ChatResponseError;
@@ -373,7 +384,7 @@ export class ChatController implements ReactiveController {
 
         if (!this.processingMessage) {
           // add a empty message to the chat thread to display the error
-          await this.processResponse('', false, false);
+          await this.processResponse('', false, false, requestOptions.overrides);
         }
 
         if (this.processingMessage) {

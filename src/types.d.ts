@@ -29,6 +29,7 @@ declare interface ChatThreadEntry {
   rawContent?: string;
   cost?: IPromptCost;
   costs?: IPromptCost[]; // Add costs array to support backend format
+  model?: string; // Add model property to store which AI model was used
 }
 
 declare interface Citation {

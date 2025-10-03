@@ -141,14 +141,6 @@ export function processChunkWithBuffering(
     if (ruleResult) {
       bufferState.currentRule = ruleResult.ruleApplied;
       
-      console.log('[BUFFERER] Rule applied:', JSON.stringify({
-        rule: ruleResult.ruleApplied,
-        buffering: bufferState.buffering,
-        processedChunkLength: ruleResult.processedChunk?.length,
-        processedChunkPreview: ruleResult.processedChunk?.substring(0, 100) + '...',
-        bufferTextAfterRule: bufferState.bufferText?.length || 0
-      }));
-      
       if (!bufferState.buffering) {
         // Rule completed immediately (not buffering), return the result
         return { processedChunk: ruleResult.processedChunk, bufferState: ruleResult.bufferState };
@@ -204,13 +196,6 @@ export function processChunkWithBuffering(
         // Rule handled continuation, add to buffer if needed
         if (continuationResult.processedChunk) {
           bufferState.bufferText += continuationResult.processedChunk;
-          console.log('[BUFFERER] Adding to buffer:', JSON.stringify({
-            currentRule: bufferState.currentRule,
-            addedChunk: continuationResult.processedChunk,
-            addedChunkLength: continuationResult.processedChunk.length,
-            totalBufferLength: bufferState.bufferText.length,
-            bufferPreview: bufferState.bufferText.substring(0, 100) + '...'
-          }));
           duringBuffering(bufferState, continuationResult.processedChunk);
         }
         return { processedChunk: null, bufferState };
@@ -229,22 +214,8 @@ export function processChunkWithBuffering(
       );
 
       if (completionResult) {
-        console.log('[BUFFERER] Rule handled completion:', JSON.stringify({
-          currentRule: bufferState.currentRule,
-          finalChunkLength: completionResult.finalChunk?.length,
-          bufferTextLength: bufferState.bufferText?.length,
-          hasRemainingChunk: !!completionResult.remainingChunk,
-          remainingChunkLength: completionResult.remainingChunk?.length,
-          remainingChunkPreview: completionResult.remainingChunk?.substring(0, 100) + '...'
-        }));
-        
         // Send the final chunk to code-viewer BEFORE processing remaining content
         if (wasCodeViewer && completionResult.finalChunk) {
-          console.log('[BUFFERER] Sending final completion chunk to duringBuffering:', JSON.stringify({
-            currentRule: bufferState.currentRule,
-            finalChunk: completionResult.finalChunk,
-            finalChunkLength: completionResult.finalChunk.length
-          }));
           duringBuffering(bufferState, completionResult.finalChunk);
         }
         
@@ -262,12 +233,6 @@ export function processChunkWithBuffering(
           // The bufferText should only contain the code content, not any introductory text
           finalContent = bufferState.bufferText + completionResult.finalChunk;
         }
-        
-        console.log('[BUFFERER] Final content prepared:', JSON.stringify({
-          currentRule: bufferState.currentRule,
-          finalContentLength: finalContent?.length,
-          finalContentPreview: finalContent?.substring(0, 100) + '...'
-        }));
         
         // Handle any remaining content after completion
         if (completionResult.remainingChunk) {
@@ -305,17 +270,9 @@ export function processChunkWithBuffering(
         }
 
         // Send final content to code-viewer BEFORE clearing buffer state
-        console.log('[BUFFERER] DEBUG final content check:', JSON.stringify({
-          wasCodeViewer,
-          finalContentLength: finalContent?.length || 0,
-          finalContentEmpty: !finalContent,
-          bufferTextLength: bufferState.bufferText?.length || 0
-        }));
-        
         // Don't send final chunk here - it's handled in the parser via wasBufferingCodeViewer condition
         // This prevents duplication of the final chunk
         if (wasCodeViewer && completionResult.finalChunk) {
-          console.log('[BUFFERER] Skipping final completion chunk send to avoid duplication - handled in parser');
         }
 
         // Always reset buffer state after completion

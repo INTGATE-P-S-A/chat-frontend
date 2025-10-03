@@ -498,6 +498,18 @@ export class ChatThreadComponent extends LitElement {
     `;
   }
 
+  private renderModelInfo(entry: ChatThreadEntry) {
+    if (entry.isUserMessage || !entry.model) {
+      return '';
+    }
+
+    return html`
+      <span class="model-info" title="AI Model: ${entry.model}">
+        🤖 ${entry.model}
+      </span>
+    `;
+  }
+
   override render() {
     return html`
     <div id="chat__thread-container">
@@ -541,7 +553,8 @@ export class ChatThreadComponent extends LitElement {
                     <div class="chat__txt--footer">
                       <div class="chat__txt--info">                              
                         <span class="timestamp">${this.formatTo24Hour(message.timestamp)}</span>                        
-                        ${this.renderCostInfo(message)}     
+                        ${this.renderCostInfo(message)}
+                        ${this.renderModelInfo(message)}     
                       </div>
                       <div class="chat__response-actions">                  
                         ${message.isUserMessage ? '' : this.renderResponseActions(message)}                                              

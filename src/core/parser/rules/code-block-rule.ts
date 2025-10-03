@@ -4,7 +4,7 @@ import voucher from 'voucher-code-generator';
 
 export class CodeBlockRule extends BufferingRule {
   readonly name = 'code-block';
-  readonly priority = 5;
+  readonly priority = 1; // Highest priority to detect code blocks before other formatting
   override readonly exclusiveBuffering = true;
   override readonly allowedRulesWhileBuffering: string[] = [];
 

@@ -33,13 +33,11 @@ export class LineBreakRule extends BufferingRule {
     
     // Don't detect if code-block rule is currently active (even if not buffering yet)
     if (bufferState?.currentRule === 'code-block') {
-      console.log('[line-break-rule] Skipping - code-block rule is active, chunk:', JSON.stringify(chunk));
       return false;
     }
     
     // Don't process chunks that contain code block patterns that code-block rule should handle
     if (this.containsCodeBlockPattern(chunk)) {
-      console.log(`[line-break-rule] Skipping chunk due to code block pattern: "${chunk}"`);
       return false;
     }
     
@@ -74,13 +72,11 @@ export class LineBreakRule extends BufferingRule {
     
     // Don't process if code-block rule is currently active (even if not buffering yet)
     if (bufferState?.currentRule === 'code-block') {
-      console.log('[line-break-rule] Skipping tryCompleteMatch - code-block rule is active, chunk:', JSON.stringify(chunk));
       return null;
     }
     
     // Don't process chunks that contain code block patterns that code-block rule should handle
     if (this.containsCodeBlockPattern(chunk)) {
-      console.log(`[line-break-rule] Skipping tryCompleteMatch due to code block pattern: "${chunk}"`);
       return null;
     }
     
@@ -150,7 +146,6 @@ export class LineBreakRule extends BufferingRule {
   private containsCodeBlockPattern(chunk: string): boolean {
     // Only skip if chunk actually contains ``` pattern
     if (chunk.includes('```')) {
-      console.log('[line-break-rule] Found ``` pattern in chunk:', chunk);
       return true;
     }
     

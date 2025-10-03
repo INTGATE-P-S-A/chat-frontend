@@ -22,9 +22,9 @@ export class BufferingRuleManager {
 
   private initializeDefaultRules(): void {
     this.rules = [
+      new CodeBlockRule(),    // Highest priority - should detect code blocks first
       new HeaderRule(),
       new TextFormattingRule(),
-      new CodeBlockRule(),
       new LineBreakRule()
     ];
   }
@@ -72,11 +72,6 @@ export class BufferingRuleManager {
       
       // If in exclusive buffering mode (code-block), only allow the buffering rule to process
       if (bufferState.ruleProcessingMode === 'buffering-exclusive') {
-        console.log('[BUFFERING-RULES] Blocking rule processing during exclusive buffering:', JSON.stringify({
-          currentRule: bufferState.currentRule,
-          ruleProcessingMode: bufferState.ruleProcessingMode,
-          chunkPreview: chunk.substring(0, 50) + '...'
-        }));
         return null; // Block all rule processing during exclusive buffering
       }
       
@@ -88,14 +83,109 @@ export class BufferingRuleManager {
       }
     }
 
+    // Special handling for code-block rule - process it separately to handle text before ```
+    const codeBlockRule = this.getRule('code-block');
+    if (codeBlockRule && !bufferState.buffering) {
+      const codeBlockDetected = codeBlockRule.detect(chunk, bufferState);
+      
+      if (codeBlockDetected === true) {
+        // Code block detected - split chunk at ``` and process text before separately
+        const codeBlockIndex = chunk.indexOf('```');
+        if (codeBlockIndex > 0) {
+          // Process text before ``` with other rules first
+          const textBefore = chunk.substring(0, codeBlockIndex);
+          const codeBlockPart = chunk.substring(codeBlockIndex);
+          
+          // Process text before with non-code-block rules
+          let processedTextBefore = textBefore;
+          for (const rule of this.rules) {
+            if (rule.name === 'code-block') continue; // Skip code-block rule for text before
+            
+            const ruleDetected = rule.detect(processedTextBefore, bufferState);
+            if (ruleDetected === true) {
+              const completeMatch = rule.tryCompleteMatch(processedTextBefore, bufferState);
+              if (completeMatch) {
+                if (rule.name === 'text-formatting') {
+                  processedTextBefore = rule.processFullText(processedTextBefore);
+                } else {
+                  processedTextBefore = processedTextBefore.replace(completeMatch.fullMatch, completeMatch.replacement);
+                }
+              }
+            }
+          }
+          
+          // Store processed text before in buffer state
+          if (bufferState) {
+            bufferState.textBeforeCodeBlock = processedTextBefore;
+          }
+          
+          // Now start buffering with the code block part
+          const bufferingResult = codeBlockRule.startBuffering(codeBlockPart, bufferState);
+          bufferState.buffering = true;
+          bufferState.bufferingFinisher = bufferingResult.finisher || null;
+          bufferState.bufferingClosure = bufferingResult.closure;
+          bufferState.bufferText = bufferState.bufferText || '';
+
+          // Set exclusive buffering mode
+          this.setRuleProcessingMode(
+            bufferState,
+            'buffering-exclusive',
+            codeBlockRule.name,
+            codeBlockRule.allowedRulesWhileBuffering
+          );
+
+          bufferState.skipOne = true;
+          bufferState.insideCodeViewer = true;
+          bufferState.codeViewerDepth = (bufferState.codeViewerDepth || 0) + 1;
+          bufferState.linebreakProof = true;
+
+          return {
+            processedChunk: bufferingResult.processedChunk,
+            bufferState,
+            ruleApplied: codeBlockRule.name
+          };
+        } else {
+          // No text before ``` - proceed normally
+          const bufferingResult = codeBlockRule.startBuffering(chunk, bufferState);
+          bufferState.buffering = true;
+          bufferState.bufferingFinisher = bufferingResult.finisher || null;
+          bufferState.bufferingClosure = bufferingResult.closure;
+          bufferState.bufferText = bufferState.bufferText || '';
+
+          this.setRuleProcessingMode(
+            bufferState,
+            'buffering-exclusive',
+            codeBlockRule.name,
+            codeBlockRule.allowedRulesWhileBuffering
+          );
+
+          bufferState.skipOne = true;
+          bufferState.insideCodeViewer = true;
+          bufferState.codeViewerDepth = (bufferState.codeViewerDepth || 0) + 1;
+          bufferState.linebreakProof = true;
+
+          return {
+            processedChunk: bufferingResult.processedChunk,
+            bufferState,
+            ruleApplied: codeBlockRule.name
+          };
+        }
+      } else if (codeBlockDetected === null) {
+        return {
+          processedChunk: '', 
+          bufferState
+        };
+      }
+    }
+
     let currentChunk = chunk;
     let hasAppliedRule = false;
     let appliedRuleName: string | undefined;
 
     // Get rules to process based on current state
-    let rulesToProcess = this.rules;
+    let rulesToProcess = this.rules.filter(rule => rule.name !== 'code-block'); // Skip code-block rule as it was handled above
     
-    // Process ALL rules sequentially - each rule gets the processed content from previous rules
+    // Process ALL remaining rules sequentially - each rule gets the processed content from previous rules
     for (const rule of rulesToProcess) {
       
       // Skip line break rule if we're in a linebreakProof context
@@ -128,10 +218,6 @@ export class BufferingRuleManager {
 
           // Set rule processing mode based on the rule's configuration
           if (rule.exclusiveBuffering) {
-            console.log('[BUFFERING-RULES] Setting exclusive buffering mode:', JSON.stringify({
-              ruleName: rule.name,
-              allowedRules: rule.allowedRulesWhileBuffering
-            }));
             this.setRuleProcessingMode(
               bufferState,
               'buffering-exclusive',
@@ -274,21 +360,12 @@ export class BufferingRuleManager {
     bufferState: BufferState,
     ruleApplied: string
   ): boolean | null {
-    console.log('[BUFFERING-RULES] detectFinish called:', JSON.stringify({
-      rule: ruleApplied,
-      chunkLength: chunk.length,
-      chunkPreview: chunk.substring(0, 50) + '...',
-      hasClosingBackticks: chunk.includes('```')
-    }));
-    
     const rule = this.getRule(ruleApplied);
     if (!rule) {
-      console.log('[BUFFERING-RULES] Rule not found for detectFinish');
       return false;
     }
 
     const result = rule.detectFinish(chunk, bufferState.bufferText, bufferState);
-    console.log('[BUFFERING-RULES] detectFinish result:', JSON.stringify({ result, rule: ruleApplied }));
     return result;
   }
 
