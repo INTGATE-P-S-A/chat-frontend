@@ -185,6 +185,9 @@ export class ChatComponent extends LitElement {
   @state()
   chatSettings: IChatSettings = DEFAULT_CHAT_SETTINGS;
 
+  @property({ type: Number, attribute: 'data-convo-id'})  
+  convoId: number | null = null;
+
   selectedAsideTab: 'tab-thought-process' | 'tab-support-context' | 'tab-citations' = 'tab-thought-process';
 
   // These are the chat bubbles that will be displayed in the chat
@@ -289,6 +292,11 @@ export class ChatComponent extends LitElement {
         this.showCode = this.showCode ? {...this.showCode, preview: true} : null;        
       }      
     }); 
+
+    this.addEventListener('chat:conversation:start', (event) => {
+      const theEvent: CustomEvent<{conversationId: string}> = event as CustomEvent<{conversationId: string}>;                   
+      this.convoId = Number(theEvent?.detail?.conversationId || null);
+    });
 
     this.addEventListener('code:update', (event) => {
       const theEvent: CustomEvent<{chunk: string, componentId: string}> = event as CustomEvent<{chunk: string, componentId: string, language: string}>;             
@@ -898,6 +906,7 @@ export class ChatComponent extends LitElement {
 
   // Render the chat component as a web component
   override render() {
+    console.log({  convoId: this.convoId});
     return html`
       <div id="overlay" class="overlay"></div>
       <section id="chat__containerWrapper" class="chat__containerWrapper ${this.isFullscreen ? ' has-fullscreen' : ''}">
@@ -909,7 +918,8 @@ export class ChatComponent extends LitElement {
             >
             </chat-stage>`
         : ''}
-        ${this.isFullscreen ? html`<div class="fullscreen-col"><conversation-list fullmode="true"></conversation-list></div>` : ''}            
+        
+        ${this.isFullscreen ? html`<div class="fullscreen-col"><conversation-list selectedconversationid="${this.convoId}" fullmode="true"></conversation-list></div>` : ''}            
 
         <section class="chat__container" id="chat-container"> 
         
