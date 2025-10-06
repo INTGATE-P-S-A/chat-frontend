@@ -8,10 +8,8 @@ import {
   globalConfig as mainConfig,
   teaserListTexts as configTeaserListTexts,
   requestOptions,
-  MAX_CHAT_HISTORY,
 } from '../config/global-config.js';
 import { chatStyle } from '../styles/chat-component.js';
-import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { chatEntryToString, newListWithEntryAtIndex, addIconSheet } from '../utils/index.js';
 
 // TODO: allow host applications to customize these icons
@@ -22,7 +20,6 @@ import iconCancel from '../svg/cancel-icon.svg?raw';
 import iconSend from '../svg/send-icon.svg?raw';
 import iconClose from '../svg/close-icon.svg?raw';
 import iconLogo from '../svg/branding/brand-logo.svg?raw';
-import iconUp from '../svg/chevron-up-icon.svg?raw';
 import megaphoneSvg from '../svg/megaphone.svg?raw';
 import downloadSvg from '../svg/download.svg?raw';
 
@@ -40,7 +37,6 @@ import './chat-action-button.js';
 
 import { type TabContent } from './tab-component.js';
 import { ChatController } from './chat-controller.js';
-import { ChatHistoryController } from './chat-history-controller.js';
 import { parseFullMessage } from '../core/parser/bufferer.js';
 import { parseTool } from '../core/parser/toolsParser.js';
 
@@ -88,9 +84,6 @@ export class ChatComponent extends LitElement {
 
   @property({ type: String, attribute: 'data-custom-config', converter: (value) => JSON.parse(value || '{}') })
   customConfig: Record<string, string> = {};
-
-  @property({ type: Boolean, attribute: 'data-hide-history', converter: (value) => value === 'true' })
-  hideHistory: Boolean = false;
 
   @property({ type: Boolean, attribute: 'data-hide-delete-button', converter: (value) => value === 'true' })
   hideDeleteButton: Boolean = false;
@@ -154,7 +147,6 @@ export class ChatComponent extends LitElement {
   showSettings = false;
 
   private chatController = new ChatController(this);
-  private chatHistoryController = new ChatHistoryController(this);
 
   // Is showing thought process panel
   @state()
@@ -515,13 +507,7 @@ export class ChatComponent extends LitElement {
       return [];
     }
 
-    const history = [
-      ...this.chatThread,
-      // include the history from the previous session if the user has enabled the chat history
-      ...(this.chatHistoryController.showChatHistory ? this.chatHistoryController.chatHistory : []),
-    ];
-
-    const messages: Message[] = history.map((entry) => {
+    const messages: Message[] = this.chatThread.map((entry) => {
       return {
         // Use rawContent for AI responses (non-user messages) to send raw LLM output to backend
         // Use parsed content for user messages since they don't have rawContent
@@ -583,9 +569,7 @@ export class ChatComponent extends LitElement {
       }
     }, 100);
 
-    if (this.interactionModel === 'chat') {
-      this.chatHistoryController.saveChatHistory(this.chatThread);
-    }
+
 
     this.questionInput.value = '';
     this.isResetInput = false;
@@ -627,8 +611,7 @@ export class ChatComponent extends LitElement {
       (chatThreadComponent as any).resetScrollState();
     }
     
-    // clean up the current session content from the history too
-    this.chatHistoryController.saveChatHistory(this.chatThread);
+
     this.collapseAside(event);
     this.handleUserChatCancel(event);
 
@@ -925,25 +908,7 @@ export class ChatComponent extends LitElement {
         
           ${this.isChatStarted
         ? html`
-                <div class="chat__header--thread">                 
-                  ${!this.hideHistory && this.interactionModel === 'chat'
-            ? this.chatHistoryController.renderHistoryButton({ disabled: this.isDisabled })
-            : ''}                 
-                </div>
                 <div class="chat__messages-container">
-                  ${this.chatHistoryController.showChatHistory
-            ? html`<div class="chat-history__container">
-                        ${this.renderChatThread(this.chatHistoryController.chatHistory)}
-                        <div class="chat-history__footer">
-                          ${unsafeSVG(iconUp)}
-                          ${globalConfig.CHAT_HISTORY_FOOTER_TEXT.replace(
-              globalConfig.CHAT_MAX_COUNT_TAG,
-              MAX_CHAT_HISTORY,
-            )}
-                          ${unsafeSVG(iconUp)}
-                        </div>
-                      </div>`
-            : ''}
                   ${this.renderChatThread(this.chatThread)}                  
                   ${!this.chatController.isAwaitingResponse && this.isShowingProgress
             ? html`<progress-bar 
