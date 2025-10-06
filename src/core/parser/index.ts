@@ -188,7 +188,8 @@ export async function parseStreamedMessages({
       try {
         const hoster = (host as any);
         const codeViewer: { stopCodeGeneration: () => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[componentId="' + coderId + '"]');
-        if (codeViewer && typeof codeViewer.stopCodeGeneration === 'function') {
+
+        if (codeViewer && typeof codeViewer.stopCodeGeneration === 'function') {                  
           codeViewer.stopCodeGeneration();
         }
       } catch (e) {

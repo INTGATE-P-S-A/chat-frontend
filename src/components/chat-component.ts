@@ -150,7 +150,7 @@ export class ChatComponent extends LitElement {
 
   // Is showing thought process panel
   @state()
-  showCode: { code: string, id: string, language: string, preview?: boolean } | null = null;
+  showCode: { code: string, id: string, language: string, preview?: boolean, ended?: boolean } | null = null;
 
   @state()
   isDefaultPromptsEnabled: boolean = globalConfig.IS_DEFAULT_PROMPTS_ENABLED && !this.isChatStarted;
@@ -278,6 +278,14 @@ export class ChatComponent extends LitElement {
       this.handleCodeExpandAside(event, theEvent.detail);
     });
 
+    this.addEventListener('code:stream:ended', (event) => {
+      const theEvent: CustomEvent<{componentId: string}> = event as CustomEvent<{chunk: string, componentId: string, language: string}>;             
+
+      if(this.showCode && this.showCode.id === theEvent.detail.componentId){
+        this.showCode = {...this.showCode, preview: this.showCode.language === 'html', ended: true };        
+      }      
+    });
+
     this.addEventListener('fullscreen:disable', () => {
       this.isFullscreen = false;      
     
@@ -307,7 +315,7 @@ export class ChatComponent extends LitElement {
       const theEvent: CustomEvent<{chunk: string, componentId: string}> = event as CustomEvent<{chunk: string, componentId: string, language: string}>;             
 
       if(this.showCode && this.showCode.id === theEvent.detail.componentId){
-        this.showCode = {...this.showCode, code: this.showCode.code + theEvent.detail.chunk };        
+        this.showCode = {...this.showCode, code: this.showCode.code + theEvent.detail.chunk, preview: false };        
       }
     });
 
@@ -664,10 +672,14 @@ export class ChatComponent extends LitElement {
   }
 
   // show thought process aside
-  handleCodeExpandAside(event: Event | undefined = undefined, code: { id: string, code: string, language: string, preview?: boolean } | null = null): void {
-    event?.preventDefault();
+  handleCodeExpandAside(event: Event | undefined = undefined, code: { id: string, code: string, language: string, preview?: boolean, ended? :boolean } | null = null): void {
+    event?.preventDefault();      
 
-    if(this.showCode){
+    if(code){
+      if(this.showCode?.ended){
+        code.ended = true;
+        code.preview = this.showCode.preview;
+      }
       this.showCode = { ...this.showCode, ...code};
     }else{
       this.showCode = code;
@@ -687,8 +699,7 @@ export class ChatComponent extends LitElement {
 
   // hide thought process aside
   collapseAside(event: Event): void {
-    event.preventDefault();
-    this.showCode = null;    
+    event.preventDefault();    
     this.selectedCitation = undefined;
     this.isAsideOpen = false;
   }
@@ -894,6 +905,7 @@ export class ChatComponent extends LitElement {
     >
     </chat-thread-component>`;
   }
+  
 
   // Render the chat component as a web component
   override render() {    
@@ -1056,10 +1068,15 @@ export class ChatComponent extends LitElement {
         : ''}
           </form>` : ''}
         </section>        
-        ${this.showCode?.id
+        ${this.isAsideOpen && this.showCode?.id
         ? html`
               <aside class="aside">
-                <code-screen language="${this.showCode.language}" componentId=${this.showCode.id} .passedContent=${this.showCode.code} .activatePreview="${this.showCode.preview}"></code-screen>
+                <code-screen 
+                  language="${this.showCode.language}" 
+                  componentId=${this.showCode.id} 
+                  .passedContent=${this.showCode.code} 
+                  .activatePreview="${this.showCode.preview}" 
+                  .ended="${this.showCode.ended}"></code-screen>
               </aside>
             `
         : ''}
