@@ -208,6 +208,10 @@ export const chatStyle = css`
     min-width: auto;
     width: auto;
   }
+  #chat__containerWrapper.has-fullscreen.aside-open #chat-container{
+    min-width: 40%;
+    width: 40%;
+  }
   #chat__containerWrapper.has-fullscreen .fullscreen-col{
     display: block;
   }

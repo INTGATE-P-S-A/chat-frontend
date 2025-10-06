@@ -177,10 +177,11 @@ export class ChatComponent extends LitElement {
   @state()
   chatSettings: IChatSettings = DEFAULT_CHAT_SETTINGS;
 
+  @state()
+  isAsideOpen = false;
+
   @property({ type: Number, attribute: 'data-convo-id'})  
   convoId: number | null = null;
-
-  selectedAsideTab: 'tab-thought-process' | 'tab-support-context' | 'tab-citations' = 'tab-thought-process';
 
   // These are the chat bubbles that will be displayed in the chat
   chatThread: ChatThreadEntry[] = [];
@@ -275,6 +276,18 @@ export class ChatComponent extends LitElement {
     this.addEventListener('code:show', (event) => {
       const theEvent: CustomEvent<{code: string, id: string, language: string}> = event as CustomEvent<{code: string, id: string, language: string}>;                   
       this.handleCodeExpandAside(event, theEvent.detail);
+    });
+
+    this.addEventListener('fullscreen:disable', () => {
+      this.isFullscreen = false;      
+    
+      document.exitFullscreen?.();
+
+      this.dispatchEvent(new CustomEvent('fullscreen-change', {
+          detail: { isFullscreen: this.isFullscreen },
+          bubbles: true,
+          composed: true
+      }));
     });
 
     this.addEventListener('code:preview', (event) => {
@@ -456,7 +469,6 @@ export class ChatComponent extends LitElement {
         this.selectedChatEntry = event?.detail?.chatThreadEntry;
       }
       this.handleCodeExpandAside();
-      this.selectedAsideTab = 'tab-citations';
     }
   }
 
@@ -670,9 +682,7 @@ export class ChatComponent extends LitElement {
   }
 
   openAside(){
-    this.selectedAsideTab = 'tab-thought-process';
-    this.shadowRoot?.querySelector('#overlay')?.classList.add('active');
-    this.shadowRoot?.querySelector('#chat__containerWrapper')?.classList.add('aside-open');
+    this.isAsideOpen = true;
   }
 
   // hide thought process aside
@@ -680,8 +690,7 @@ export class ChatComponent extends LitElement {
     event.preventDefault();
     this.showCode = null;    
     this.selectedCitation = undefined;
-    this.shadowRoot?.querySelector('#chat__containerWrapper')?.classList.remove('aside-open');
-    this.shadowRoot?.querySelector('#overlay')?.classList.remove('active');
+    this.isAsideOpen = false;
   }
 
   renderChatOrCancelButton() {
@@ -722,7 +731,6 @@ export class ChatComponent extends LitElement {
           label: globalConfig.CITATIONS_TAB_LABEL,
         },
       ] as TabContent[]}"
-      .selectedTabId="${this.selectedAsideTab}"
     >
       <div slot="tab-thought-process" class="tab-component__content">
         ${entry && entry.thoughts ? html` <p class="tab-component__paragraph">${unsafeHTML(entry.thoughts)}</p> ` : ''}
@@ -891,8 +899,8 @@ export class ChatComponent extends LitElement {
   override render() {
     console.log({  convoId: this.convoId});
     return html`
-      <div id="overlay" class="overlay"></div>
-      <section id="chat__containerWrapper" class="chat__containerWrapper ${this.isFullscreen ? ' has-fullscreen' : ''}">
+      <div id="overlay" class="overlay ${this.isAsideOpen ? 'active' : ''}"></div>
+      <section id="chat__containerWrapper" class="chat__containerWrapper ${this.isFullscreen ? ' has-fullscreen' : ''}${this.isAsideOpen ? ' aside-open' : ''}">
         ${this.isCustomBranding && !this.isChatStarted
         ? html` <chat-stage
               svgIcon="${iconLogo}"
