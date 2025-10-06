@@ -274,7 +274,7 @@ export class ChatComponent extends LitElement {
     });
 
     this.addEventListener('code:show', (event) => {
-      const theEvent: CustomEvent<{code: string, id: string, language: string}> = event as CustomEvent<{code: string, id: string, language: string}>;                   
+      const theEvent: CustomEvent<{code: string, id: string, language: string}> = event as CustomEvent<{code: string, id: string, language: string}>;                         
       this.handleCodeExpandAside(event, theEvent.detail);
     });
 
@@ -664,7 +664,7 @@ export class ChatComponent extends LitElement {
   }
 
   // show thought process aside
-  handleCodeExpandAside(event: Event | undefined = undefined, code: { id: string, code: string, language: string } | null = null): void {
+  handleCodeExpandAside(event: Event | undefined = undefined, code: { id: string, code: string, language: string, preview?: boolean } | null = null): void {
     event?.preventDefault();
 
     if(this.showCode){
@@ -896,8 +896,7 @@ export class ChatComponent extends LitElement {
   }
 
   // Render the chat component as a web component
-  override render() {
-    console.log({  convoId: this.convoId});
+  override render() {    
     return html`
       <div id="overlay" class="overlay ${this.isAsideOpen ? 'active' : ''}"></div>
       <section id="chat__containerWrapper" class="chat__containerWrapper ${this.isFullscreen ? ' has-fullscreen' : ''}${this.isAsideOpen ? ' aside-open' : ''}">
