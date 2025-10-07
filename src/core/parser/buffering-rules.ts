@@ -372,6 +372,7 @@ export class BufferingRuleManager {
   /**
    * Process full text using all rules sequentially in priority order
    * Each rule processes the output from the previous rule
+   * Content inside <code-viewer> tags is protected from further processing
    */
   processFullText(text: string): string {
     let processedText = text;
@@ -379,10 +380,65 @@ export class BufferingRuleManager {
     // Process rules in priority order (lower number = higher priority)
     // Each rule gets the processed content from previous rules
     for (const rule of this.rules) {
-      processedText = rule.processFullText(processedText);
+      if (rule.name === 'code-block') {
+        // Code block rule can process everything
+        processedText = rule.processFullText(processedText);
+      } else {
+        // Other rules should not process content inside <code-viewer> tags
+        processedText = this.processTextWithProtectedContent(processedText, rule);
+      }
     }
     
     return processedText;
+  }
+
+  /**
+   * Process text with a rule while protecting content inside <code-viewer> tags
+   */
+  private processTextWithProtectedContent(text: string, rule: BufferingRule): string {
+    // Find all <code-viewer> tags and their content
+    const codeViewerRegex = /<code-viewer[^>]*>([\s\S]*?)<\/code-viewer>/g;
+    const protectedSections: { start: number; end: number; content: string }[] = [];
+    let match;
+    
+    // Collect all protected sections
+    while ((match = codeViewerRegex.exec(text)) !== null) {
+      protectedSections.push({
+        start: match.index,
+        end: match.index + match[0].length,
+        content: match[0]
+      });
+    }
+    
+    if (protectedSections.length === 0) {
+      // No protected content, process normally
+      return rule.processFullText(text);
+    }
+    
+    // Process text in segments, excluding protected content
+    let result = '';
+    let currentPos = 0;
+    
+    for (const section of protectedSections) {
+      // Process text before this protected section
+      const beforeText = text.substring(currentPos, section.start);
+      if (beforeText) {
+        result += rule.processFullText(beforeText);
+      }
+      
+      // Add the protected section unchanged
+      result += section.content;
+      
+      currentPos = section.end;
+    }
+    
+    // Process any remaining text after the last protected section
+    const remainingText = text.substring(currentPos);
+    if (remainingText) {
+      result += rule.processFullText(remainingText);
+    }
+    
+    return result;
   }
 
   /**
