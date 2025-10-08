@@ -332,7 +332,7 @@ export const chatStyle = css`
     background: transparent;
     color: #212529;
     border: none;
-    padding: 0.5rem 0.75rem;
+    padding: 0.5rem 3.75rem 0.5rem 0.75rem;
     font-size: 1rem;
     font-weight: 400;
     line-height: 0.8;
@@ -591,5 +591,85 @@ export const chatStyle = css`
     cursor: pointer;
     color: var(--alt_blu);
     padding: 5px;
+  }
+    
+  #chat-form .input_container_wrapper .chatbox__file_prompt{
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    box-shadow: none;
+    padding: 5px;
+
+    border-radius: 0.375rem;
+    border: 1px solid var(--chat_border_color, #ced4da);
+    cursor:pointer;
+    color: var(--chat_border_color, #ced4da);    
+  }
+
+  #chat-form .input_container_wrapper .chatbox__file_prompt:hover {
+    color: var(--alt_blu);
+    border-color: var(--alt_blu);
+  }
+
+  #file-prompt-preview {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-direction: row;
+    // border-radius: 0.375rem;
+    // border: 1px solid var(--chat_border_color, #ced4da);
+    // padding: 0.25rem;
+
+    .file-prompt__file {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      border-radius: 0.375rem;
+      border: 1px solid var(--chat_border_color, #ced4da);
+      padding: 0.25rem;
+      width: 120px;
+      
+
+      .file-prompt__header{
+        .file-prompt__file-name {
+        font-size: 0.9rem;
+        }         
+      }
+
+      .file-prompt__img{
+        display: block;
+        width: 100%;
+        height: 85px;
+        border-radius: 0.375rem;
+        border: 1px solid var(--chat_border_color, #ced4da);
+      } 
+        
+      .file-prompt__footer{
+        display: flex;
+        flex-direction: row;
+        gap: 10px;
+        width: 100%;
+        justify-content: space-between;
+
+        .file-prompt__file-size{
+          color: var(--chat_border_color, #ced4da);
+          font-size: 0.85rem;
+        }        
+
+        button.file-prompt__remove-button {
+          background: var(--error_color, #900);
+          color: #FFF;  
+          box-shadow: none;
+          border: none;
+          border-radius: 0.375rem;  
+          cursor: pointer;
+        }
+
+      }
+      
+    }  
   }
 `;

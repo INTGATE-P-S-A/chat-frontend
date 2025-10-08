@@ -12,13 +12,6 @@ import {
 import { chatStyle } from '../styles/chat-component.js';
 import { chatEntryToString, newListWithEntryAtIndex, addIconSheet } from '../utils/index.js';
 
-// TODO: allow host applications to customize these icons
-
-import iconLightBulb from '../svg/lightbulb-icon.svg?raw';
-import iconDelete from '../svg/delete-icon.svg?raw';
-import iconCancel from '../svg/cancel-icon.svg?raw';
-import iconSend from '../svg/send-icon.svg?raw';
-import iconClose from '../svg/close-icon.svg?raw';
 import iconLogo from '../svg/branding/brand-logo.svg?raw';
 import megaphoneSvg from '../svg/megaphone.svg?raw';
 import downloadSvg from '../svg/download.svg?raw';
@@ -904,8 +897,54 @@ export class ChatComponent extends LitElement {
       @on-fullscreen-toggle="${this.handleFullscreenToggle}"
     >
     </chat-thread-component>`;
+}
+
+handleAddFile(){
+
+}
+
+renderFilePrompt(){
+  return html`<button
+      class="chatbox__file_prompt"
+      data-testid="submit-prompt-button"
+      @click="${this.handleAddFile}"
+      title="${globalConfig.CHAT_IMG_PROMPT_LABEL_TEXT}"
+      ?disabled="${this.isDisabled}"
+    >
+      <i class="simple-icon-paper-clip"></i>
+    </button>`;
+}
+
+filePreviewRender(){
+  const fileAdded = true; // Replace with actual file state check
+  const promptFiles = [{
+    name: 'example.pdf',
+    size: '2MB',
+    type: 'application/pdf',
+    base64: 'JVBERi0xLjQKJcfs...'
+  }]; //replace with state based uploaded prmopt files
+  
+  if (!fileAdded || promptFiles.length === 0) {
+    return html``;
   }
   
+  return html`<div id="file-prompt-preview" class="file-prompt-preview">
+    ${promptFiles.map(file => html`
+      <div class="file-prompt__file">
+        <div class="file-prompt__header">
+          <span class="file-prompt__file-name">${file.name}</span>                
+        </div>
+        <img class="file-prompt__img" src="/assets/images/avatar.jpg" />
+        <div class="file-prompt__footer">
+          <span class="file-prompt__file-size">${file.size}</span>
+          <button class="file-prompt__remove-button" @click="${() => { /* Handle file removal */ }}">
+            <i class="simple-icon-close"></i>
+          </button>
+        </div>
+      </div>
+    `)}
+  </div>`;
+}
 
   // Render the chat component as a web component
   override render() {    
@@ -975,6 +1014,7 @@ export class ChatComponent extends LitElement {
             id="chat-form"
             class="form__container ${this.inputPosition === 'sticky' ? 'form__container-sticky' : ''}"
           >
+            ${this.filePreviewRender()}
             <div class="chatbox__container">
               <div class="chatbox__input-container">
                 <div class="input_container_wrapper">
@@ -990,6 +1030,7 @@ export class ChatComponent extends LitElement {
                     autocomplete="off"
                     @keyup="${this.handleOnInputChange}"
                   ></textarea>
+                  ${this.renderFilePrompt()}
                   ${this.chatController.isAwaitingResponse
                   ? html`<loading-indicator label="${globalConfig.LOADING_INDICATOR_TEXT}"></loading-indicator>` : ''}                  
                 </div>
