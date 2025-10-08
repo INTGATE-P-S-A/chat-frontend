@@ -116,6 +116,46 @@ export class ChatController implements ReactiveController {
     webSocketManager.configure(websocketEvents);
   }
 
+  private extractTextFromMultimodalContent(content: any): string {
+    if (typeof content === 'string') {
+      return content;
+    }
+    
+    if (Array.isArray(content)) {
+      const textParts = content
+        .filter(item => item.type === 'text' && item.text)
+        .map(item => item.text);
+      return textParts.join(' ');
+    }
+    
+    return '';
+  }
+
+  private extractFilesFromMultimodalContent(content: any): MessageFile[] {
+    if (!Array.isArray(content)) {
+      return [];
+    }
+    
+    const files: MessageFile[] = [];
+    content.forEach((item, index) => {
+      if (item.type === 'image' && item.image) {
+        // Extract data from image data URI
+        const dataUri = item.image;
+        const mimeTypeMatch = dataUri.match(/^data:([^;]+);base64,/);
+        const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
+        
+        files.push({
+          name: `image_${index + 1}.${mimeType.split('/')[1]}`,
+          type: mimeType,
+          size: '0', // We don't have size info from data URI
+          base64: dataUri
+        });
+      }
+    });
+    
+    return files;
+  }
+
   hostConnected() {
     // no-op
   }
@@ -208,7 +248,7 @@ export class ChatController implements ReactiveController {
     });
   }
 
-  async processResponse(response: string | BotResponse, isUserMessage: boolean = false, useStream: boolean = false, overrides?: RequestOverrides) {
+  async processResponse(response: string | BotResponse, isUserMessage: boolean = false, useStream: boolean = false, overrides?: RequestOverrides, files?: MessageFile[]) {
     const timestamp = getTimestamp();
     const citations: Citation[] = [];
     let followupQuestions: string[] = [];
@@ -240,6 +280,8 @@ export class ChatController implements ReactiveController {
           dataPoints: undefined,
           rawContent: '', // Will be populated by the parser
           model: !isUserMessage && effectiveOverrides?.selectedModel ? effectiveOverrides.selectedModel.model.value : undefined,
+          // Add files if this is a user message and files are provided (though streaming is typically for AI responses)
+          ...(isUserMessage && files && files.length > 0 ? { files } : {}),
         };
 
         this.isProcessingResponse = true;
@@ -284,6 +326,8 @@ export class ChatController implements ReactiveController {
           // For AI responses in non-streaming mode, we don't have true rawContent, so use the message
           rawContent: isUserMessage ? (message as string) : (message as string),
           model: !isUserMessage && effectiveOverrides?.selectedModel ? effectiveOverrides.selectedModel : undefined,
+          // Add files if this is a user message and files are provided
+          ...(isUserMessage && files && files.length > 0 ? { files } : {}),
         };
       }
     };
@@ -297,7 +341,13 @@ export class ChatController implements ReactiveController {
     } else {
       // non-streamed response
       const generatedResponse = (response as BotResponse).choices[0].message;
-      const processedText = processText(generatedResponse.content, [citations, followingSteps, followupQuestions]);
+      
+      // Handle both string and multimodal content
+      const contentText = typeof generatedResponse.content === 'string' 
+        ? generatedResponse.content 
+        : generatedResponse.content.map(c => c.text || '').join(' ');
+        
+      const processedText = processText(contentText, [citations, followingSteps, followupQuestions]);
       const messageToUpdate = processedText.replacedText;
       // Push all lists coming from processText to the corresponding arrays
       citations.push(...(processedText.arrays[0] as unknown as Citation[]));
@@ -311,9 +361,20 @@ export class ChatController implements ReactiveController {
   }
 
   async generateAnswer(requestOptions: ChatRequestOptions, httpOptions: ChatHttpOptions, useWebSocket?: boolean, websocketUrl?: string) {
-    const { question } = requestOptions;
+    const { question, messages, files } = requestOptions;
 
-    if (question) {
+    // Check if we have a question or messages with files or files in request options
+    const hasFiles = (files && files.length > 0) || messages?.some(msg => msg.files && msg.files.length > 0);
+    
+    // Check if the last message in the messages array is a user message with multimodal content
+    const hasMultimodalContent = messages && messages.length > 0 && 
+      messages[messages.length - 1]?.role === 'user' && 
+      Array.isArray(messages[messages.length - 1]?.content);
+
+    // Check if we have a complete message array (not just legacy question/files)
+    const hasCompleteMessages = messages && messages.length > 0;
+
+    if (question || hasFiles || hasMultimodalContent || hasCompleteMessages) {
       try {
         // Store current request options for use in processResponse
         this._currentRequestOptions = requestOptions;
@@ -323,9 +384,22 @@ export class ChatController implements ReactiveController {
         // Create a new AbortController for this request
         this._abortController = new AbortController();
 
-        // for chat messages, process user question as a chat entry
-        if (requestOptions.type === 'chat') {
-          await this.processResponse(question, true, false, requestOptions.overrides);
+        // Only create a user message entry if we're using the legacy format (question/files without complete messages)
+        if (requestOptions.type === 'chat' && !hasCompleteMessages) {
+          if (question) {
+            await this.processResponse(question, true, false, requestOptions.overrides, files);
+          } else if (hasFiles) {
+            // For files without text, create a placeholder message
+            await this.processResponse('[File attachment]', true, false, requestOptions.overrides, files);
+          }
+        } else if (requestOptions.type === 'chat' && hasCompleteMessages) {
+          // For complete messages array, create a user message entry from the last message for chat thread display
+          const lastMessage = messages[messages.length - 1];
+          if (lastMessage.role === 'user') {
+            const messageText = this.extractTextFromMultimodalContent(lastMessage.content);
+            const messageFiles = this.extractFilesFromMultimodalContent(lastMessage.content);
+            await this.processResponse(messageText || '[Multimodal message]', true, false, requestOptions.overrides, messageFiles);
+          }
         }
 
         this.isAwaitingResponse = true;

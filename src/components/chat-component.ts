@@ -173,6 +173,9 @@ export class ChatComponent extends LitElement {
   @state()
   isAsideOpen = false;
 
+  @state()
+  promptFiles: MessageFile[] = [];
+
   @property({ type: Number, attribute: 'data-convo-id'})  
   convoId: number | null = null;
 
@@ -405,7 +408,10 @@ export class ChatComponent extends LitElement {
     this.isDefaultPromptsEnabled = true;
     this.liveChatOn = false;
     this.showControls = true;
-    this.showCode = null;    
+    this.showCode = null;
+    
+    // Clear uploaded files
+    this.promptFiles = [];
 
     
     this.resetCurrentChat(new Event('clear-chat'), true);
@@ -521,12 +527,19 @@ export class ChatComponent extends LitElement {
     }
 
     const messages: Message[] = this.chatThread.map((entry) => {
-      return {
+      const message: Message = {
         // Use rawContent for AI responses (non-user messages) to send raw LLM output to backend
         // Use parsed content for user messages since they don't have rawContent
         content: entry.isUserMessage ? chatEntryToString(entry) : (entry.rawContent || chatEntryToString(entry)),
         role: entry.isUserMessage ? 'user' : 'assistant',
       };
+
+      // Add files if they exist on the entry
+      if (entry.files && entry.files.length > 0) {
+        message.files = entry.files;
+      }
+
+      return message;
     });
 
     return messages;
@@ -547,6 +560,62 @@ export class ChatComponent extends LitElement {
     this.isChatStarted = true;
     this.isDefaultPromptsEnabled = false;
 
+    // Prepare the current message context
+    const currentMessages = this.getMessageContext();
+
+    let uploadedFiles: any[] = [];
+
+    // Upload files to backend if any
+    if (this.promptFiles.length > 0) {
+      try {
+        const uploadResponse = await this.uploadFiles(this.promptFiles);
+        if (uploadResponse.success) {
+          uploadedFiles = uploadResponse.files;
+        }
+      } catch (error) {
+        console.error('Error uploading files:', error);
+        // Continue with original base64 approach as fallback
+      }
+    }
+
+    // Build the new user message with multimodal content if files are present
+    let userMessage: Message;
+    if (this.promptFiles.length > 0) {
+      // Create multimodal content array
+      const contentArray: any[] = [];
+      
+      // Add text content if we have a question
+      if (question.trim()) {
+        contentArray.push({
+          type: 'text',
+          text: question
+        });
+      }
+      
+      // Add image content for each file
+      for (const file of this.promptFiles) {
+        contentArray.push({
+          type: 'image',
+          image: file.base64 // This should already be in data URI format
+        });
+      }
+      
+      userMessage = {
+        content: contentArray,
+        role: 'user',
+        files: uploadedFiles.length > 0 ? uploadedFiles : this.promptFiles // Include uploaded files or fallback to original format
+      };
+    } else {
+      // Simple text message
+      userMessage = {
+        content: question,
+        role: 'user'
+      };
+    }
+
+    // Add the new message to the context
+    const messagesWithNewInput = [...currentMessages, userMessage];
+
     await this.chatController.generateAnswer(
       {
         ...requestOptions,
@@ -555,9 +624,9 @@ export class ChatComponent extends LitElement {
           ...this.overrides,
           chatSettings: this.chatSettings
         },
-        question,
+        question: this.promptFiles.length > 0 ? '' : question, // Clear question when using multimodal format
         type: this.interactionModel,
-        messages: this.getMessageContext(),
+        messages: messagesWithNewInput,
         useWebSearch: this.useWebSearch,
         useDeepSearch: this.useDeepSearch,
       },
@@ -582,10 +651,12 @@ export class ChatComponent extends LitElement {
       }
     }, 100);
 
-
-
+    // Clear the form
     this.questionInput.value = '';
     this.isResetInput = false;
+    
+    // Clear uploaded files after sending
+    this.promptFiles = [];
   }
 
   // Reset the input field and the current question
@@ -612,6 +683,9 @@ export class ChatComponent extends LitElement {
     this.isDefaultPromptsEnabled = true;
     this.selectedCitation = undefined;
     this.chatController.reset();
+    
+    // Clear uploaded files
+    this.promptFiles = [];
     
     // Clear all reasoning when resetting chat
     const chatThreadComponent = this.renderRoot?.querySelector('chat-thread-component');
@@ -899,14 +973,116 @@ export class ChatComponent extends LitElement {
     </chat-thread-component>`;
 }
 
-handleAddFile(){
+handleAddFile(event?: Event){
+  // Prevent form submission
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  
+  // Create a file input element
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'image/*,.pdf,.doc,.docx,.txt,.md';
+  fileInput.multiple = true;
+  
+  // Handle file selection
+  fileInput.addEventListener('change', async (event) => {
+    const target = event.target as HTMLInputElement;
+    const files = target.files;
+    
+    if (!files || files.length === 0) return;
+    
+    for (const file of files) {
+      try {
+        // Convert file to base64
+        const base64 = await this.fileToBase64(file);
+        
+        // Create file object
+        const fileObject = {
+          name: file.name,
+          size: this.formatFileSize(file.size),
+          type: file.type,
+          base64: base64
+        };
+        
+        // Add to promptFiles array
+        this.promptFiles = [...this.promptFiles, fileObject];
+        
+      } catch (error) {
+        console.error('Error processing file:', error);
+      }
+    }
+  });
+  
+  // Trigger the file picker
+  fileInput.click();
+}
 
+private fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        // Remove the data URL prefix to get just the base64 string
+        const base64 = reader.result.split(',')[1];
+        resolve(base64);
+      } else {
+        reject(new Error('Failed to read file as base64'));
+      }
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+private formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 Bytes';
+  
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+removeFile(index: number): void {
+  this.promptFiles = this.promptFiles.filter((_, i) => i !== index);
+}
+
+async uploadFiles(files: MessageFile[]): Promise<{ success: boolean; files: any[] }> {
+  try {
+    const fileData = files.map(file => ({
+      name: file.name,
+      type: file.type,
+      base64: file.base64
+    }));
+
+    const response = await fetch(`${this.apiUrl}/upload-file`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.customHeaders
+      },
+      body: JSON.stringify({ files: fileData })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Upload failed: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error uploading files:', error);
+    return { success: false, files: [] };
+  }
 }
 
 renderFilePrompt(){
   return html`<button
       class="chatbox__file_prompt"
       data-testid="submit-prompt-button"
+      type="button"
       @click="${this.handleAddFile}"
       title="${globalConfig.CHAT_IMG_PROMPT_LABEL_TEXT}"
       ?disabled="${this.isDisabled}"
@@ -916,28 +1092,23 @@ renderFilePrompt(){
 }
 
 filePreviewRender(){
-  const fileAdded = true; // Replace with actual file state check
-  const promptFiles = [{
-    name: 'example.pdf',
-    size: '2MB',
-    type: 'application/pdf',
-    base64: 'JVBERi0xLjQKJcfs...'
-  }]; //replace with state based uploaded prmopt files
-  
-  if (!fileAdded || promptFiles.length === 0) {
+  if (!this.promptFiles || this.promptFiles.length === 0) {
     return html``;
   }
   
   return html`<div id="file-prompt-preview" class="file-prompt-preview">
-    ${promptFiles.map(file => html`
-      <div class="file-prompt__file">
-        <div class="file-prompt__header">
-          <span class="file-prompt__file-name">${file.name}</span>                
-        </div>
-        <img class="file-prompt__img" src="/assets/images/avatar.jpg" />
+    ${this.promptFiles.map((file, index) => html`
+      <div class="file-prompt__file">      
+        ${file.type.startsWith('image/') 
+          ? html`<img class="file-prompt__img" src="data:${file.type};base64,${file.base64}" alt="${file.name}" />`
+          : html`<div class="file-prompt__img file-prompt__file-icon">
+              <i class="simple-icon-doc"></i>
+              <span>${file.type.split('/')[1]?.toUpperCase() || 'FILE'}</span>
+            </div>`
+        }
         <div class="file-prompt__footer">
           <span class="file-prompt__file-size">${file.size}</span>
-          <button class="file-prompt__remove-button" @click="${() => { /* Handle file removal */ }}">
+          <button class="file-prompt__remove-button" type="button" @click="${() => this.removeFile(index)}">
             <i class="simple-icon-close"></i>
           </button>
         </div>

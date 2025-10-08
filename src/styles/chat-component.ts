@@ -618,10 +618,7 @@ export const chatStyle = css`
     align-items: center;
     gap: 10px;
     margin-bottom: 10px;
-    flex-direction: row;
-    // border-radius: 0.375rem;
-    // border: 1px solid var(--chat_border_color, #ced4da);
-    // padding: 0.25rem;
+    flex-direction: row; 
 
     .file-prompt__file {
       display: flex;
@@ -635,7 +632,7 @@ export const chatStyle = css`
 
       .file-prompt__header{
         .file-prompt__file-name {
-        font-size: 0.9rem;
+        font-size: 0.75rem;
         }         
       }
 
@@ -646,6 +643,26 @@ export const chatStyle = css`
         border-radius: 0.375rem;
         border: 1px solid var(--chat_border_color, #ced4da);
       } 
+
+      .file-prompt__file-icon {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: var(--background_color, #f8f9fa);
+        
+        i {
+          font-size: 1.5rem;
+          color: var(--chat_border_color, #ced4da);
+          margin-bottom: 0.25rem;
+        }
+        
+        span {
+          font-size: 0.6rem;
+          color: var(--chat_border_color, #ced4da);
+          font-weight: bold;
+        }
+      }
         
       .file-prompt__footer{
         display: flex;

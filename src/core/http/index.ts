@@ -1,7 +1,7 @@
 import { ChatResponseError } from '../../utils/index.js';
 
 export async function callHttpApi(
-  { question, type, approach, overrides, messages }: ChatRequestOptions,
+  { question, type, approach, overrides, messages, files }: ChatRequestOptions,
   { method, url, stream, signal, headers = {} }: ChatHttpOptions,
 ) {
   const defaultHeaders = {
@@ -13,18 +13,57 @@ export async function callHttpApi(
     ...headers,
   };
 
+  // Use messages as-is if provided, otherwise create a user message from question/files (legacy support)
+  let requestMessages = messages ?? [];
+  
+  // Only create a user message if we have question/files but no messages (legacy support)
+  if ((question || files) && (!messages || messages.length === 0)) {
+    const userMessage: any = {
+      role: 'user',
+    };
+
+    // Build content array for multimodal format
+    const contentArray: any[] = [];
+    
+    // Add text content if it exists
+    if (question && question.trim()) {
+      contentArray.push({
+        type: 'text',
+        text: question
+      });
+    }
+
+    // Add files as image entries if they exist
+    if (files && files.length > 0) {
+      files.forEach(file => {
+        contentArray.push({
+          type: 'image',
+          image: `data:${file.type};base64,${file.base64}`
+        });
+      });
+    }
+
+    // Set content based on whether we have multimodal content
+    if (contentArray.length > 1 || (contentArray.length === 1 && contentArray[0].type !== 'text')) {
+      // Use array format for multimodal content
+      userMessage.content = contentArray;
+    } else if (contentArray.length === 1 && contentArray[0].type === 'text') {
+      // Use simple string format for text-only content
+      userMessage.content = contentArray[0].text;
+    } else {
+      // Fallback to empty string
+      userMessage.content = '';
+    }
+    
+    requestMessages = [userMessage];
+  }
+
   return await fetch(`${url}/${type}`, {
     method: method,
     headers: mergedHeaders,
     signal,
     body: JSON.stringify({
-      messages: [
-        ...(messages ?? []),
-        {
-          content: question,
-          role: 'user',
-        },
-      ],
+      messages: requestMessages,
       context: {
         ...overrides,
         approach,

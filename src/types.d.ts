@@ -30,6 +30,7 @@ declare interface ChatThreadEntry {
   cost?: IPromptCost;
   costs?: IPromptCost[]; // Add costs array to support backend format
   model?: string; // Add model property to store which AI model was used
+  files?: MessageFile[]; // Add files property for file attachments
 }
 
 declare interface Citation {
@@ -48,6 +49,7 @@ declare interface ChatRequestOptions {
   type: string;
   question: string;
   messages?: Message[];
+  files?: MessageFile[];
 }
 
 declare interface RequestOverrides {
@@ -76,9 +78,23 @@ declare interface RequestOverrides {
 
 declare type MessageRole = 'system' | 'user' | 'assistant' | 'function';
 
+declare interface MessageContent {
+  type: 'text' | 'image';
+  text?: string;
+  image?: string;
+}
+
+declare interface MessageFile {
+  name: string; 
+  size: string; 
+  type: string; 
+  base64: string
+}
+
 declare interface Message {
   role: MessageRole;
-  content: string;
+  content: string | MessageContent[];
+  files?: MessageFile[];
 }
 
 declare interface BotResponse {
