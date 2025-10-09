@@ -390,6 +390,31 @@ export class ChatThreadComponent extends LitElement {
     return html`<div class="chat_txt--entry-container">${entries}</div>`;
   }
 
+  renderFiles(entry: ChatThreadEntry) {
+    if (!entry.files || entry.files.length === 0) {
+      return '';
+    }
+
+    const imageFiles = entry.files.filter(file => file.type.startsWith('image/'));
+    
+    if (imageFiles.length === 0) {
+      return '';
+    }
+
+    return html`
+      <div class="chat__files">
+        ${imageFiles.map(file => html`
+          <div class="file-item">
+            <gen-image 
+              tmp="${file.tmp || false}"
+              imageFormat="${file.type.split('/')[1] || 'png'}"
+            >${file.base64}</gen-image>
+          </div>
+        `)}
+      </div>
+    `;
+  }
+
   renderCitation(entry: ChatThreadEntry) {
     const citations = entry.citations;
     if (citations && citations.length > 0) {
@@ -564,7 +589,8 @@ export class ChatThreadComponent extends LitElement {
                   <div class="message-content">
                     <div class="chat__txt ${message.isUserMessage ? 'user-message' : ''}">
                       ${!message.isUserMessage ? this.renderReasoningViewer(index) : ''}
-                      ${message.text.map((textEntry) => this.renderTextEntry(textEntry))} 
+                      ${message.text.map((textEntry) => this.renderTextEntry(textEntry))}
+                      ${this.renderFiles(message)}
                       ${this.renderCitation(message)}
                       ${this.renderFollowupQuestions(message)} 
                       ${message.error ? this.renderError(message.error) : ''}

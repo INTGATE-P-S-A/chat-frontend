@@ -248,7 +248,7 @@ export class ChatController implements ReactiveController {
     });
   }
 
-  async processResponse(response: string | BotResponse, isUserMessage: boolean = false, useStream: boolean = false, overrides?: RequestOverrides, files?: MessageFile[]) {
+  async processResponse(response: string | BotResponse | Response, isUserMessage: boolean = false, useStream: boolean = false, overrides?: RequestOverrides, files?: MessageFile[]) {
     const timestamp = getTimestamp();
     const citations: Citation[] = [];
     let followupQuestions: string[] = [];
@@ -260,28 +260,44 @@ export class ChatController implements ReactiveController {
     const effectiveOverrides = overrides || this._currentRequestOptions?.overrides;
             
 
-    const updateChatWithMessageOrChunk = async (message: string | BotResponse, chunked: boolean) => {
+    const updateChatWithMessageOrChunk = async (message: string | BotResponse | Response, chunked: boolean) => {
       console.log({mod: effectiveOverrides?.selectedModel});
       if (chunked) {
         // Always create a new AI message for each response
+        let messageValue: string;
+        let messageFiles = files;
+        
+        // Handle different message types
+        if (isUserMessage) {
+          // For user messages, use message text as-is (no gen-image extraction)
+          messageValue = message as string;
+          
+          // Mark provided files as temporary for newly sent messages
+          messageFiles = (files || []).map(file => ({ ...file, tmp: true }));
+        } else {
+          // For AI responses in streaming mode, start with empty content
+          // The actual content will be populated by the streaming parser
+          messageValue = '';
+        }
+        
         const initialEntry: ChatThreadEntry = {
           id: crypto.randomUUID(),
           text: [
             {
-              value: '',
+              value: messageValue,
               followingSteps: [],
             },
           ],
           followupQuestions: [],
           citations: [],
           timestamp: timestamp,
-          isUserMessage: false,
+          isUserMessage: isUserMessage,
           thoughts: undefined,
           dataPoints: undefined,
-          rawContent: '', // Will be populated by the parser
+          rawContent: messageValue, // Will be populated by the parser for AI responses
           model: !isUserMessage && effectiveOverrides?.selectedModel ? effectiveOverrides.selectedModel.model.value : undefined,
           // Add files if this is a user message and files are provided (though streaming is typically for AI responses)
-          ...(isUserMessage && files && files.length > 0 ? { files } : {}),
+          ...(isUserMessage && messageFiles && messageFiles.length > 0 ? { files: messageFiles } : {}),
         };
 
         this.isProcessingResponse = true;
@@ -308,11 +324,25 @@ export class ChatController implements ReactiveController {
         this.clear();
       } else {
         // For non-streaming, create the message normally
+        let messageValue: string;
+        let messageFiles = files;
+        
+        if (isUserMessage) {
+          // For user messages, use message text as-is (no gen-image extraction)
+          messageValue = message as string;
+          
+          // Mark provided files as temporary for newly sent messages
+          messageFiles = (files || []).map(file => ({ ...file, tmp: true }));
+        } else {
+          // For AI responses, use the message as-is
+          messageValue = message as string;
+        }
+        
         this.processingMessage = {
           id: crypto.randomUUID(),
           text: [
             {
-              value: (message as string),
+              value: messageValue,
               followingSteps,
             },
           ],
@@ -324,10 +354,10 @@ export class ChatController implements ReactiveController {
           dataPoints,
           // For user messages, rawContent is the same as the message content
           // For AI responses in non-streaming mode, we don't have true rawContent, so use the message
-          rawContent: isUserMessage ? (message as string) : (message as string),
+          rawContent: isUserMessage ? messageValue : (message as string),
           model: !isUserMessage && effectiveOverrides?.selectedModel ? effectiveOverrides.selectedModel : undefined,
           // Add files if this is a user message and files are provided
-          ...(isUserMessage && files && files.length > 0 ? { files } : {}),
+          ...(isUserMessage && messageFiles && messageFiles.length > 0 ? { files: messageFiles } : {}),
         };
       }
     };
@@ -398,7 +428,7 @@ export class ChatController implements ReactiveController {
           if (lastMessage.role === 'user') {
             const messageText = this.extractTextFromMultimodalContent(lastMessage.content);
             const messageFiles = this.extractFilesFromMultimodalContent(lastMessage.content);
-            await this.processResponse(messageText || '[Multimodal message]', true, false, requestOptions.overrides, messageFiles);
+            await this.processResponse(messageText || '', true, false, requestOptions.overrides, messageFiles);
           }
         }
 

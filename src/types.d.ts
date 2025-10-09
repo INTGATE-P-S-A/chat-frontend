@@ -88,7 +88,8 @@ declare interface MessageFile {
   name: string; 
   size: string; 
   type: string; 
-  base64: string
+  base64: string;
+  tmp?: boolean; // Indicates if this is a temporary file (newly sent) vs a regular file reference
 }
 
 declare interface Message {
