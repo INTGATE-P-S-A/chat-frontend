@@ -64,6 +64,17 @@ export const styles = css`
     border-bottom-left-radius: 0.25rem;
     padding: 0.75rem 1rem;
     max-width: 100%;
+
+    .chat__files {
+      display: flex;
+      flex-direction: row;
+      gap: 10px;
+      margin-bottom: 10px;
+
+      .file-item{
+        max-width: 230px;
+      }
+    }
   }
   
   .message-content {

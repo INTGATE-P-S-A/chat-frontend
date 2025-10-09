@@ -403,14 +403,29 @@ export class ChatThreadComponent extends LitElement {
 
     return html`
       <div class="chat__files">
-        ${imageFiles.map(file => html`
-          <div class="file-item">
-            <gen-image 
-              tmp="${file.tmp || false}"
-              imageFormat="${file.type.split('/')[1] || 'png'}"
-            >${file.base64}</gen-image>
-          </div>
-        `)}
+        ${imageFiles.map(file => {
+          if (file.tmp) {
+            // For temporary files (newly sent), use base64 content
+            return html`
+              <div class="file-item">
+                <gen-image 
+                  tmp="true"
+                  imageFormat="${file.type.split('/')[1] || 'png'}"
+                >${file.base64}</gen-image>
+              </div>
+            `;
+          } else {
+            // For persisted files (from data-initial-messages), use fileId
+            return html`
+              <div class="file-item">
+                <gen-image 
+                  fileId="${(file as any).id}"
+                  imageFormat="${file.type.split('/')[1] || 'png'}"
+                ></gen-image>
+              </div>
+            `;
+          }
+        })}
       </div>
     `;
   }
@@ -589,8 +604,8 @@ export class ChatThreadComponent extends LitElement {
                   <div class="message-content">
                     <div class="chat__txt ${message.isUserMessage ? 'user-message' : ''}">
                       ${!message.isUserMessage ? this.renderReasoningViewer(index) : ''}
-                      ${message.text.map((textEntry) => this.renderTextEntry(textEntry))}
                       ${this.renderFiles(message)}
+                      ${message.text.map((textEntry) => this.renderTextEntry(textEntry))}                      
                       ${this.renderCitation(message)}
                       ${this.renderFollowupQuestions(message)} 
                       ${message.error ? this.renderError(message.error) : ''}
