@@ -9,6 +9,21 @@ function getCodeViewer(host: ReactiveControllerHost, coderId: string): { updateR
   return hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[componentId="' + coderId + '"]');
 }
 
+// Helper function to extract text content from either string or MessageContent[]
+function extractTextContent(content: string | MessageContent[]): string {
+  if (typeof content === 'string') {
+    return content;
+  }
+  
+  if (Array.isArray(content)) {
+    // Find the first text content in the array
+    const textContent = content.find(item => item.type === 'text');
+    return textContent?.text || '';
+  }
+  
+  return '';
+}
+
 export async function parseStreamedMessages({
   chatEntry,
   apiResponseBody,
@@ -153,7 +168,7 @@ export async function parseStreamedMessages({
       updatedEntry.thoughts = context.thoughts ?? '';
       continue;
     }
-    let chunkValue = content ?? '';
+    let chunkValue = extractTextContent(content ?? '');
 
     if (chunkValue === '') {
       continue;

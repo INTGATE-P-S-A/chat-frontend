@@ -306,7 +306,7 @@ export class ChatController implements ReactiveController {
 
         // Set the processing message immediately so reasoning can attach to it
         this.processingMessage = initialEntry;
-        console.log({initialEntry});
+        
         await parseStreamedMessages({
           chatEntry: initialEntry,
           signal: this._abortController.signal,

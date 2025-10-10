@@ -33,13 +33,20 @@ import { ChatController } from './chat-controller.js';
 import { parseFullMessage } from '../core/parser/bufferer.js';
 import { parseTool } from '../core/parser/toolsParser.js';
 
+// File size limits
+
+const MB = 1024 * 1024;
+
+const MAX_FILE_SIZE = 2 * MB; // 2MB per file
+const MAX_TOTAL_SIZE = 5 * MB; // 5MB total
+
 let teaserListTexts = configTeaserListTexts;
 let globalConfig = mainConfig;
 
 const DEFAULT_CHAT_SETTINGS: IChatSettings = {
-    imageModel: 'stableDiffusionXL',
-    videoModel: null,
-    voice: null
+  imageModel: 'stableDiffusionXL',
+  videoModel: null,
+  voice: null
 }
 
 @customElement('chat-component')
@@ -176,7 +183,7 @@ export class ChatComponent extends LitElement {
   @state()
   promptFiles: MessageFile[] = [];
 
-  @property({ type: Number, attribute: 'data-convo-id'})  
+  @property({ type: Number, attribute: 'data-convo-id' })
   convoId: number | null = null;
 
   // These are the chat bubbles that will be displayed in the chat
@@ -215,7 +222,7 @@ export class ChatComponent extends LitElement {
           i++;
         }
 
-        if(message.thoughts){
+        if (message.thoughts) {
           message.thoughts = parseFullMessage(message.thoughts);
         }
 
@@ -249,7 +256,7 @@ export class ChatComponent extends LitElement {
     await addIconSheet.bind(this)();
 
     // Set up reasoning callback for chat controller
-    this.chatController.setReasoningCallback((_reasoningId: string, step: string) => {       
+    this.chatController.setReasoningCallback((_reasoningId: string, step: string) => {
       // Add reasoning directly to the processing message in the controller
       this.chatController.addReasoningToProcessingMessage(step);
     });
@@ -270,74 +277,74 @@ export class ChatComponent extends LitElement {
     });
 
     this.addEventListener('code:show', (event) => {
-      const theEvent: CustomEvent<{code: string, id: string, language: string}> = event as CustomEvent<{code: string, id: string, language: string}>;                         
+      const theEvent: CustomEvent<{ code: string, id: string, language: string }> = event as CustomEvent<{ code: string, id: string, language: string }>;
       this.handleCodeExpandAside(event, theEvent.detail);
     });
 
     this.addEventListener('code:stream:ended', (event) => {
-      const theEvent: CustomEvent<{componentId: string}> = event as CustomEvent<{chunk: string, componentId: string, language: string}>;             
+      const theEvent: CustomEvent<{ componentId: string }> = event as CustomEvent<{ chunk: string, componentId: string, language: string }>;
 
-      if(this.showCode && this.showCode.id === theEvent.detail.componentId){
-        this.showCode = {...this.showCode, preview: this.showCode.language === 'html', ended: true };        
-      }      
+      if (this.showCode && this.showCode.id === theEvent.detail.componentId) {
+        this.showCode = { ...this.showCode, preview: this.showCode.language === 'html', ended: true };
+      }
     });
 
     this.addEventListener('fullscreen:disable', () => {
-      this.isFullscreen = false;      
-    
+      this.isFullscreen = false;
+
       document.exitFullscreen?.();
 
       this.dispatchEvent(new CustomEvent('fullscreen-change', {
-          detail: { isFullscreen: this.isFullscreen },
-          bubbles: true,
-          composed: true
+        detail: { isFullscreen: this.isFullscreen },
+        bubbles: true,
+        composed: true
       }));
     });
 
     this.addEventListener('code:preview', (event) => {
-      const theEvent: CustomEvent<{codeId: string}> = event as CustomEvent<{codeId: string}>;             
+      const theEvent: CustomEvent<{ codeId: string }> = event as CustomEvent<{ codeId: string }>;
 
-      if(this.showCode && this.showCode.id === theEvent.detail.codeId){
-        this.showCode = this.showCode ? {...this.showCode, preview: true} : null;        
-      }      
-    }); 
+      if (this.showCode && this.showCode.id === theEvent.detail.codeId) {
+        this.showCode = this.showCode ? { ...this.showCode, preview: true } : null;
+      }
+    });
 
     this.addEventListener('chat:conversation:start', (event) => {
-      const theEvent: CustomEvent<{conversationId: string}> = event as CustomEvent<{conversationId: string}>;                   
+      const theEvent: CustomEvent<{ conversationId: string }> = event as CustomEvent<{ conversationId: string }>;
       this.convoId = Number(theEvent?.detail?.conversationId || null);
     });
 
     this.addEventListener('code:update', (event) => {
-      const theEvent: CustomEvent<{chunk: string, componentId: string}> = event as CustomEvent<{chunk: string, componentId: string, language: string}>;             
+      const theEvent: CustomEvent<{ chunk: string, componentId: string }> = event as CustomEvent<{ chunk: string, componentId: string, language: string }>;
 
-      if(this.showCode && this.showCode.id === theEvent.detail.componentId){
-        this.showCode = {...this.showCode, code: this.showCode.code + theEvent.detail.chunk, preview: false };        
+      if (this.showCode && this.showCode.id === theEvent.detail.componentId) {
+        this.showCode = { ...this.showCode, code: this.showCode.code + theEvent.detail.chunk, preview: false };
       }
     });
 
     this.addEventListener('code:close', (event) => {
-       this.collapseAside(event);      
-    });    
+      this.collapseAside(event);
+    });
 
-    this.addEventListener('chat_settings:submit', (e: Event) =>{
+    this.addEventListener('chat_settings:submit', (e: Event) => {
       const theEvent = e as CustomEvent<IChatSettings>;
 
       this.chatSettings = theEvent.detail;
     });
 
-    this.addEventListener('voice-chat:conversation-end', (e: Event) =>{
+    this.addEventListener('voice-chat:conversation-end', (e: Event) => {
       this.liveChatOn = false;
       this.showControls = true;
       this.initialMessages = [];
     });
 
-    this.addEventListener('chat_settings:close', (e: Event) =>{      
+    this.addEventListener('chat_settings:close', (e: Event) => {
       this.collapseAside(e);
     });
 
     const savedChatSettings = localStorage.getItem('ai.chatSettings');
 
-    if(savedChatSettings){
+    if (savedChatSettings) {
       this.chatSettings = JSON.parse(savedChatSettings);
     }
 
@@ -354,12 +361,12 @@ export class ChatComponent extends LitElement {
       bubbles: true,
       composed: true
     });
-    this.dispatchEvent(ev);    
+    this.dispatchEvent(ev);
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
-    
+
     // Remove fullscreen event listeners
     document.removeEventListener('fullscreenchange', this.handleFullscreenChange.bind(this));
     document.removeEventListener('webkitfullscreenchange', this.handleFullscreenChange.bind(this));
@@ -409,11 +416,11 @@ export class ChatComponent extends LitElement {
     this.liveChatOn = false;
     this.showControls = true;
     this.showCode = null;
-    
+
     // Clear uploaded files
     this.promptFiles = [];
 
-    
+
     this.resetCurrentChat(new Event('clear-chat'), true);
   }
 
@@ -436,11 +443,11 @@ export class ChatComponent extends LitElement {
     } else {
       this.setQuestionInputValue(value);
     }
-    
+
     this.resetInputCheck();
   }
 
-  resetInputCheck(){
+  resetInputCheck() {
     this.isResetInput = !!this.questionInput.value;
   }
 
@@ -502,7 +509,7 @@ export class ChatComponent extends LitElement {
   }
 
   handleFullscreenToggle(): void {
-    this.isFullscreen = !this.isFullscreen;      
+    this.isFullscreen = !this.isFullscreen;
 
     if (this.isFullscreen) {
       this.requestFullscreen?.();
@@ -550,113 +557,143 @@ export class ChatComponent extends LitElement {
     event.preventDefault();
     this.collapseAside(event);
     const question = DOMPurify.sanitize(this.questionInput.value);
-    
-    // Reset scroll state for every new message to enable auto-scrolling
-    const chatThreadComponent = this.renderRoot?.querySelector('chat-thread-component');
-    if (chatThreadComponent && typeof (chatThreadComponent as any).resetScrollState === 'function') {
-      (chatThreadComponent as any).resetScrollState();
-    }
-    
-    this.isChatStarted = true;
-    this.isDefaultPromptsEnabled = false;
 
-    // Prepare the current message context
-    const currentMessages = this.getMessageContext();
-
-    let uploadedFiles: any[] = [];
-
-    // Upload files to backend if any
-    if (this.promptFiles.length > 0) {
-      try {
-        const uploadResponse = await this.uploadFiles(this.promptFiles);
-        if (uploadResponse.success) {
-          uploadedFiles = uploadResponse.files;
-        }
-      } catch (error) {
-        console.error('Error uploading files:', error);
-        // Continue with original base64 approach as fallback
-      }
-    }
-
-    // Build the new user message with multimodal content if files are present
-    let userMessage: Message;
-    if (this.promptFiles.length > 0) {
-      // Create multimodal content array
-      const contentArray: any[] = [];
-      
-      // Add text content if we have a question
-      if (question.trim()) {
-        contentArray.push({
-          type: 'text',
-          text: question
-        });
-      }
-      
-      // Add image content for each file
-      for (const file of this.promptFiles) {
-        contentArray.push({
-          type: 'image',
-          image: file.base64 // This should already be in data URI format
-        });
-      }
-      
-      userMessage = {
-        content: contentArray,
-        role: 'user',
-        files: uploadedFiles.length > 0 ? uploadedFiles : this.promptFiles // Include uploaded files or fallback to original format
-      };
-    } else {
-      // Simple text message
-      userMessage = {
-        content: question,
-        role: 'user'
-      };
-    }
-
-    // Add the new message to the context
-    const messagesWithNewInput = [...currentMessages, userMessage];
-
-    await this.chatController.generateAnswer(
-      {
-        ...requestOptions,
-        overrides: {
-          ...requestOptions.overrides,
-          ...this.overrides,
-          chatSettings: this.chatSettings
-        },
-        question: this.promptFiles.length > 0 ? '' : question, // Clear question when using multimodal format
-        type: this.interactionModel,
-        messages: messagesWithNewInput,
-        useWebSearch: this.useWebSearch,
-        useDeepSearch: this.useDeepSearch,
-      },
-      {
-        // use defaults
-        ...chatHttpOptions,
-
-        // override if the user has provided different values
-        url: this.apiUrl,
-        stream: this.useStream,
-        headers: this.customHeaders,
-      },
-      this.useWebSocket, // Pass WebSocket flag
-      this.apiUrl // Pass WebSocket URL (same as API URL)
-    );
-
-    // Ensure auto-scrolling is working after starting the response
-    setTimeout(() => {
-      const chatThreadComponent = this.renderRoot?.querySelector('chat-thread-component');
-      if (chatThreadComponent && typeof (chatThreadComponent as any).ensureAutoScroll === 'function') {
-        (chatThreadComponent as any).ensureAutoScroll();
-      }
-    }, 100);
-
-    // Clear the form
+    // Clear the form and uploaded files immediately after clicking send
     this.questionInput.value = '';
     this.isResetInput = false;
-    
-    // Clear uploaded files after sending
-    this.promptFiles = [];
+    const filesToProcess = [...this.promptFiles]; // Store files to process
+    this.promptFiles = []; // Clear uploaded files immediately
+
+    // Set loading state immediately to show loading indicator in text prompt area
+    this.chatController.isAwaitingResponse = true;
+
+    try {
+      // Reset scroll state for every new message to enable auto-scrolling
+      const chatThreadComponent = this.renderRoot?.querySelector('chat-thread-component');
+      if (chatThreadComponent && typeof (chatThreadComponent as any).resetScrollState === 'function') {
+        (chatThreadComponent as any).resetScrollState();
+      }
+
+      this.isChatStarted = true;
+      this.isDefaultPromptsEnabled = false;
+
+      // Prepare the current message context
+      const currentMessages = this.getMessageContext();
+
+      let uploadedFiles: any[] = [];
+
+      // Upload files to backend if any
+      if (filesToProcess.length > 0) {
+        try {
+          const uploadResponse = await this.uploadFiles(filesToProcess);
+          if (uploadResponse.success) {
+            uploadedFiles = uploadResponse.files;
+          }
+        } catch (error) {
+          console.error('Error uploading files:', error);
+          this.dispatchEvent(new CustomEvent('popup:show', {
+            detail: {
+              message: 'file.upload.error.upload_failed',
+              type: 'error',
+              params: { 
+                error: error instanceof Error ? error.message : 'Unknown error' 
+              }
+            },
+            bubbles: true,
+            composed: true
+          }));
+          // Continue with original base64 approach as fallback
+        }
+      }
+
+      // Build the new user message with multimodal content if files are present
+      let userMessage: Message;
+      if (filesToProcess.length > 0) {
+        // Create multimodal content array
+        const contentArray: any[] = [];
+
+        // Add text content if we have a question
+        if (question.trim()) {
+          contentArray.push({
+            type: 'text',
+            text: question
+          });
+        }
+
+        // Add image content for each file
+        for (const file of filesToProcess) {
+          contentArray.push({
+            type: 'image',
+            image: file.base64 // This should already be in data URI format
+          });
+        }
+
+        userMessage = {
+          content: contentArray,
+          role: 'user',
+          files: uploadedFiles.length > 0 ? uploadedFiles : filesToProcess // Include uploaded files or fallback to original format
+        };
+      } else {
+        // Simple text message
+        userMessage = {
+          content: question,
+          role: 'user'
+        };
+      }
+
+      // Add the new message to the context
+      const messagesWithNewInput = [...currentMessages, userMessage];
+
+      await this.chatController.generateAnswer(
+        {
+          ...requestOptions,
+          overrides: {
+            ...requestOptions.overrides,
+            ...this.overrides,
+            chatSettings: this.chatSettings
+          },
+          question: filesToProcess.length > 0 ? '' : question, // Clear question when using multimodal format
+          type: this.interactionModel,
+          messages: messagesWithNewInput,
+          useWebSearch: this.useWebSearch,
+          useDeepSearch: this.useDeepSearch,
+        },
+        {
+          // use defaults
+          ...chatHttpOptions,
+
+          // override if the user has provided different values
+          url: this.apiUrl,
+          stream: this.useStream,
+          headers: this.customHeaders,
+        },
+        this.useWebSocket, // Pass WebSocket flag
+        this.apiUrl // Pass WebSocket URL (same as API URL)
+      );
+
+      // Ensure auto-scrolling is working after starting the response
+      setTimeout(() => {
+        const chatThreadComponent = this.renderRoot?.querySelector('chat-thread-component');
+        if (chatThreadComponent && typeof (chatThreadComponent as any).ensureAutoScroll === 'function') {
+          (chatThreadComponent as any).ensureAutoScroll();
+        }
+      }, 100);
+    } catch (error) {
+      // If there's an error during the submission process, make sure to clear the loading state
+      console.error('Error during chat submission:', error);
+      this.dispatchEvent(new CustomEvent('popup:show', {
+        detail: {
+          message: 'file.upload.error.submission_failed',
+          type: 'error',
+          params: { 
+            error: error instanceof Error ? error.message : 'Unknown error' 
+          }
+        },
+        bubbles: true,
+        composed: true
+      }));
+      this.chatController.isAwaitingResponse = false;
+    }
   }
 
   // Reset the input field and the current question
@@ -673,7 +710,7 @@ export class ChatComponent extends LitElement {
     this.liveChatOn = true;
   }
 
- 
+
 
   // Reset the chat and show the default prompts
   resetCurrentChat(event: Event, forced = false): void {
@@ -683,21 +720,21 @@ export class ChatComponent extends LitElement {
     this.isDefaultPromptsEnabled = true;
     this.selectedCitation = undefined;
     this.chatController.reset();
-    
+
     // Clear uploaded files
     this.promptFiles = [];
-    
+
     // Clear all reasoning when resetting chat
     const chatThreadComponent = this.renderRoot?.querySelector('chat-thread-component');
     if (chatThreadComponent && typeof (chatThreadComponent as any).clearAllReasoning === 'function') {
       (chatThreadComponent as any).clearAllReasoning();
     }
-    
+
     // Reset scroll state to allow auto-scrolling again
     if (chatThreadComponent && typeof (chatThreadComponent as any).resetScrollState === 'function') {
       (chatThreadComponent as any).resetScrollState();
     }
-    
+
 
     this.collapseAside(event);
     this.handleUserChatCancel(event);
@@ -727,7 +764,7 @@ export class ChatComponent extends LitElement {
   handleOnInputChange(e: KeyboardEvent): void {
     this.resetInputCheck();
 
-    if(e.key === 'Enter' && !e.shiftKey && this.questionInput.value.trim().length > 0){
+    if (e.key === 'Enter' && !e.shiftKey && this.questionInput.value.trim().length > 0) {
       this.handleUserChatSubmit(e);
     }
   }
@@ -739,34 +776,34 @@ export class ChatComponent extends LitElement {
   }
 
   // show thought process aside
-  handleCodeExpandAside(event: Event | undefined = undefined, code: { id: string, code: string, language: string, preview?: boolean, ended? :boolean } | null = null): void {
-    event?.preventDefault();      
+  handleCodeExpandAside(event: Event | undefined = undefined, code: { id: string, code: string, language: string, preview?: boolean, ended?: boolean } | null = null): void {
+    event?.preventDefault();
 
-    if(code){
-      if(this.showCode?.ended){
+    if (code) {
+      if (this.showCode?.ended) {
         code.ended = true;
         code.preview = this.showCode.preview;
       }
-      this.showCode = { ...this.showCode, ...code};
-    }else{
+      this.showCode = { ...this.showCode, ...code };
+    } else {
       this.showCode = code;
-    }    
-    
+    }
+
     this.openAside();
   }
 
   handleSettingsExpandAside(event: Event | undefined = undefined): void {
-    event?.preventDefault();    
-    this.showSettings = true;      
+    event?.preventDefault();
+    this.showSettings = true;
   }
 
-  openAside(){
+  openAside() {
     this.isAsideOpen = true;
   }
 
   // hide thought process aside
   collapseAside(event: Event): void {
-    event.preventDefault();    
+    event.preventDefault();
     this.selectedCitation = undefined;
     this.isAsideOpen = false;
   }
@@ -891,15 +928,15 @@ export class ChatComponent extends LitElement {
   /**
    * Debug method to check slot content - can be called from browser console
    */
-  public debugSlotContent() {    
+  public debugSlotContent() {
 
-    const modelSelectSlot = this.shadowRoot?.querySelector('slot[name="model_select"]');    
+    const modelSelectSlot = this.shadowRoot?.querySelector('slot[name="model_select"]');
 
     if (modelSelectSlot) {
-      const slot = modelSelectSlot as HTMLSlotElement;                        
+      const slot = modelSelectSlot as HTMLSlotElement;
 
       // Check if there are any nodes with slot="model_select" in the light DOM
-      const lightDOMSlotContent = this.querySelector('[slot="model_select"]');      
+      const lightDOMSlotContent = this.querySelector('[slot="model_select"]');
     }
 
     // Check all slots
@@ -914,7 +951,7 @@ export class ChatComponent extends LitElement {
   }
 
   toggleTalk(value?: boolean) {
-    if(value !== undefined){
+    if (value !== undefined) {
       this.isTalking = value;
       return;
     }
@@ -923,7 +960,7 @@ export class ChatComponent extends LitElement {
   }
 
   toggleThreadLoading(value?: boolean) {
-    if(value !== undefined){
+    if (value !== undefined) {
       this.upperLoader = value;
       return;
     }
@@ -971,115 +1008,176 @@ export class ChatComponent extends LitElement {
       @on-fullscreen-toggle="${this.handleFullscreenToggle}"
     >
     </chat-thread-component>`;
-}
-
-handleAddFile(event?: Event){
-  // Prevent form submission
-  if (event) {
-    event.preventDefault();
-    event.stopPropagation();
   }
-  
-  // Create a file input element
-  const fileInput = document.createElement('input');
-  fileInput.type = 'file';
-  fileInput.accept = 'image/*,.pdf,.doc,.docx,.txt,.md';
-  fileInput.multiple = true;
-  
-  // Handle file selection
-  fileInput.addEventListener('change', async (event) => {
-    const target = event.target as HTMLInputElement;
-    const files = target.files;
-    
-    if (!files || files.length === 0) return;
-    
-    for (const file of files) {
-      try {
-        // Convert file to base64
-        const base64 = await this.fileToBase64(file);
-        
-        // Create file object
-        const fileObject = {
-          name: file.name,
-          size: this.formatFileSize(file.size),
-          type: file.type,
-          base64: base64
-        };
-        
-        // Add to promptFiles array
-        this.promptFiles = [...this.promptFiles, fileObject];
-        
-      } catch (error) {
-        console.error('Error processing file:', error);
-      }
+
+  handleAddFile(event?: Event) {
+    // Prevent form submission
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
     }
-  });
-  
-  // Trigger the file picker
-  fileInput.click();
-}
 
-private fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        // Remove the data URL prefix to get just the base64 string
-        const base64 = reader.result.split(',')[1];
-        resolve(base64);
-      } else {
-        reject(new Error('Failed to read file as base64'));
+    // Create a file input element
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*,.pdf,.doc,.docx,.txt,.md';
+    fileInput.multiple = true;
+
+    // Handle file selection
+    fileInput.addEventListener('change', async (event) => {
+      const target = event.target as HTMLInputElement;
+      const files = target.files;
+
+      if (!files || files.length === 0) return;
+
+      // Calculate current total size
+      const currentTotalSize = this.promptFiles.reduce((total, file) => {
+        // Parse the size string back to bytes for calculation
+        const sizeMatch = file.size.match(/^([\d.]+)\s*(B|KB|MB|GB)$/);
+        if (sizeMatch) {
+          const value = parseFloat(sizeMatch[1]);
+          const unit = sizeMatch[2];
+          const multipliers = { B: 1, KB: 1024, MB: 1024 * 1024, GB: 1024 * 1024 * 1024 };
+          return total + (value * multipliers[unit]);
+        }
+        return total;
+      }, 0);
+
+      let newFilesTotalSize = 0;
+
+      for (const file of files) {
+        try {
+          // Check individual file size
+          if (file.size > MAX_FILE_SIZE) {
+            console.error('File too large:', file.name);
+            this.dispatchEvent(new CustomEvent('popup:show', {
+              detail: {
+                message: 'file.upload.error.size_too_large',
+                type: 'error',
+                params: { fileName: file.name }
+              },
+              bubbles: true,
+              composed: true
+            }));
+            continue;
+          }
+
+          // Check total size limit including all new files
+          if (currentTotalSize + newFilesTotalSize + file.size > MAX_TOTAL_SIZE) {
+            this.dispatchEvent(new CustomEvent('popup:show', {
+              detail: {
+                message: 'file.upload.error.total_size_exceeded',
+                type: 'error',
+                params: { 
+                  currentSize: this.formatFileSize(currentTotalSize), 
+                  newSize: this.formatFileSize(newFilesTotalSize + file.size) 
+                }
+              },
+              bubbles: true,
+              composed: true
+            }));
+            break; // Stop processing remaining files
+          }
+
+          newFilesTotalSize += file.size;
+
+          // Convert file to base64
+          const base64 = await this.fileToBase64(file);
+
+          // Create file object
+          const fileObject = {
+            name: file.name,
+            size: this.formatFileSize(file.size),
+            type: file.type,
+            base64: base64
+          };
+
+          // Add to promptFiles array
+          this.promptFiles = [...this.promptFiles, fileObject];
+
+        } catch (error) {
+          console.error('Error processing file:', error);
+          this.dispatchEvent(new CustomEvent('popup:show', {
+            detail: {
+              message: 'file.upload.error.processing_failed',
+              type: 'error',
+              params: { 
+                fileName: file.name, 
+                error: error instanceof Error ? error.message : 'Unknown error' 
+              }
+            },
+            bubbles: true,
+            composed: true
+          }));
+        }
       }
-    };
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
-}
-
-private formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 Bytes';
-  
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-removeFile(index: number): void {
-  this.promptFiles = this.promptFiles.filter((_, i) => i !== index);
-}
-
-async uploadFiles(files: MessageFile[]): Promise<{ success: boolean; files: any[] }> {
-  try {
-    const fileData = files.map(file => ({
-      name: file.name,
-      type: file.type,
-      base64: file.base64
-    }));
-
-    const response = await fetch(`${this.apiUrl}/upload-file`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...this.customHeaders
-      },
-      body: JSON.stringify({ files: fileData })
     });
 
-    if (!response.ok) {
-      throw new Error(`Upload failed: ${response.statusText}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Error uploading files:', error);
-    return { success: false, files: [] };
+    // Trigger the file picker
+    fileInput.click();
   }
-}
 
-renderFilePrompt(){
-  return html`<button
+  private fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          // Remove the data URL prefix to get just the base64 string
+          const base64 = reader.result.split(',')[1];
+          resolve(base64);
+        } else {
+          reject(new Error('Failed to read file as base64'));
+        }
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  private formatFileSize(bytes: number): string {
+    if (bytes === 0) return '0 Bytes';
+
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  removeFile(index: number): void {
+    this.promptFiles = this.promptFiles.filter((_, i) => i !== index);
+  }
+
+  async uploadFiles(files: MessageFile[]): Promise<{ success: boolean; files: any[] }> {
+    try {
+      const fileData = files.map(file => ({
+        name: file.name,
+        type: file.type,
+        base64: file.base64
+      }));
+
+      const response = await fetch(`${this.apiUrl}/upload-file`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.customHeaders
+        },
+        body: JSON.stringify({ files: fileData })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error uploading files:', error);
+      return { success: false, files: [] };
+    }
+  }
+
+  renderFilePrompt() {
+    return html`<button
       class="chatbox__file_prompt"
       data-testid="submit-prompt-button"
       type="button"
@@ -1089,23 +1187,23 @@ renderFilePrompt(){
     >
       <i class="simple-icon-paper-clip"></i>
     </button>`;
-}
-
-filePreviewRender(){
-  if (!this.promptFiles || this.promptFiles.length === 0) {
-    return html``;
   }
-  
-  return html`<div id="file-prompt-preview" class="file-prompt-preview">
+
+  filePreviewRender() {
+    if (!this.promptFiles || this.promptFiles.length === 0) {
+      return html``;
+    }
+
+    return html`<div id="file-prompt-preview" class="file-prompt-preview">
     ${this.promptFiles.map((file, index) => html`
       <div class="file-prompt__file">      
-        ${file.type.startsWith('image/') 
-          ? html`<img class="file-prompt__img" src="data:${file.type};base64,${file.base64}" alt="${file.name}" />`
-          : html`<div class="file-prompt__img file-prompt__file-icon">
+        ${file.type.startsWith('image/')
+        ? html`<img class="file-prompt__img" src="data:${file.type};base64,${file.base64}" alt="${file.name}" />`
+        : html`<div class="file-prompt__img file-prompt__file-icon">
               <i class="simple-icon-doc"></i>
               <span>${file.type.split('/')[1]?.toUpperCase() || 'FILE'}</span>
             </div>`
-        }
+      }
         <div class="file-prompt__footer">
           <span class="file-prompt__file-size">${file.size}</span>
           <button class="file-prompt__remove-button" type="button" @click="${() => this.removeFile(index)}">
@@ -1115,10 +1213,10 @@ filePreviewRender(){
       </div>
     `)}
   </div>`;
-}
+  }
 
   // Render the chat component as a web component
-  override render() {    
+  override render() {
     return html`
       <div id="overlay" class="overlay ${this.isAsideOpen ? 'active' : ''}"></div>
       <section id="chat__containerWrapper" class="chat__containerWrapper ${this.isFullscreen ? ' has-fullscreen' : ''}${this.isAsideOpen ? ' aside-open' : ''}">
@@ -1181,7 +1279,7 @@ filePreviewRender(){
         
           ${this.liveChatOn && (this.overrides.avatar || this.overrides.selectedModel) ? html`<voice-chat voice="${this.chatSettings.voice}" model="${this.overrides.selectedModel ? `${this.overrides.selectedModel.model.value}` : ''}" avatar="${this.overrides.avatar ? `${this.overrides.avatar}` : ''}"></voice-chat>` : ''}
         
-          ${ this.showControls ? html`<form
+          ${this.showControls ? html`<form
             id="chat-form"
             class="form__container ${this.inputPosition === 'sticky' ? 'form__container-sticky' : ''}"
           >
@@ -1203,7 +1301,7 @@ filePreviewRender(){
                   ></textarea>
                   ${this.renderFilePrompt()}
                   ${this.chatController.isAwaitingResponse
-                  ? html`<loading-indicator label="${globalConfig.LOADING_INDICATOR_TEXT}"></loading-indicator>` : ''}                  
+          ? html`<loading-indicator label="${globalConfig.LOADING_INDICATOR_TEXT}"></loading-indicator>` : ''}                  
                 </div>
                 <div class="input-group-append">
                   ${this.isResetInput ? html`<button
@@ -1232,7 +1330,7 @@ filePreviewRender(){
             </div>
 
             ${globalConfig.WEB_SEARCH_CHECKBOX_ENABLED
-        ? html`<div class="web-search__wrapper">                  
+          ? html`<div class="web-search__wrapper">                  
                   <div class="web-search__container">
                     <input
                       type="checkbox"
@@ -1247,7 +1345,7 @@ filePreviewRender(){
                     </label>
                   </div>
                   ${globalConfig.DEEP_SEARCH_CHECKBOX_ENABLED && this.useWebSearch
-            ? html`<div class="web-search__container">
+              ? html`<div class="web-search__container">
                         <input
                           type="checkbox"
                           class="web-search__checkbox"
@@ -1260,11 +1358,11 @@ filePreviewRender(){
                           ${globalConfig.DEEP_SEARCH_CHECKBOX_LABEL}
                         </label>
                       </div>`
-            : ''}
+              : ''}
                 <knowledge-picker absolute="true"></knowledge-picker>
                 <div class="settings-toggler"><button  type="button" @click="${this.handleSettingsExpandAside}"><i class="simple-icon-settings"></i></button></div>
                 </div>`
-        : html`<div class="web-search__wrapper">
+          : html`<div class="web-search__wrapper">
                   <button 
                     class="fullscreen-toggle-btn ${this.isFullscreen ? 'simple-icon-close' : 'simple-icon-size-fullscreen'}"
                     @click="${this.handleFullscreenToggle}"
@@ -1276,8 +1374,8 @@ filePreviewRender(){
                 </div>`}
 
             ${this.isDefaultPromptsEnabled
-        ? ''
-        : ''}
+          ? ''
+          : ''}
           </form>` : ''}
         </section>        
         ${this.isAsideOpen && this.showCode?.id
