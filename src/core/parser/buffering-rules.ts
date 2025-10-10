@@ -1,9 +1,9 @@
 import { BufferState } from './bufferer';
 import { 
   BufferingRule,
-  HeaderRule,
+  // HeaderRule,
   CodeBlockRule,
-  TextFormattingRule,
+  // TextFormattingRule,
   LineBreakRule,  
   // ListRule
 } from './rules';
@@ -23,8 +23,8 @@ export class BufferingRuleManager {
   private initializeDefaultRules(): void {
     this.rules = [
       new CodeBlockRule(),    // Highest priority - should detect code blocks first
-      new HeaderRule(),
-      new TextFormattingRule(),
+      // new HeaderRule(),
+      // new TextFormattingRule(),
       new LineBreakRule()
     ];
   }
