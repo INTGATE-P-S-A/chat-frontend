@@ -332,7 +332,7 @@ export class ChatComponent extends LitElement {
       this.chatSettings = theEvent.detail;
     });
 
-    this.addEventListener('voice-chat:conversation-end', (e: Event) => {
+    this.addEventListener('voice-chat:conversation-end', () => {
       this.liveChatOn = false;
       this.showControls = true;
       this.initialMessages = [];
@@ -373,6 +373,7 @@ export class ChatComponent extends LitElement {
     document.removeEventListener('mozfullscreenchange', this.handleFullscreenChange.bind(this));
     document.removeEventListener('MSFullscreenChange', this.handleFullscreenChange.bind(this));
 
+  
     this.showControls = false;
     this.liveChatOn = false;
   }
@@ -932,13 +933,6 @@ export class ChatComponent extends LitElement {
 
     const modelSelectSlot = this.shadowRoot?.querySelector('slot[name="model_select"]');
 
-    if (modelSelectSlot) {
-      const slot = modelSelectSlot as HTMLSlotElement;
-
-      // Check if there are any nodes with slot="model_select" in the light DOM
-      const lightDOMSlotContent = this.querySelector('[slot="model_select"]');
-    }
-
     // Check all slots
     const allSlots = this.shadowRoot?.querySelectorAll('slot');
 
@@ -1030,91 +1024,98 @@ export class ChatComponent extends LitElement {
 
       if (!files || files.length === 0) return;
 
-      // Calculate current total size
-      const currentTotalSize = this.promptFiles.reduce((total, file) => {
-        // Parse the size string back to bytes for calculation
-        const sizeMatch = file.size.match(/^([\d.]+)\s*(B|KB|MB|GB)$/);
-        if (sizeMatch) {
-          const value = parseFloat(sizeMatch[1]);
-          const unit = sizeMatch[2];
-          const multipliers = { B: 1, KB: 1024, MB: 1024 * 1024, GB: 1024 * 1024 * 1024 };
-          return total + (value * multipliers[unit]);
-        }
-        return total;
-      }, 0);
+      await this.processFiles(Array.from(files));
+    });
 
-      let newFilesTotalSize = 0;
+    // Trigger the file picker
+    fileInput.click();
+  }
 
-      for (const file of files) {
-        try {
-          // Check individual file size
-          if (file.size > MAX_FILE_SIZE) {
-            console.error('File too large:', file.name);
-            this.dispatchEvent(new CustomEvent('popup:show', {
-              detail: {
-                message: 'file.upload.error.size_too_large',
-                type: 'error',
-                params: { fileName: file.name }
-              },
-              bubbles: true,
-              composed: true
-            }));
-            continue;
-          }
+  /**
+   * Process files (both from file picker and clipboard)
+   */
+  private async processFiles(files: File[]): Promise<void> {
+    // Calculate current total size
+    const currentTotalSize = this.promptFiles.reduce((total, file) => {
+      // Parse the size string back to bytes for calculation
+      const sizeMatch = file.size.match(/^([\d.]+)\s*(B|KB|MB|GB)$/);
+      if (sizeMatch) {
+        const value = parseFloat(sizeMatch[1]);
+        const unit = sizeMatch[2];
+        const multipliers = { B: 1, KB: 1024, MB: 1024 * 1024, GB: 1024 * 1024 * 1024 };
+        return total + (value * multipliers[unit]);
+      }
+      return total;
+    }, 0);
 
-          // Check total size limit including all new files
-          if (currentTotalSize + newFilesTotalSize + file.size > MAX_TOTAL_SIZE) {
-            this.dispatchEvent(new CustomEvent('popup:show', {
-              detail: {
-                message: 'file.upload.error.total_size_exceeded',
-                type: 'error',
-                params: { 
-                  currentSize: this.formatFileSize(currentTotalSize), 
-                  newSize: this.formatFileSize(newFilesTotalSize + file.size) 
-                }
-              },
-              bubbles: true,
-              composed: true
-            }));
-            break; // Stop processing remaining files
-          }
+    let newFilesTotalSize = 0;
 
-          newFilesTotalSize += file.size;
-
-          // Convert file to base64
-          const base64 = await this.fileToBase64(file);
-
-          // Create file object
-          const fileObject = {
-            name: file.name,
-            size: this.formatFileSize(file.size),
-            type: file.type,
-            base64: base64
-          };
-
-          // Add to promptFiles array
-          this.promptFiles = [...this.promptFiles, fileObject];
-
-        } catch (error) {
-          console.error('Error processing file:', error);
+    for (const file of files) {
+      try {
+        // Check individual file size
+        if (file.size > MAX_FILE_SIZE) {
+          console.error('File too large:', file.name);
           this.dispatchEvent(new CustomEvent('popup:show', {
             detail: {
-              message: 'file.upload.error.processing_failed',
+              message: 'file.upload.error.size_too_large',
+              type: 'error',
+              params: { fileName: file.name }
+            },
+            bubbles: true,
+            composed: true
+          }));
+          continue;
+        }
+
+        // Check total size limit including all new files
+        if (currentTotalSize + newFilesTotalSize + file.size > MAX_TOTAL_SIZE) {
+          this.dispatchEvent(new CustomEvent('popup:show', {
+            detail: {
+              message: 'file.upload.error.total_size_exceeded',
               type: 'error',
               params: { 
-                fileName: file.name, 
-                error: error instanceof Error ? error.message : 'Unknown error' 
+                currentSize: this.formatFileSize(currentTotalSize), 
+                newSize: this.formatFileSize(newFilesTotalSize + file.size) 
               }
             },
             bubbles: true,
             composed: true
           }));
+          break; // Stop processing remaining files
         }
-      }
-    });
 
-    // Trigger the file picker
-    fileInput.click();
+        newFilesTotalSize += file.size;
+
+        // Convert file to base64
+        const base64 = await this.fileToBase64(file);
+
+        // Create file object
+        const fileObject = {
+          name: file.name,
+          size: this.formatFileSize(file.size),
+          type: file.type,
+          base64: base64
+        };
+
+        // Add to promptFiles array
+        this.promptFiles = [...this.promptFiles, fileObject];
+
+      } catch (error) {
+        console.error('Error processing file:', error);
+        this.dispatchEvent(new CustomEvent('popup:show', {
+          detail: {
+            message: 'file.upload.error.processing_failed',
+            type: 'error',
+            params: { 
+              fileName: file.name, 
+              error: error instanceof Error ? error.message : 'Unknown error' 
+            }
+          },
+          bubbles: true,
+          composed: true
+        }));
+      }
+    }
   }
 
   private fileToBase64(file: File): Promise<string> {
@@ -1215,6 +1216,31 @@ export class ChatComponent extends LitElement {
   </div>`;
   }
 
+  private async onPaste(e: ClipboardEvent) {
+    const clipboardData = e.clipboardData;
+    if (!clipboardData) return;
+
+    const items = clipboardData.items;
+    const imageFiles: File[] = [];
+
+    // Check for image items in clipboard
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.indexOf('image') !== -1) {
+        const file = item.getAsFile();
+        if (file) {
+          imageFiles.push(file);
+        }
+      }
+    }
+
+    // Process detected image files
+    if (imageFiles.length > 0) {
+      e.preventDefault(); // Prevent default paste behavior for images
+      await this.processFiles(imageFiles);
+    }
+  }
+
   // Render the chat component as a web component
   override render() {
     return html`
@@ -1298,6 +1324,7 @@ export class ChatComponent extends LitElement {
                     ?disabled="${this.isDisabled}"
                     autocomplete="off"
                     @keyup="${this.handleOnInputChange}"
+                    @paste="${this.onPaste}"
                   ></textarea>
                   ${this.renderFilePrompt()}
                   ${this.chatController.isAwaitingResponse
@@ -1337,7 +1364,7 @@ export class ChatComponent extends LitElement {
                       class="web-search__checkbox"
                       id="web-search-checkbox"
                       .checked="${this.useWebSearch}"
-                      @change="${this.handleWebSearchChange}"
+                      @change="${this.handleWebSearchChange}"              
                       ?disabled="${this.isDisabled}"
                     />
                     <label class="web-search__label" for="web-search-checkbox">
