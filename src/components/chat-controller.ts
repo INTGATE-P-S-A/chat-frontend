@@ -18,6 +18,7 @@ export class ChatController implements ReactiveController {
   private _onReasoningStep?: (reasoningId: string, step: string) => void;
   private _hasReceivedFirstTextContent: boolean = false;
   private _currentRequestOptions?: ChatRequestOptions;
+  private _currentRequestId: string | null = null;
 
   get isAwaitingResponse() {
     return this._isAwaitingResponse;
@@ -157,11 +158,24 @@ export class ChatController implements ReactiveController {
   }
 
   hostConnected() {
-    // no-op
+    // Listen for request ID events
+    const hostElement = this.host as any;
+    if (hostElement.addEventListener) {
+      hostElement.addEventListener('chat:request:id', this.handleRequestId.bind(this));
+    }
   }
 
   hostDisconnected() {
+    const hostElement = this.host as any;
+    if (hostElement.removeEventListener) {
+      hostElement.removeEventListener('chat:request:id', this.handleRequestId.bind(this));
+    }
     this.disconnectWebSocket();
+  }
+
+  private handleRequestId(event: CustomEvent) {
+    this._currentRequestId = event.detail.requestId;
+    console.log('Received request ID:', this._currentRequestId);
   }
 
   private disconnectWebSocket() {
@@ -173,6 +187,7 @@ export class ChatController implements ReactiveController {
     this._isProcessingResponse = false;
     this._generatingAnswer = false;
     this._hasReceivedFirstTextContent = false; // Reset for next message
+    this._currentRequestId = null; // Clear request ID when clearing state
     this.host.requestUpdate(); // do update once
   }
 
@@ -503,8 +518,27 @@ export class ChatController implements ReactiveController {
     }
   }
 
-  cancelRequest() {
+  async cancelRequest() {
+    // First abort the local stream
     this._abortController.abort();
+    
+    // If we have a request ID, dispatch an event to the parent RWS component
+    if (this._currentRequestId) {
+      const hostElement = this.host as any;
+      
+      // Dispatch event to RWS chat component
+      const cancelEvent = new CustomEvent('chat:cancel-request', {
+        detail: { requestId: this._currentRequestId },
+        bubbles: true,
+        composed: true
+      });
+      
+      if (hostElement.dispatchEvent) {
+        hostElement.dispatchEvent(cancelEvent);
+      }
+      
+      this._currentRequestId = null;
+    }
     
     // Cancel WebSocket connection if active
     if (webSocketManager.socket && webSocketManager.isConnected) {

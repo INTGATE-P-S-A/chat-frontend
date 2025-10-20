@@ -64,6 +64,7 @@ export async function parseStreamedMessages({
   }  
 
   let reasoningId: string | null = null;
+  let currentRequestId: string | null = null;
 
   for await (const chunk of chunks) {
     if (signal.aborted) {
@@ -97,6 +98,18 @@ export async function parseStreamedMessages({
     if (chunk.conversationId) {
       const event = new CustomEvent('chat:conversation:start', {
         detail: { conversationId: chunk.conversationId },
+        bubbles: true,
+        composed: true
+      });
+      (host as any).dispatchEvent(event);
+      continue;
+    }
+
+    if ((chunk as any).requestId) {
+      currentRequestId = (chunk as any).requestId;
+      // Dispatch event to notify that we have a request ID
+      const event = new CustomEvent('chat:request:id', {
+        detail: { requestId: currentRequestId },
         bubbles: true,
         composed: true
       });
