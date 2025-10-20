@@ -74,11 +74,7 @@ export const styles = css`
       .file-item{
         max-width: 230px;
       }
-    }
-
-    br + br {
-      display: none;
-    }
+    }    
 
     p + br {
       display: none;
