@@ -75,6 +75,20 @@ export const styles = css`
         max-width: 230px;
       }
     }
+
+    br + br {
+      display: none;
+    }
+
+    p + br {
+      display: none;
+    }
+
+    h1,h2,h3 {
+      & + br {
+        display: none;
+      }
+    }
   }
   
   .message-content {
@@ -178,6 +192,7 @@ export const styles = css`
     list-style-type: disc;
   }
   .chat__citations {
+    margin-top: 15px;
     border-top: var(--border-thin) solid var(--c-light-gray);
   }
   .items__list {
