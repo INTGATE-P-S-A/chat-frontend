@@ -196,6 +196,52 @@ export const chatStyle = css`
     overflow: hidden;
     min-height: 0;
   }
+
+  /* Drag and drop styles */
+  .chat__containerWrapper.drag-over {
+    position: relative;
+  }
+
+  .chat__containerWrapper.drag-over::before {
+    content: "📁 Drop files here to upload";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(105, 43, 97, 0.1);
+    border: 3px dashed var(--c-accent-high);
+    border-radius: var(--radius-base);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--font-rel-base);
+    font-weight: bold;
+    color: var(--c-accent-high);
+    z-index: 100;
+    pointer-events: none;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0% { 
+      background: rgba(105, 43, 97, 0.1);
+      border-color: var(--c-accent-high);
+    }
+    50% { 
+      background: rgba(105, 43, 97, 0.2);
+      border-color: var(--c-accent-dark);
+    }
+    100% { 
+      background: rgba(105, 43, 97, 0.1);
+      border-color: var(--c-accent-high);
+    }
+  }
+
+  .chat__containerWrapper.drag-over .chat__container {
+    opacity: 0.5;
+  }
+
   #chat__containerWrapper .fullscreen-col{
     display: none;
   }
@@ -283,6 +329,31 @@ export const chatStyle = css`
     border: 1px solid var(--chat_header_color, #e3e6f0);
     flex-shrink: 0;
   }
+
+  /* Form container drag over state */
+  .form__container.drag-over {
+    border: 2px dashed var(--c-accent-high);
+    background: rgba(105, 43, 97, 0.05);
+    position: relative;
+    transition: all 0.2s ease-in-out;
+  }
+
+  .form__container.drag-over::after {
+    content: "📎 Drop files to attach";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--c-accent-high);
+    font-size: var(--font-small);
+    font-weight: bold;
+    pointer-events: none;
+    background: rgba(255, 255, 255, 0.9);
+    padding: var(--d-xsmall) var(--d-small);
+    border-radius: var(--radius-small);
+    z-index: 10;
+  }
+
   .form__label {
     display: block;
     padding: var(-d-xsmall) 0;

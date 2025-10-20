@@ -183,6 +183,9 @@ export class ChatComponent extends LitElement {
   @state()
   promptFiles: MessageFile[] = [];
 
+  @state()
+  isDragOver = false;
+
   @property({ type: Number, attribute: 'data-convo-id' })
   convoId: number | null = null;
 
@@ -1241,11 +1244,75 @@ export class ChatComponent extends LitElement {
     }
   }
 
+  /**
+   * Handle drop event to process dropped files
+   */
+  private async onDrop(e: DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    this.isDragOver = false;
+    
+    const files = e.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+    
+    // Filter for supported file types
+    const supportedFiles = Array.from(files).filter(file => {
+      return file.type.startsWith('image/') || 
+             file.type === 'application/pdf' ||
+             file.type === 'text/plain' ||
+             file.type === 'text/markdown' ||
+             file.type.includes('document') ||
+             file.type.includes('text');
+    });
+    
+    if (supportedFiles.length > 0) {
+      await this.processFiles(supportedFiles);
+    } else if (files.length > 0) {
+      // Show error for unsupported file types
+      this.dispatchEvent(new CustomEvent('popup:show', {
+        detail: {
+          message: 'file.upload.error.unsupported_type',
+          type: 'error'
+        },
+        bubbles: true,
+        composed: true
+      }));
+    }
+  }
+
+  /**
+   * Handle drag over event specifically for the form area
+   */
+  private onFormDragOver(e: DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Check if dragged items contain files
+    if (e.dataTransfer?.types.includes('Files')) {
+      this.isDragOver = true;
+    }
+  }
+
+  /**
+   * Handle drag leave event specifically for the form area
+   */
+  private onFormDragLeave(e: DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Check if we're actually leaving the form container
+    const form = this.renderRoot?.querySelector('#chat-form');
+    if (form && e.relatedTarget && !form.contains(e.relatedTarget as Node)) {
+      this.isDragOver = false;
+    }
+  }
+
   // Render the chat component as a web component
   override render() {
     return html`
       <div id="overlay" class="overlay ${this.isAsideOpen ? 'active' : ''}"></div>
-      <section id="chat__containerWrapper" class="chat__containerWrapper ${this.isFullscreen ? ' has-fullscreen' : ''}${this.isAsideOpen ? ' aside-open' : ''}">
+      <section id="chat__containerWrapper" class="chat__containerWrapper ${this.isFullscreen ? ' has-fullscreen' : ''}${this.isAsideOpen ? ' aside-open' : ''}${this.isDragOver ? ' drag-over' : ''}">
         ${this.isCustomBranding && !this.isChatStarted
         ? html` <chat-stage
               svgIcon="${iconLogo}"
@@ -1307,7 +1374,10 @@ export class ChatComponent extends LitElement {
         
           ${this.showControls ? html`<form
             id="chat-form"
-            class="form__container ${this.inputPosition === 'sticky' ? 'form__container-sticky' : ''}"
+            class="form__container ${this.inputPosition === 'sticky' ? 'form__container-sticky' : ''}${this.isDragOver ? ' drag-over' : ''}"
+            @dragover="${this.onFormDragOver}"
+            @dragleave="${this.onFormDragLeave}"
+            @drop="${this.onDrop}"
           >
             ${this.filePreviewRender()}
             <div class="chatbox__container">
@@ -1325,6 +1395,7 @@ export class ChatComponent extends LitElement {
                     autocomplete="off"
                     @keyup="${this.handleOnInputChange}"
                     @paste="${this.onPaste}"
+                    title="Type your message or drag and drop files to upload"
                   ></textarea>
                   ${this.renderFilePrompt()}
                   ${this.chatController.isAwaitingResponse
