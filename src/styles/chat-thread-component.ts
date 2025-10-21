@@ -80,8 +80,24 @@ export const styles = css`
       display: none;
     }
 
-    h1,h2,h3 {
+    h1 {
+      font-size: 1.5em;
+    }
+
+    h2 {
+      font-size: 1.3em;
+    }
+
+    h3 {
+      font-size: 1.1em;
+    }
+
+    h1,h2,h3 {      
       & + br {
+        display: none;
+      }
+
+      & + br + br {
         display: none;
       }
     }
