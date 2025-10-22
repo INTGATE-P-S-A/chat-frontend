@@ -1446,10 +1446,7 @@ export class ChatComponent extends LitElement {
                     </label>
                   </div>
                   ${globalConfig.DEEP_SEARCH_CHECKBOX_ENABLED && this.useWebSearch
-              ? html`<simple-model-select                         
-                      value="${this.overrides.selectedModel ? this.overrides.selectedModel.model.value : ( this.overrides.avatar ?  this.overrides.avatar : null)}">
-              </simple-model-select>  
-              <div class="web-search__container">
+              ? html`<div class="web-search__container">
                         <input
                           type="checkbox"
                           class="web-search__checkbox"

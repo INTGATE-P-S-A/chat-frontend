@@ -249,6 +249,7 @@ export const chatStyle = css`
     display: flex;
     flex-direction: row;
     gap: 15px;
+    background: #f8f8f8;
   }
   #chat__containerWrapper.has-fullscreen #chat-container{
     min-width: auto;

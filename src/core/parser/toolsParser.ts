@@ -1,6 +1,6 @@
 
 interface GResults {
-    items: { link: string, title: string, snippet: string }[]
+    items?: { link: string, title: string, snippet: string }[]
 }
 
 const toolsParseList = {
@@ -8,8 +8,10 @@ const toolsParseList = {
         let html = `<div class="web-search-info">
         <strong>Searching web for "${tool.data.searchQuery}"...</strong>`;
 
+        // Handle case where results or items might be undefined/null
+        const itemsCount = tool.data.results?.items?.length || 0;
         html += `<p class="web-search-result">
-                ${tool.data.results.items.length} results found</p>`;
+                ${itemsCount} results found</p>`;
 
         html += '</div>';        
 
