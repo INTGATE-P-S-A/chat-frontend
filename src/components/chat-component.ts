@@ -1429,6 +1429,9 @@ export class ChatComponent extends LitElement {
 
             ${globalConfig.WEB_SEARCH_CHECKBOX_ENABLED
           ? html`<div class="web-search__wrapper">                  
+                  <simple-model-select                         
+                    value="${this.overrides.selectedModel ? this.overrides.selectedModel.model.value : ( this.overrides.avatar ?  this.overrides.avatar : null)}">
+                  </simple-model-select> 
                   <div class="web-search__container">
                     <input
                       type="checkbox"
@@ -1443,7 +1446,10 @@ export class ChatComponent extends LitElement {
                     </label>
                   </div>
                   ${globalConfig.DEEP_SEARCH_CHECKBOX_ENABLED && this.useWebSearch
-              ? html`<div class="web-search__container">
+              ? html`<simple-model-select                         
+                      value="${this.overrides.selectedModel ? this.overrides.selectedModel.model.value : ( this.overrides.avatar ?  this.overrides.avatar : null)}">
+              </simple-model-select>  
+              <div class="web-search__container">
                         <input
                           type="checkbox"
                           class="web-search__checkbox"
@@ -1457,17 +1463,21 @@ export class ChatComponent extends LitElement {
                         </label>
                       </div>`
               : ''}
-                <knowledge-picker absolute="true"></knowledge-picker>
+                <knowledge-picker absolute="true"></knowledge-picker>          
                 <div class="settings-toggler"><button  type="button" @click="${this.handleSettingsExpandAside}"><i class="simple-icon-settings"></i></button></div>
                 </div>`
-          : html`<div class="web-search__wrapper">
+          : html`
+                <div class="web-search__wrapper">
+                  <simple-model-select                         
+                        value="${this.overrides.selectedModel ? this.overrides.selectedModel.model.value : ( this.overrides.avatar ?  this.overrides.avatar : null)}">
+                  </simple-model-select>  
                   <button 
                     class="fullscreen-toggle-btn ${this.isFullscreen ? 'simple-icon-close' : 'simple-icon-size-fullscreen'}"
                     @click="${this.handleFullscreenToggle}"
                     title="${this.isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}"
                     ?disabled="${this.isDisabled}"
                   ></button>
-                  <knowledge-picker absolute="true"></knowledge-picker>
+                  <knowledge-picker absolute="true"></knowledge-picker>                  
                   <div class="settings-toggler"><button type="button" @click="${this.handleSettingsExpandAside}"><i class="simple-icon-settings"></i></button></div>
                 </div>`}
 
