@@ -80,11 +80,17 @@ export class ChatThreadComponent extends LitElement {
     this.updateComplete.then(() => {
       this.setupScrollListener();
     });
+
+    // Listen for code-viewer close others events
+    this.addEventListener('code-viewer:close-others', this.handleCloseOtherCodeViewers.bind(this) as EventListener);
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
     this.removeScrollListener();
+    
+    // Remove code-viewer event listener
+    this.removeEventListener('code-viewer:close-others', this.handleCloseOtherCodeViewers.bind(this) as EventListener);
   }
 
   private setupScrollListener(): void {
@@ -282,6 +288,20 @@ export class ChatThreadComponent extends LitElement {
       composed: true,
     });
     this.dispatchEvent(actionButtonClickedEvent);
+  }
+
+  private handleCloseOtherCodeViewers(event: Event): void {
+    const customEvent = event as CustomEvent;
+    const excludeId = customEvent.detail.excludeId;
+    
+    // Find all code-viewer components in the shadow DOM and close them (except the excluded one)
+    const codeViewers = this.shadowRoot?.querySelectorAll('code-viewer');
+    codeViewers?.forEach(viewer => {
+      const viewerId = viewer.getAttribute('componentId');
+      if (viewerId !== excludeId && (viewer as any).isCodeVisible) {
+        (viewer as any).hideCode();
+      }
+    });
   }
 
   // debounce dispatching must-scroll event

@@ -35,7 +35,8 @@ export async function parseStreamedMessagesFromWebSocket({
       bubbles: true,
       composed: true
     });
-    (host as any).dispatchEvent(event);   
+    (host as any).dispatchEvent(event);
+    
     return;
   }    
 

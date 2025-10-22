@@ -581,6 +581,13 @@ export class ChatComponent extends LitElement {
   async handleUserChatSubmit(event: Event): Promise<void> {
     event.preventDefault();
     this.collapseAside(event);
+    
+    // Close all existing code-viewers before sending new message
+    this.dispatchEvent(new CustomEvent('chat:message:sending', {
+      bubbles: true,
+      composed: true
+    }));
+    
     const question = DOMPurify.sanitize(this.questionInput.value);
 
     // Clear the form and uploaded files immediately after clicking send

@@ -122,7 +122,7 @@ export class CodeBlockRule extends BufferingRule {
     return false;
   }
 
-  tryCompleteMatch(chunk: string): CompleteMatchResult | null {
+  tryCompleteMatch(chunk: string, _bufferState?: BufferState): CompleteMatchResult | null {
     // Find first valid ``` opening
     let openIndex = -1;
     let searchIndex = 0;
@@ -388,7 +388,8 @@ export class CodeBlockRule extends BufferingRule {
       pattern: /(?:^|[^`])(```(\w+)?\n?([\s\S]*?)```)(?:[^`]|$)/g,
       replacement: (match: string, fullCodeBlock: string, language: string, content: string) => {
         const normalizedLanguage = language ? this.normalizeLanguage(language) : 'plaintext';
-        const replacement = `<code-viewer language="${normalizedLanguage}">${content}</code-viewer>`;
+        const codeId = voucher.generate({ count: 1, length: 8 })[0].toLowerCase();
+        const replacement = `<code-viewer componentId="${codeId}" language="${normalizedLanguage}">${content}</code-viewer>`;
         return match.replace(fullCodeBlock, replacement);
       }
     };
