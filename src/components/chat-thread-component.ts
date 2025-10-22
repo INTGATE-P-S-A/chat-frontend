@@ -184,9 +184,9 @@ export class ChatThreadComponent extends LitElement {
     }
   }
 
-  private scrollToBottom(): void {
+  public scrollToBottom(forced = false): void {
     // Only auto-scroll if user hasn't manually scrolled up
-    if (this.isUserScrolledUp) {
+    if (this.isUserScrolledUp && !forced) {
       return;
     }
     

@@ -19,6 +19,19 @@ export const styles = css`
     padding: var(--d-xsmall);
     margin-top: 5px;
     font-size: var(--font-small);
+
+    &.highlighted {
+      animation: blink 1s infinite;
+    }
+  }
+
+  @keyframes blink {
+    0%, 50% {
+      background-color: var(--c-accent-light);
+    }
+    51%, 100% {
+      background-color: transparent;
+    }
   }
   .items__listItem.active {
     background-color: var(--c-accent-high);

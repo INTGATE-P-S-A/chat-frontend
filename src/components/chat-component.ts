@@ -129,10 +129,10 @@ export class ChatComponent extends LitElement {
   isResetInput = false;
 
   @state()
-  useWebSearch = false;
+  webSearchEnabled = false;
 
   @state()
-  useDeepSearch = false;
+  deepSearchEnabled = false;
 
   @state()
   isFullscreen = false;
@@ -264,12 +264,16 @@ export class ChatComponent extends LitElement {
       this.chatController.addReasoningToProcessingMessage(step);
     });
 
-    if (this.dataWebSearch === true) {
-      this.useWebSearch = true;
+    // Check data attributes and update state accordingly
+    const webSearchAttr = this.getAttribute('data-web-search');
+    const deepSearchAttr = this.getAttribute('data-deep-search');
+    
+    if (webSearchAttr === 'true' || this.dataWebSearch === true) {
+      this.webSearchEnabled = true;
     }
 
-    if (this.dataDeepSearch === true) {
-      this.useDeepSearch = true;
+    if (deepSearchAttr === 'true' || this.dataDeepSearch === true) {
+      this.deepSearchEnabled = true;
     }
 
     // Add progress event listeners
@@ -379,6 +383,23 @@ export class ChatComponent extends LitElement {
   
     this.showControls = false;
     this.liveChatOn = false;
+  }
+
+  override attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null) {
+    super.attributeChangedCallback(name, oldValue, newValue);
+    
+    // Handle dynamic attribute changes
+    if (name === 'data-web-search') {
+      this.webSearchEnabled = newValue === 'true';
+    }
+    
+    if (name === 'data-deep-search') {
+      this.deepSearchEnabled = newValue === 'true';
+    }
+  }
+
+  static override get observedAttributes() {
+    return [...(super.observedAttributes || []), 'data-web-search', 'data-deep-search'];
   }
 
   /**
@@ -492,10 +513,10 @@ export class ChatComponent extends LitElement {
 
   handleWebSearchChange(event: Event): void {
     const target = event.target as HTMLInputElement;
-    this.useWebSearch = target.checked;
+    this.webSearchEnabled = target.checked;
 
     this.dispatchEvent(new CustomEvent('websearch-change', {
-      detail: { checked: this.useWebSearch },
+      detail: { checked: this.webSearchEnabled },
       bubbles: true,
       composed: true
     }));
@@ -503,10 +524,10 @@ export class ChatComponent extends LitElement {
 
   handleDeepSearchChange(event: Event): void {
     const target = event.target as HTMLInputElement;
-    this.useDeepSearch = target.checked;
+    this.deepSearchEnabled = target.checked;
 
     this.dispatchEvent(new CustomEvent('deepsearch-change', {
-      detail: { checked: this.useDeepSearch },
+      detail: { checked: this.deepSearchEnabled },
       bubbles: true,
       composed: true
     }));
@@ -648,19 +669,23 @@ export class ChatComponent extends LitElement {
       // Add the new message to the context
       const messagesWithNewInput = [...currentMessages, userMessage];
 
+      const requestOverrides = {
+        ...requestOptions.overrides,
+        ...this.overrides,
+        chatSettings: this.chatSettings,
+        webSearchEnabled: this.webSearchEnabled,
+        deepSearchEnabled: this.deepSearchEnabled,
+      };
+
+      console.log('Final request overrides:', requestOverrides);
+
       await this.chatController.generateAnswer(
         {
           ...requestOptions,
-          overrides: {
-            ...requestOptions.overrides,
-            ...this.overrides,
-            chatSettings: this.chatSettings
-          },
+          overrides: requestOverrides,
           question: filesToProcess.length > 0 ? '' : question, // Clear question when using multimodal format
           type: this.interactionModel,
           messages: messagesWithNewInput,
-          useWebSearch: this.useWebSearch,
-          useDeepSearch: this.useDeepSearch,
         },
         {
           // use defaults
@@ -1437,7 +1462,7 @@ export class ChatComponent extends LitElement {
                       type="checkbox"
                       class="web-search__checkbox"
                       id="web-search-checkbox"
-                      .checked="${this.useWebSearch}"
+                      .checked="${this.webSearchEnabled}"
                       @change="${this.handleWebSearchChange}"              
                       ?disabled="${this.isDisabled}"
                     />
@@ -1445,13 +1470,13 @@ export class ChatComponent extends LitElement {
                       ${globalConfig.WEB_SEARCH_CHECKBOX_LABEL}
                     </label>
                   </div>
-                  ${globalConfig.DEEP_SEARCH_CHECKBOX_ENABLED && this.useWebSearch
+                  ${globalConfig.DEEP_SEARCH_CHECKBOX_ENABLED && this.webSearchEnabled
               ? html`<div class="web-search__container">
                         <input
                           type="checkbox"
                           class="web-search__checkbox"
                           id="deep-search-checkbox"
-                          .checked="${this.useDeepSearch}"
+                          .checked="${this.deepSearchEnabled}"
                           @change="${this.handleDeepSearchChange}"
                           ?disabled="${this.isDisabled}"
                         />

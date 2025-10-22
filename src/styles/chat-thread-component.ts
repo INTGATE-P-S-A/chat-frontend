@@ -102,6 +102,14 @@ export const styles = css`
       }
     }
   }
+
+  .search-ref {
+    color: var(--primary-color);
+    cursor: pointer;
+    &:hover{
+      text-decoration: underline;
+    }
+  }
   
   .message-content {
     max-width: 70%;

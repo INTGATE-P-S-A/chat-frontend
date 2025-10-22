@@ -3,6 +3,8 @@ import { ChatResponseError, newListWithEntryAtIndex } from '../../utils/index.js
 import { createReader, readStream } from '../stream/index.js';
 import { createBufferState, processChunkWithBuffering, parseText } from './bufferer.js';
 import { parseTool } from './toolsParser.js';
+import { ChatThreadComponent } from '../../components/chat-thread-component.js';
+import { CitationListComponent } from '../../components/citation-list.js';
 
 function getCodeViewer(host: ReactiveControllerHost, coderId: string): { updateRenderer: (text: string) => void, endStream: () => void } {
   const hoster = (host as any);
@@ -327,6 +329,34 @@ export async function parseStreamedMessages({
   }
 
   onVisit(updatedEntry);
+
+  if(citations.length){
+    setTimeout(() => {
+      const thread: ChatThreadComponent | null = ((host as any).renderRoot as ShadowRoot)?.querySelector('chat-thread-component');
+      const refs = thread?.shadowRoot?.querySelectorAll('.search-ref');
+
+      if(refs && refs.length){
+        const parentMsg = refs[0].closest('.chat__txt ');
+
+        let i = 0;
+        for (const ref of refs) {
+          ref.addEventListener('click', (e) => {
+            const target = e.target as HTMLElement;
+
+            const number = target.innerText.replace('[', '').replace(']', '');
+            const index = parseInt(number, 10) - 1;
+
+            const citationList = parentMsg?.querySelector('citation-list') as CitationListComponent;
+            
+            citationList.highlight(index);
+
+            thread?.scrollToBottom(true);            
+          });
+          i++; 
+        }        
+      }
+    }, 500);    
+  }
   
   // Don't clear the reasoning - let it persist with the message
   // The reasoning will be cleared when a new conversation starts

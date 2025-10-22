@@ -1,5 +1,5 @@
 import { LitElement, html } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { customElement, property, state } from 'lit/decorators.js';
 
 import { styles } from '../styles/citation-list.js';
 
@@ -14,7 +14,10 @@ export class CitationListComponent extends LitElement {
   citations: Citation[] | undefined = undefined;
 
   @property({ type: Object })
-  selectedCitation: Citation | undefined = undefined;
+  selectedCitation: Citation | undefined = undefined;  
+
+  @state()
+  highlightedCitation: number | null = null;
 
   handleCitationClick(citation: Citation, event: Event) {
     event.preventDefault();
@@ -35,6 +38,11 @@ export class CitationListComponent extends LitElement {
     }
     return false;
   }
+
+  highlight(i: number){
+    this.highlightedCitation = i;    
+  }
+
   renderCitation(citations: Citation[] | undefined) {
     // render citations
     if (citations && citations.length > 0) {
@@ -43,7 +51,7 @@ export class CitationListComponent extends LitElement {
           ${this.label ? html`<h3 class="subheadline--small">${this.label}</h3>` : ''}
           ${citations.map(
             (citation, index) => html`
-              <li class="items__listItem ${this.compareCitation(citation, this.selectedCitation) ? 'active' : ''}">
+              <li class="items__listItem${index === this.highlightedCitation ? ' highlighted' : ''}">
                 <a
                   class="items__link"
                   href="${citation.text}"
