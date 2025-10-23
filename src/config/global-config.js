@@ -52,6 +52,15 @@ const globalConfig = {
   DEEP_SEARCH_CHECKBOX_LABEL: 'Use deep search',
   DEEP_SEARCH_CHECKBOX_ENABLED: true,
   REASONING_LABEL: 'Reasoning',
+
+  TOOLTIPS: {
+    CHAT_PICK_KDB: 'Pick knowledge base entries',
+    CHAT_SETTINGS: 'Chat settings',
+    SEND_PROMPT: 'Send prompt',
+    PROMPT_WITH_MICROPHONE: 'Prompt with microphone',
+    ATTACH_FILE_TO_PROMPT: 'Attach file to prompt',
+    CANCEL_REQUEST: 'Cancel request',
+  }
 };
 
 const teaserListTexts = {

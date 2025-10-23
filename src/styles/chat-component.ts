@@ -151,7 +151,7 @@ export const chatStyle = css`
     display: flex;
     flex-direction: column;
     flex: 1;
-    overflow: hidden;
+    overflow-y: hidden;
     min-height: 0;
   }
   
@@ -193,7 +193,7 @@ export const chatStyle = css`
     grid-template-columns: 1fr;
     gutter: var(--d-base);
     flex: 1;
-    overflow: hidden;
+    overflow-y: hidden;
     min-height: 0;
   }
 
@@ -460,14 +460,15 @@ export const chatStyle = css`
     border-radius: 0;
     height: 44px;
     align-self: flex-start;
-  }
-  
-  .input-group-append .chatbox__button:first-child {
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
   }
   
-  .input-group-append .chatbox__button:last-child {
+  .input-group-append .chatbox__button:first-child {
+
+  }
+  
+  .input-group-append .chatbox__button.voice-button {
     border-top-right-radius: 0.375rem;
     border-bottom-right-radius: 0.375rem;
   }
@@ -565,6 +566,7 @@ export const chatStyle = css`
     padding: 0;    
     position: relative;
     display: block;
+    margin-top: 10px;
   }
   
   .web-search__checkbox {
@@ -653,8 +655,11 @@ export const chatStyle = css`
     border-radius: var(--radius-large);
     padding: var(--d-base);
   }
-  .settings-toggler {
+  .kdb-pick {
     margin-left: auto;
+  }
+  .settings-toggler {
+    margin-left: 0;
   }
   .settings-toggler button{
     background: none;
@@ -664,12 +669,16 @@ export const chatStyle = css`
     color: var(--alt_blu);
     padding: 5px;
   }
-    
-  #chat-form .input_container_wrapper .chatbox__file_prompt{
+
+  #chat-form .input_container_wrapper .file-prompt-wrap {
     position: absolute;
     right: 15px;
     top: 50%;
     transform: translateY(-50%);
+  }
+    
+  #chat-form .input_container_wrapper .file-prompt-wrap .chatbox__file_prompt{
+   
     background: none;
     box-shadow: none;
     padding: 5px;

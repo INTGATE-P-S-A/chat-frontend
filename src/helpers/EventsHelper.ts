@@ -1,4 +1,5 @@
 import { ChatComponent } from "../components/chat-component";
+import { FilesHelper } from "./FilesHelper";
 import { HandlerHelper } from "./HandlerHelper";
 
 export class EventsHelper {
@@ -73,6 +74,12 @@ export class EventsHelper {
 
         this.addEventListener('chat_settings:close', (e: Event) => {
             this.collapseAside(e);
+        });
+
+        this.addEventListener('prompt-file:pick', (e: Event) => {
+            const theEvent = e as CustomEvent<{ event: Event }>;
+
+            FilesHelper.handleAddFile.bind(this)(theEvent.detail.event);
         });
     }
 
