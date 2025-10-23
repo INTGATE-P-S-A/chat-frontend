@@ -1,0 +1,269 @@
+import { ChatComponent } from "../components/chat-component";
+import { parseFullMessage } from "../core/parser/bufferer";
+import { parseTool } from "../core/parser/toolsParser";
+
+export class FilesHelper {
+    static MB = 1024 * 1024;
+
+    static MAX_FILE_SIZE = 2 * FilesHelper.MB; // 2MB per file
+    static MAX_TOTAL_SIZE = 5 * FilesHelper.MB; // 5MB total
+
+    static fileToBase64(file: File): Promise<string> {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                if (typeof reader.result === 'string') {
+                    // Remove the data URL prefix to get just the base64 string
+                    const base64 = reader.result.split(',')[1];
+                    resolve(base64);
+                } else {
+                    reject(new Error('Failed to read file as base64'));
+                }
+            };
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(file);
+        });
+    }
+
+    static formatFileSize(bytes: number): string {
+        if (bytes === 0) return '0 Bytes';
+
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    static removeFile(this: ChatComponent, index: number): void {
+        this.promptFiles = this.promptFiles.filter((_, i) => i !== index);
+    }
+
+    static async uploadFiles(this: ChatComponent, files: MessageFile[]): Promise<{ success: boolean; files: any[] }> {
+        try {
+            const fileData = files.map(file => ({
+                name: file.name,
+                type: file.type,
+                base64: file.base64
+            }));
+
+            const response = await fetch(`${this.apiUrl}/upload-file`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...this.customHeaders
+                },
+                body: JSON.stringify({ files: fileData })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Upload failed: ${response.statusText}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error uploading files:', error);
+            return { success: false, files: [] };
+        }
+    }
+
+    static async onPaste(this: ChatComponent, e: ClipboardEvent) {
+        const clipboardData = e.clipboardData;
+        if (!clipboardData) return;
+
+        const items = clipboardData.items;
+        const imageFiles: File[] = [];
+
+        // Check for image items in clipboard
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            if (item.type.indexOf('image') !== -1) {
+                const file = item.getAsFile();
+                if (file) {
+                    imageFiles.push(file);
+                }
+            }
+        }
+
+        // Process detected image files
+        if (imageFiles.length > 0) {
+            e.preventDefault(); // Prevent default paste behavior for images
+            await FilesHelper.processFiles.bind(this)(imageFiles);
+        }
+    }
+
+    /**
+     * Handle drop event to process dropped files
+     */
+    static async onDrop(this: ChatComponent, e: DragEvent) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        this.isDragOver = false;
+
+        const files = e.dataTransfer?.files;
+        if (!files || files.length === 0) return;
+
+        // Filter for supported file types
+        const supportedFiles = Array.from(files).filter(file => {
+            return file.type.startsWith('image/') ||
+                file.type === 'application/pdf' ||
+                file.type === 'text/plain' ||
+                file.type === 'text/markdown' ||
+                file.type.includes('document') ||
+                file.type.includes('text');
+        });
+
+        if (supportedFiles.length > 0) {
+            await FilesHelper.processFiles.bind(this)(supportedFiles);
+        } else if (files.length > 0) {
+            // Show error for unsupported file types
+            this.dispatchEvent(new CustomEvent('popup:show', {
+                detail: {
+                    message: 'file.upload.error.unsupported_type',
+                    type: 'error'
+                },
+                bubbles: true,
+                composed: true
+            }));
+        }
+    }
+
+    /**
+     * Handle drag over event specifically for the form area
+     */
+    static onFormDragOver(this: ChatComponent, e: DragEvent) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Check if dragged items contain files
+        if (e.dataTransfer?.types.includes('Files')) {
+            this.isDragOver = true;
+        }
+    }
+
+    /**
+     * Handle drag leave event specifically for the form area
+     */
+    static onFormDragLeave(this: ChatComponent, e: DragEvent) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Check if we're actually leaving the form container
+        const form = this.renderRoot?.querySelector('#chat-form');
+        if (form && e.relatedTarget && !form.contains(e.relatedTarget as Node)) {
+            this.isDragOver = false;
+        }
+    }
+
+    static async processFiles(this: ChatComponent, files: File[]): Promise<void> {
+        // Calculate current total size
+        const currentTotalSize = this.promptFiles.reduce((total, file) => {
+            // Parse the size string back to bytes for calculation
+            const sizeMatch = file.size.match(/^([\d.]+)\s*(B|KB|MB|GB)$/);
+            if (sizeMatch) {
+                const value = parseFloat(sizeMatch[1]);
+                const unit = sizeMatch[2];
+                const multipliers = { B: 1, KB: 1024, MB: 1024 * 1024, GB: 1024 * 1024 * 1024 };
+                return total + (value * multipliers[unit]);
+            }
+            return total;
+        }, 0);
+
+        let newFilesTotalSize = 0;
+
+        for (const file of files) {
+            try {
+                // Check individual file size
+                if (file.size > FilesHelper.MAX_FILE_SIZE) {
+                    console.error('File too large:', file.name);
+                    this.dispatchEvent(new CustomEvent('popup:show', {
+                        detail: {
+                            message: 'file.upload.error.size_too_large',
+                            type: 'error',
+                            params: { fileName: file.name }
+                        },
+                        bubbles: true,
+                        composed: true
+                    }));
+                    continue;
+                }
+
+                // Check total size limit including all new files
+                if (currentTotalSize + newFilesTotalSize + file.size > FilesHelper.MAX_TOTAL_SIZE) {
+                    this.dispatchEvent(new CustomEvent('popup:show', {
+                        detail: {
+                            message: 'file.upload.error.total_size_exceeded',
+                            type: 'error',
+                            params: {
+                                currentSize: FilesHelper.formatFileSize(currentTotalSize),
+                                newSize: FilesHelper.formatFileSize(newFilesTotalSize + file.size)
+                            }
+                        },
+                        bubbles: true,
+                        composed: true
+                    }));
+                    break; // Stop processing remaining files
+                }
+
+                newFilesTotalSize += file.size;
+
+                // Convert file to base64
+                const base64 = await FilesHelper.fileToBase64(file);
+
+                // Create file object
+                const fileObject = {
+                    name: file.name,
+                    size: FilesHelper.formatFileSize(file.size),
+                    type: file.type,
+                    base64: base64
+                };
+
+                // Add to promptFiles array
+                this.promptFiles = [...this.promptFiles, fileObject];
+
+            } catch (error) {
+                console.error('Error processing file:', error);
+                this.dispatchEvent(new CustomEvent('popup:show', {
+                    detail: {
+                        message: 'file.upload.error.processing_failed',
+                        type: 'error',
+                        params: {
+                            fileName: file.name,
+                            error: error instanceof Error ? error.message : 'Unknown error'
+                        }
+                    },
+                    bubbles: true,
+                    composed: true
+                }));
+            }
+        }
+    }
+
+    static handleAddFile(this: ChatComponent, event?: Event) {
+        // Prevent form submission
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        // Create a file input element
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*,.pdf,.doc,.docx,.txt,.md';
+        fileInput.multiple = true;
+
+        // Handle file selection
+        fileInput.addEventListener('change', async (event) => {
+            const target = event.target as HTMLInputElement;
+            const files = target.files;
+
+            if (!files || files.length === 0) return;
+
+            await FilesHelper.processFiles.bind(this)(Array.from(files));
+        });
+
+        // Trigger the file picker
+        fileInput.click();
+    }
+}

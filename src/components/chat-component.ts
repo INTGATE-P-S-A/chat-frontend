@@ -1,8 +1,8 @@
 /* eslint-disable unicorn/template-indent */
-import { LitElement, html } from 'lit';
+import { LitElement } from 'lit';
 import DOMPurify from 'dompurify';
 import { customElement, property, query, state } from 'lit/decorators.js';
-import { unsafeHTML } from 'lit/directives/unsafe-html.js';
+
 import {
   chatHttpOptions,
   globalConfig as mainConfig,
@@ -12,11 +12,6 @@ import {
 import { chatStyle } from '../styles/chat-component.js';
 import { chatEntryToString, newListWithEntryAtIndex, addIconSheet } from '../utils/index.js';
 
-import iconLogo from '../svg/branding/brand-logo.svg?raw';
-import megaphoneSvg from '../svg/megaphone.svg?raw';
-import downloadSvg from '../svg/download.svg?raw';
-
-// import only necessary components to reduce bundle size
 import './link-icon.js';
 import './chat-stage.js';
 import './loading-indicator.js';
@@ -28,17 +23,12 @@ import './citation-list.js';
 import './chat-thread-component.js';
 import './chat-action-button.js';
 
-import { type TabContent } from './tab-component.js';
 import { ChatController } from './chat-controller.js';
-import { parseFullMessage } from '../core/parser/bufferer.js';
-import { parseTool } from '../core/parser/toolsParser.js';
-
-// File size limits
-
-const MB = 1024 * 1024;
-
-const MAX_FILE_SIZE = 2 * MB; // 2MB per file
-const MAX_TOTAL_SIZE = 5 * MB; // 5MB total
+import { StylesHelper } from '../helpers/StylesHelper.js';
+import { InitMsgHelper } from '../helpers/InitMsgHelper.js';
+import { EventsHelper } from '../helpers/EventsHelper.js';
+import { RenderHelper } from '../helpers/RenderHelper.js';
+import { SubmitHelper } from '../helpers/SubmitHelper.js';
 
 let teaserListTexts = configTeaserListTexts;
 let globalConfig = mainConfig;
@@ -51,10 +41,6 @@ const DEFAULT_CHAT_SETTINGS: IChatSettings = {
 
 @customElement('chat-component')
 export class ChatComponent extends LitElement {
-  //--
-  // Public attributes
-  // -
-
   @property({ type: String, attribute: 'data-input-position' })
   inputPosition = 'sticky';
 
@@ -112,7 +98,6 @@ export class ChatComponent extends LitElement {
   @query('#question-input')
   questionInput!: HTMLInputElement;
 
-  // Default prompts to display in the chat
   @state()
   isDisabled = false;
 
@@ -146,9 +131,8 @@ export class ChatComponent extends LitElement {
   @state()
   showSettings = false;
 
-  private chatController = new ChatController(this);
-
-  // Is showing thought process panel
+  chatController = new ChatController(this);
+  
   @state()
   showCode: { code: string, id: string, language: string, preview?: boolean, ended?: boolean } | null = null;
 
@@ -160,8 +144,7 @@ export class ChatComponent extends LitElement {
 
   @state()
   selectedChatEntry: ChatThreadEntry | undefined = undefined;
-
-  // Progress tracking state
+  
   @state()
   isShowingProgress = false;
 
@@ -189,65 +172,25 @@ export class ChatComponent extends LitElement {
   @property({ type: Number, attribute: 'data-convo-id' })
   convoId: number | null = null;
 
-  // These are the chat bubbles that will be displayed in the chat
   chatThread: ChatThreadEntry[] = [];
 
   static override styles = [chatStyle];
 
   override updated(changedProperties: Map<string | number | symbol, unknown>) {
-    super.updated(changedProperties);
-    // The following block is only necessary when you want to override the component from settings in the outside.
-    // Remove this block when not needed, considering that updated() is a LitElement lifecycle method
-    // that may be used by other components if you update this code.
-
+    super.updated(changedProperties);    
     this.overrideConfig();
 
     if (changedProperties.has('customStyles')) {
-      this.style.setProperty('--c-accent-high', this.customStyles.AccentHigh);
-      this.style.setProperty('--c-accent-lighter', this.customStyles.AccentLight);
-      this.style.setProperty('--c-accent-dark', this.customStyles.AccentDark);
-      this.style.setProperty('--c-text-color', this.customStyles.TextColor);
-      this.style.setProperty('--c-light-gray', this.customStyles.BackgroundColor);
-      this.style.setProperty('--c-dark-gray', this.customStyles.ForegroundColor);
-      this.style.setProperty('--c-base-gray', this.customStyles.FormBackgroundColor);
-      this.style.setProperty('--radius-base', this.customStyles.BorderRadius);
-      this.style.setProperty('--border-base', this.customStyles.BorderWidth);
-      this.style.setProperty('--font-base', this.customStyles.FontBaseSize);
+      StylesHelper.setStyleColors(this.style, this.customStyles);
     }
 
-    // Handle initial messages from external source
     if (changedProperties.has('initialMessages') && this.initialMessages.length > 0) {
-      this.chatThread = [];
-      this.chatThread = this.initialMessages.map((message) => {
-        let i = 0;
-        for (const msgTxt of message.text) {
-          message.text[i].value = parseFullMessage(msgTxt.value);
-          i++;
-        }
-
-        if (message.thoughts) {
-          message.thoughts = parseFullMessage(message.thoughts);
-        }
-
-        if (message.tools) {
-          for (const tool of message.tools) {
-            message.text[message.text.length - 1].value = parseTool({ name: tool.toolName, data: tool.data }) + message.text[message.text.length - 1].value
-          }
-
-        }
-
-        return message;
-      });
+      this.chatThread = InitMsgHelper.fillInitMessages(this.initialMessages);
 
       this.isChatStarted = true;
       this.isDefaultPromptsEnabled = false;
-    } else {
-      // this.chatThread = [];
-      // this.isDefaultPromptsEnabled = true;
-      // this.isChatStarted = false;
     }
-
-    // Configure WebSocket if enabled
+    
     if (changedProperties.has('useWebSocket') || changedProperties.has('websocketEvents')) {
       this.chatController.configureWebSocket(this.useWebSocket, this.websocketEvents);
     }
@@ -257,14 +200,11 @@ export class ChatComponent extends LitElement {
     super.connectedCallback();
 
     await addIconSheet.bind(this)();
-
-    // Set up reasoning callback for chat controller
-    this.chatController.setReasoningCallback((_reasoningId: string, step: string) => {
-      // Add reasoning directly to the processing message in the controller
+    
+    this.chatController.setReasoningCallback((_reasoningId: string, step: string) => {      
       this.chatController.addReasoningToProcessingMessage(step);
     });
-
-    // Check data attributes and update state accordingly
+    
     const webSearchAttr = this.getAttribute('data-web-search');
     const deepSearchAttr = this.getAttribute('data-deep-search');
     
@@ -276,78 +216,7 @@ export class ChatComponent extends LitElement {
       this.deepSearchEnabled = true;
     }
 
-    // Add progress event listeners
-    this.addEventListener('chat:progress', this.handleProgressEvent.bind(this) as EventListener);
-
-    this.addEventListener('rws_modal:chat_settings:close', () => {
-      this.showSettings = false;
-    });
-
-    this.addEventListener('code:show', (event) => {
-      const theEvent: CustomEvent<{ code: string, id: string, language: string }> = event as CustomEvent<{ code: string, id: string, language: string }>;
-      this.handleCodeExpandAside(event, theEvent.detail);
-    });
-
-    this.addEventListener('code:stream:ended', (event) => {
-      const theEvent: CustomEvent<{ componentId: string }> = event as CustomEvent<{ chunk: string, componentId: string, language: string }>;
-
-      if (this.showCode && this.showCode.id === theEvent.detail.componentId) {
-        this.showCode = { ...this.showCode, preview: this.showCode.language === 'html', ended: true };
-      }
-    });
-
-    this.addEventListener('fullscreen:disable', () => {
-      this.isFullscreen = false;
-
-      document.exitFullscreen?.();
-
-      this.dispatchEvent(new CustomEvent('fullscreen-change', {
-        detail: { isFullscreen: this.isFullscreen },
-        bubbles: true,
-        composed: true
-      }));
-    });
-
-    this.addEventListener('code:preview', (event) => {
-      const theEvent: CustomEvent<{ codeId: string }> = event as CustomEvent<{ codeId: string }>;
-
-      if (this.showCode && this.showCode.id === theEvent.detail.codeId) {
-        this.showCode = this.showCode ? { ...this.showCode, preview: true } : null;
-      }
-    });
-
-    this.addEventListener('chat:conversation:start', (event) => {
-      const theEvent: CustomEvent<{ conversationId: string }> = event as CustomEvent<{ conversationId: string }>;
-      this.convoId = Number(theEvent?.detail?.conversationId || null);
-    });
-
-    this.addEventListener('code:update', (event) => {
-      const theEvent: CustomEvent<{ chunk: string, componentId: string }> = event as CustomEvent<{ chunk: string, componentId: string, language: string }>;
-
-      if (this.showCode && this.showCode.id === theEvent.detail.componentId) {
-        this.showCode = { ...this.showCode, code: this.showCode.code + theEvent.detail.chunk, preview: false };
-      }
-    });
-
-    this.addEventListener('code:close', (event) => {
-      this.collapseAside(event);
-    });
-
-    this.addEventListener('chat_settings:submit', (e: Event) => {
-      const theEvent = e as CustomEvent<IChatSettings>;
-
-      this.chatSettings = theEvent.detail;
-    });
-
-    this.addEventListener('voice-chat:conversation-end', () => {
-      this.liveChatOn = false;
-      this.showControls = true;
-      this.initialMessages = [];
-    });
-
-    this.addEventListener('chat_settings:close', (e: Event) => {
-      this.collapseAside(e);
-    });
+    EventsHelper.listenToEvents.bind(this)();
 
     const savedChatSettings = localStorage.getItem('ai.chatSettings');
 
@@ -355,11 +224,7 @@ export class ChatComponent extends LitElement {
       this.chatSettings = JSON.parse(savedChatSettings);
     }
 
-    // Add fullscreen event listeners
-    document.addEventListener('fullscreenchange', this.handleFullscreenChange.bind(this));
-    document.addEventListener('webkitfullscreenchange', this.handleFullscreenChange.bind(this));
-    document.addEventListener('mozfullscreenchange', this.handleFullscreenChange.bind(this));
-    document.addEventListener('MSFullscreenChange', this.handleFullscreenChange.bind(this));
+    EventsHelper.listenForFullScreenEvents.bind(this)();
 
     this.overrideConfig();
 
@@ -374,12 +239,8 @@ export class ChatComponent extends LitElement {
   override disconnectedCallback() {
     super.disconnectedCallback();
 
-    // Remove fullscreen event listeners
-    document.removeEventListener('fullscreenchange', this.handleFullscreenChange.bind(this));
-    document.removeEventListener('webkitfullscreenchange', this.handleFullscreenChange.bind(this));
-    document.removeEventListener('mozfullscreenchange', this.handleFullscreenChange.bind(this));
-    document.removeEventListener('MSFullscreenChange', this.handleFullscreenChange.bind(this));
-
+    
+    EventsHelper.removeFullScreenEventListeners.bind(this)();
   
     this.showControls = false;
     this.liveChatOn = false;
@@ -402,10 +263,7 @@ export class ChatComponent extends LitElement {
     return [...(super.observedAttributes || []), 'data-web-search', 'data-deep-search'];
   }
 
-  /**
-   * Handle progress events from the parser
-   */
-  private handleProgressEvent(event: Event) {
+  handleProgressEvent(event: Event) {
     const customEvent = event as CustomEvent;
     const { stage, message, percentage } = customEvent.detail;
 
@@ -413,15 +271,14 @@ export class ChatComponent extends LitElement {
     this.progressMessage = message || '';
     this.progressPercentage = percentage || 0;
     this.isShowingProgress = true;
-
-    // Hide progress when complete
+    
     if (percentage >= 100 || stage === 'complete') {
       setTimeout(() => {
         this.isShowingProgress = false;
         this.progressPercentage = 0;
         this.progressMessage = '';
         this.progressStage = '';
-      }, 1000); // Keep visible for 1 second after completion
+      }, 1000);
     }
   }
 
@@ -442,7 +299,6 @@ export class ChatComponent extends LitElement {
     this.showControls = true;
     this.showCode = null;
 
-    // Clear uploaded files
     this.promptFiles = [];
 
 
@@ -454,12 +310,6 @@ export class ChatComponent extends LitElement {
     this.currentQuestion = this.questionInput.value;
   }
 
-  /**
-   * Public method to set input field value from external sources
-   * Can be called via DOM query: document.querySelector('chat-component').setInputValue('text')
-   * @param value - The text to set or append to the input field
-   * @param append - If true, appends to existing value; if false, replaces the value (default: false)
-   */
   public setInputValue(value: string, append: boolean = false): void {
     if (append) {
       const currentValue = this.questionInput.value || '';
@@ -484,74 +334,14 @@ export class ChatComponent extends LitElement {
   handleRecordingStateChange(event: CustomEvent): void {
     event?.preventDefault();
     const { isRecording } = event.detail;
-
-    // Dispatch recording state change event for external listeners
+    
     const recordingStateEvent = new CustomEvent('recording-state-change', {
       detail: { isRecording },
       bubbles: true,
       composed: true
     });
     this.dispatchEvent(recordingStateEvent);
-  }
-
-  handleQuestionInputClick(event: CustomEvent): void {
-    event?.preventDefault();
-    this.setQuestionInputValue(event?.detail?.question);
-  }
-
-  handleCitationClick(event: CustomEvent): void {
-    event?.preventDefault();
-    this.selectedCitation = event?.detail?.citation;
-
-    if (!this.showCode) {
-      if (event?.detail?.chatThreadEntry) {
-        this.selectedChatEntry = event?.detail?.chatThreadEntry;
-      }
-      this.handleCodeExpandAside();
-    }
-  }
-
-  handleWebSearchChange(event: Event): void {
-    const target = event.target as HTMLInputElement;
-    this.webSearchEnabled = target.checked;
-
-    this.dispatchEvent(new CustomEvent('websearch-change', {
-      detail: { checked: this.webSearchEnabled },
-      bubbles: true,
-      composed: true
-    }));
-  }
-
-  handleDeepSearchChange(event: Event): void {
-    const target = event.target as HTMLInputElement;
-    this.deepSearchEnabled = target.checked;
-
-    this.dispatchEvent(new CustomEvent('deepsearch-change', {
-      detail: { checked: this.deepSearchEnabled },
-      bubbles: true,
-      composed: true
-    }));
-  }
-
-  handleFullscreenToggle(): void {
-    this.isFullscreen = !this.isFullscreen;
-
-    if (this.isFullscreen) {
-      this.requestFullscreen?.();
-    } else {
-      document.exitFullscreen?.();
-    }
-
-    this.dispatchEvent(new CustomEvent('fullscreen-change', {
-      detail: { isFullscreen: this.isFullscreen },
-      bubbles: true,
-      composed: true
-    }));
-  }
-
-  handleFullscreenChange(): void {
-    this.isFullscreen = !!document.fullscreenElement;
-  }
+  }  
 
   getMessageContext(): Message[] {
     if (this.interactionModel === 'ask') {
@@ -559,14 +349,11 @@ export class ChatComponent extends LitElement {
     }
 
     const messages: Message[] = this.chatThread.map((entry) => {
-      const message: Message = {
-        // Use rawContent for AI responses (non-user messages) to send raw LLM output to backend
-        // Use parsed content for user messages since they don't have rawContent
+      const message: Message = {                
         content: entry.isUserMessage ? chatEntryToString(entry) : (entry.rawContent || chatEntryToString(entry)),
         role: entry.isUserMessage ? 'user' : 'assistant',
       };
-
-      // Add files if they exist on the entry
+      
       if (entry.files && entry.files.length > 0) {
         message.files = entry.files;
       }
@@ -576,163 +363,14 @@ export class ChatComponent extends LitElement {
 
     return messages;
   }
-
-  // Handle the click on the chat button and send the question to the API
+  
   async handleUserChatSubmit(event: Event): Promise<void> {
     event.preventDefault();
     this.collapseAside(event);
-    
-    // Close all existing code-viewers before sending new message
-    this.dispatchEvent(new CustomEvent('chat:message:sending', {
-      bubbles: true,
-      composed: true
-    }));
-    
-    const question = DOMPurify.sanitize(this.questionInput.value);
 
-    // Clear the form and uploaded files immediately after clicking send
-    this.questionInput.value = '';
-    this.isResetInput = false;
-    const filesToProcess = [...this.promptFiles]; // Store files to process
-    this.promptFiles = []; // Clear uploaded files immediately
-
-    // Set loading state immediately to show loading indicator in text prompt area
-    this.chatController.isAwaitingResponse = true;
-
-    try {
-      // Reset scroll state for every new message to enable auto-scrolling
-      const chatThreadComponent = this.renderRoot?.querySelector('chat-thread-component');
-      if (chatThreadComponent && typeof (chatThreadComponent as any).resetScrollState === 'function') {
-        (chatThreadComponent as any).resetScrollState();
-      }
-
-      this.isChatStarted = true;
-      this.isDefaultPromptsEnabled = false;
-
-      // Prepare the current message context
-      const currentMessages = this.getMessageContext();
-
-      let uploadedFiles: any[] = [];
-
-      // Upload files to backend if any
-      if (filesToProcess.length > 0) {
-        try {
-          const uploadResponse = await this.uploadFiles(filesToProcess);
-          if (uploadResponse.success) {
-            uploadedFiles = uploadResponse.files;
-          }
-        } catch (error) {
-          console.error('Error uploading files:', error);
-          this.dispatchEvent(new CustomEvent('popup:show', {
-            detail: {
-              message: 'file.upload.error.upload_failed',
-              type: 'error',
-              params: { 
-                error: error instanceof Error ? error.message : 'Unknown error' 
-              }
-            },
-            bubbles: true,
-            composed: true
-          }));
-          // Continue with original base64 approach as fallback
-        }
-      }
-
-      // Build the new user message with multimodal content if files are present
-      let userMessage: Message;
-      if (filesToProcess.length > 0) {
-        // Create multimodal content array
-        const contentArray: any[] = [];
-
-        // Add text content if we have a question
-        if (question.trim()) {
-          contentArray.push({
-            type: 'text',
-            text: question
-          });
-        }
-
-        // Add image content for each file
-        for (const file of filesToProcess) {
-          contentArray.push({
-            type: 'image',
-            image: file.base64 // This should already be in data URI format
-          });
-        }
-
-        userMessage = {
-          content: contentArray,
-          role: 'user',
-          files: uploadedFiles.length > 0 ? uploadedFiles : filesToProcess // Include uploaded files or fallback to original format
-        };
-      } else {
-        // Simple text message
-        userMessage = {
-          content: question,
-          role: 'user'
-        };
-      }
-
-      // Add the new message to the context
-      const messagesWithNewInput = [...currentMessages, userMessage];
-
-      const requestOverrides = {
-        ...requestOptions.overrides,
-        ...this.overrides,
-        chatSettings: this.chatSettings,
-        webSearchEnabled: this.webSearchEnabled,
-        deepSearchEnabled: this.deepSearchEnabled,
-      };
-
-      console.log('Final request overrides:', requestOverrides);
-
-      await this.chatController.generateAnswer(
-        {
-          ...requestOptions,
-          overrides: requestOverrides,
-          question: filesToProcess.length > 0 ? '' : question, // Clear question when using multimodal format
-          type: this.interactionModel,
-          messages: messagesWithNewInput,
-        },
-        {
-          // use defaults
-          ...chatHttpOptions,
-
-          // override if the user has provided different values
-          url: this.apiUrl,
-          stream: this.useStream,
-          headers: this.customHeaders,
-        },
-        this.useWebSocket, // Pass WebSocket flag
-        this.apiUrl // Pass WebSocket URL (same as API URL)
-      );
-
-      // Ensure auto-scrolling is working after starting the response
-      setTimeout(() => {
-        const chatThreadComponent = this.renderRoot?.querySelector('chat-thread-component');
-        if (chatThreadComponent && typeof (chatThreadComponent as any).ensureAutoScroll === 'function') {
-          (chatThreadComponent as any).ensureAutoScroll();
-        }
-      }, 100);
-    } catch (error) {
-      // If there's an error during the submission process, make sure to clear the loading state
-      console.error('Error during chat submission:', error);
-      this.dispatchEvent(new CustomEvent('popup:show', {
-        detail: {
-          message: 'file.upload.error.submission_failed',
-          type: 'error',
-          params: { 
-            error: error instanceof Error ? error.message : 'Unknown error' 
-          }
-        },
-        bubbles: true,
-        composed: true
-      }));
-      this.chatController.isAwaitingResponse = false;
-    }
+    await SubmitHelper.handleSubmit.bind(this)(requestOptions, chatHttpOptions);
   }
-
-  // Reset the input field and the current question
+  
   resetInputField(event: Event): void {
     event.preventDefault();
     this.questionInput.value = '';
@@ -745,10 +383,7 @@ export class ChatComponent extends LitElement {
     this.showControls = false;
     this.liveChatOn = true;
   }
-
-
-
-  // Reset the chat and show the default prompts
+  
   resetCurrentChat(event: Event, forced = false): void {
     this.isChatStarted = false;
     this.chatThread = [];
@@ -756,17 +391,14 @@ export class ChatComponent extends LitElement {
     this.isDefaultPromptsEnabled = true;
     this.selectedCitation = undefined;
     this.chatController.reset();
-
-    // Clear uploaded files
+    
     this.promptFiles = [];
-
-    // Clear all reasoning when resetting chat
+    
     const chatThreadComponent = this.renderRoot?.querySelector('chat-thread-component');
     if (chatThreadComponent && typeof (chatThreadComponent as any).clearAllReasoning === 'function') {
       (chatThreadComponent as any).clearAllReasoning();
     }
-
-    // Reset scroll state to allow auto-scrolling again
+    
     if (chatThreadComponent && typeof (chatThreadComponent as any).resetScrollState === 'function') {
       (chatThreadComponent as any).resetScrollState();
     }
@@ -785,18 +417,12 @@ export class ChatComponent extends LitElement {
     }
   }
 
-  // setConvo(id: string | null){
-  //   this.overrides = {...this.overrides, conversationId: id};
-  // }
-
-  // Show the default prompts when enabled
   showDefaultPrompts(event: Event): void {
     if (!this.isDefaultPromptsEnabled) {
       this.resetCurrentChat(event);
     }
   }
-
-  // Handle the change event on the input field
+  
   handleOnInputChange(e: KeyboardEvent): void {
     this.resetInputCheck();
 
@@ -804,14 +430,12 @@ export class ChatComponent extends LitElement {
       this.handleUserChatSubmit(e);
     }
   }
-
-  // Stop generation
+  
   handleUserChatCancel(event: Event): any {
     event?.preventDefault();
     this.chatController.cancelRequest();
   }
-
-  // show thought process aside
+  
   handleCodeExpandAside(event: Event | undefined = undefined, code: { id: string, code: string, language: string, preview?: boolean, ended?: boolean } | null = null): void {
     event?.preventDefault();
 
@@ -836,102 +460,14 @@ export class ChatComponent extends LitElement {
   openAside() {
     this.isAsideOpen = true;
   }
-
-  // hide thought process aside
+  
   collapseAside(event: Event): void {
     event.preventDefault();
     this.selectedCitation = undefined;
     this.isAsideOpen = false;
-  }
+  }  
 
-  renderChatOrCancelButton() {
-    const submitChatButton = html`<button
-      class="chatbox__button chatbox_submit"
-      data-testid="submit-question-button"
-      @click="${this.handleUserChatSubmit}"
-      title="${globalConfig.CHAT_BUTTON_LABEL_TEXT}"
-      ?disabled="${this.isDisabled}"
-    >
-      <i class="simple-icon-paper-plane"></i>
-    </button>`;
-    const cancelChatButton = html`<button
-      class="chatbox__button"
-      data-testid="cancel-question-button"
-      @click="${this.handleUserChatCancel}"
-      title="${globalConfig.CHAT_CANCEL_BUTTON_LABEL_TEXT}"
-    >
-      <i class="simple-icon-close"></i>
-    </button>`;
-
-    return this.chatController.isProcessingResponse ? cancelChatButton : submitChatButton;
-  }
-
-  renderChatEntryTabContent(entry: ChatThreadEntry) {
-    return html` <tab-component
-      .tabs="${[
-        {
-          id: 'tab-thought-process',
-          label: globalConfig.THOUGHT_PROCESS_LABEL,
-        },
-        {
-          id: 'tab-support-context',
-          label: globalConfig.SUPPORT_CONTEXT_LABEL,
-        },
-        {
-          id: 'tab-citations',
-          label: globalConfig.CITATIONS_TAB_LABEL,
-        },
-      ] as TabContent[]}"
-    >
-      <div slot="tab-thought-process" class="tab-component__content">
-        ${entry && entry.thoughts ? html` <p class="tab-component__paragraph">${unsafeHTML(entry.thoughts)}</p> ` : ''}
-      </div>
-      <div slot="tab-support-context" class="tab-component__content">
-        ${entry && entry.dataPoints
-        ? html` <teaser-list-component
-              .alwaysRow="${true}"
-              .teasers="${entry.dataPoints.map((d) => {
-          return { description: d };
-        })}"
-            ></teaser-list-component>`
-        : ''}
-      </div>
-      ${entry && entry.citations
-        ? html`
-            <div slot="tab-citations" class="tab-component__content">
-              <citation-list
-                .citations="${entry.citations}"
-                .label="${globalConfig.CITATIONS_LABEL}"
-                .selectedCitation="${this.selectedCitation}"
-                @on-citation-click="${this.handleCitationClick}"
-              ></citation-list>
-              ${this.selectedCitation
-            ? html`<document-previewer
-                    url="${this.apiUrl}/content/${this.selectedCitation.text}"
-                  ></document-previewer>`
-            : ''}
-            </div>
-          `
-        : ''}
-    </tab-component>`;
-  }
-
-  handleChatEntryActionButtonClick(event: CustomEvent) {
-    if (event.detail?.id === 'chat-show-thought-process') {
-      this.selectedChatEntry = event.detail?.chatThreadEntry;
-      this.handleCodeExpandAside(event);
-    }
-
-    if (event.detail?.id === 'speak') {
-      this.selectedChatEntry = event.detail?.chatThreadEntry;
-      this.speak(event, this.selectedChatEntry as ChatThreadEntry);
-    }
-
-    if (event.detail?.id === 'download-speech') {
-      this.selectedChatEntry = event.detail?.chatThreadEntry;
-      this.speak(event, this.selectedChatEntry as ChatThreadEntry, true);
-    }
-  }
+  
 
   override willUpdate(): void {
     this.isDisabled = this.chatController.generatingAnswer;
@@ -945,30 +481,12 @@ export class ChatComponent extends LitElement {
           ? newListWithEntryAtIndex(this.chatThread, index, processingEntry)
           : [...this.chatThread, processingEntry];
     }
-  }
+  }  
 
-  private speak(event: Event, message: ChatThreadEntry, download = false) {
-    event.preventDefault();
-
-    const speakEvent = new CustomEvent(download ? 'chat:download' : 'chat:speak', {
-      detail: {
-        message: message.text.map((textEntry) => textEntry.value).join(' '),
-      },
-      bubbles: true,
-      composed: true,
-    });
-
-    this.dispatchEvent(speakEvent);
-  }
-
-  /**
-   * Debug method to check slot content - can be called from browser console
-   */
   public debugSlotContent() {
 
     const modelSelectSlot = this.shadowRoot?.querySelector('slot[name="model_select"]');
 
-    // Check all slots
     const allSlots = this.shadowRoot?.querySelectorAll('slot');
 
     return {
@@ -995,546 +513,9 @@ export class ChatComponent extends LitElement {
     }
 
     this.upperLoader = !this.upperLoader;
-  }
+  }  
 
-  renderChatThread(chatThread: ChatThreadEntry[]) {
-    return html`<chat-thread-component
-      .chatThread="${chatThread}"
-      .conversationTitle="${this.overrides.conversationTitle}"
-      .customConfig="${this.customConfig}"
-      .isTalking="${this.isTalking}"
-      .upperLoader="${this.upperLoader}"
-      .showInitialMessagesReasoningClosed="${true}"
-      .actionButtons="${[
-        // {
-        //   id: 'chat-show-thought-process',
-        //   label: globalConfig.SHOW_THOUGH_PROCESS_BUTTON_LABEL_TEXT,
-        //   svgIcon: iconLightBulb,
-        //   isDisabled: this.isShowingThoughtProcess,
-        // },
-        {
-          id: 'speak',
-          label: globalConfig.SPEAK_BUTTON_LABEL_TEXT,
-          svgIcon: megaphoneSvg,
-          isDisabled: false,
-        },
-        {
-          id: 'download-speech',
-          label: globalConfig.DOWNLOAD_SPEECH_BUTTON_LABEL_TEXT,
-          svgIcon: downloadSvg,
-          isDisabled: false,
-        },
-      ] as any}"
-      .isDisabled="${this.isDisabled}"
-      .isProcessingResponse="${this.chatController.isProcessingResponse}"
-      .selectedCitation="${this.selectedCitation}"
-      .isCustomBranding="${this.isCustomBranding}"
-      .isFullscreen="${this.isFullscreen}"
-      .svgIcon="${iconLogo}"
-      @on-action-button-click="${this.handleChatEntryActionButtonClick}"
-      @on-citation-click="${this.handleCitationClick}"
-      @on-followup-click="${this.handleQuestionInputClick}"
-      @on-fullscreen-toggle="${this.handleFullscreenToggle}"
-    >
-    </chat-thread-component>`;
-  }
-
-  handleAddFile(event?: Event) {
-    // Prevent form submission
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-
-    // Create a file input element
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = 'image/*,.pdf,.doc,.docx,.txt,.md';
-    fileInput.multiple = true;
-
-    // Handle file selection
-    fileInput.addEventListener('change', async (event) => {
-      const target = event.target as HTMLInputElement;
-      const files = target.files;
-
-      if (!files || files.length === 0) return;
-
-      await this.processFiles(Array.from(files));
-    });
-
-    // Trigger the file picker
-    fileInput.click();
-  }
-
-  /**
-   * Process files (both from file picker and clipboard)
-   */
-  private async processFiles(files: File[]): Promise<void> {
-    // Calculate current total size
-    const currentTotalSize = this.promptFiles.reduce((total, file) => {
-      // Parse the size string back to bytes for calculation
-      const sizeMatch = file.size.match(/^([\d.]+)\s*(B|KB|MB|GB)$/);
-      if (sizeMatch) {
-        const value = parseFloat(sizeMatch[1]);
-        const unit = sizeMatch[2];
-        const multipliers = { B: 1, KB: 1024, MB: 1024 * 1024, GB: 1024 * 1024 * 1024 };
-        return total + (value * multipliers[unit]);
-      }
-      return total;
-    }, 0);
-
-    let newFilesTotalSize = 0;
-
-    for (const file of files) {
-      try {
-        // Check individual file size
-        if (file.size > MAX_FILE_SIZE) {
-          console.error('File too large:', file.name);
-          this.dispatchEvent(new CustomEvent('popup:show', {
-            detail: {
-              message: 'file.upload.error.size_too_large',
-              type: 'error',
-              params: { fileName: file.name }
-            },
-            bubbles: true,
-            composed: true
-          }));
-          continue;
-        }
-
-        // Check total size limit including all new files
-        if (currentTotalSize + newFilesTotalSize + file.size > MAX_TOTAL_SIZE) {
-          this.dispatchEvent(new CustomEvent('popup:show', {
-            detail: {
-              message: 'file.upload.error.total_size_exceeded',
-              type: 'error',
-              params: { 
-                currentSize: this.formatFileSize(currentTotalSize), 
-                newSize: this.formatFileSize(newFilesTotalSize + file.size) 
-              }
-            },
-            bubbles: true,
-            composed: true
-          }));
-          break; // Stop processing remaining files
-        }
-
-        newFilesTotalSize += file.size;
-
-        // Convert file to base64
-        const base64 = await this.fileToBase64(file);
-
-        // Create file object
-        const fileObject = {
-          name: file.name,
-          size: this.formatFileSize(file.size),
-          type: file.type,
-          base64: base64
-        };
-
-        // Add to promptFiles array
-        this.promptFiles = [...this.promptFiles, fileObject];
-
-      } catch (error) {
-        console.error('Error processing file:', error);
-        this.dispatchEvent(new CustomEvent('popup:show', {
-          detail: {
-            message: 'file.upload.error.processing_failed',
-            type: 'error',
-            params: { 
-              fileName: file.name, 
-              error: error instanceof Error ? error.message : 'Unknown error' 
-            }
-          },
-          bubbles: true,
-          composed: true
-        }));
-      }
-    }
-  }
-
-  private fileToBase64(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          // Remove the data URL prefix to get just the base64 string
-          const base64 = reader.result.split(',')[1];
-          resolve(base64);
-        } else {
-          reject(new Error('Failed to read file as base64'));
-        }
-      };
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(file);
-    });
-  }
-
-  private formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 Bytes';
-
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  }
-
-  removeFile(index: number): void {
-    this.promptFiles = this.promptFiles.filter((_, i) => i !== index);
-  }
-
-  async uploadFiles(files: MessageFile[]): Promise<{ success: boolean; files: any[] }> {
-    try {
-      const fileData = files.map(file => ({
-        name: file.name,
-        type: file.type,
-        base64: file.base64
-      }));
-
-      const response = await fetch(`${this.apiUrl}/upload-file`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...this.customHeaders
-        },
-        body: JSON.stringify({ files: fileData })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Upload failed: ${response.statusText}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Error uploading files:', error);
-      return { success: false, files: [] };
-    }
-  }
-
-  renderFilePrompt() {
-    return html`<button
-      class="chatbox__file_prompt"
-      data-testid="submit-prompt-button"
-      type="button"
-      @click="${this.handleAddFile}"
-      title="${globalConfig.CHAT_IMG_PROMPT_LABEL_TEXT}"
-      ?disabled="${this.isDisabled}"
-    >
-      <i class="simple-icon-paper-clip"></i>
-    </button>`;
-  }
-
-  filePreviewRender() {
-    if (!this.promptFiles || this.promptFiles.length === 0) {
-      return html``;
-    }
-
-    return html`<div id="file-prompt-preview" class="file-prompt-preview">
-    ${this.promptFiles.map((file, index) => html`
-      <div class="file-prompt__file">      
-        ${file.type.startsWith('image/')
-        ? html`<img class="file-prompt__img" src="data:${file.type};base64,${file.base64}" alt="${file.name}" />`
-        : html`<div class="file-prompt__img file-prompt__file-icon">
-              <i class="simple-icon-doc"></i>
-              <span>${file.type.split('/')[1]?.toUpperCase() || 'FILE'}</span>
-            </div>`
-      }
-        <div class="file-prompt__footer">
-          <span class="file-prompt__file-size">${file.size}</span>
-          <button class="file-prompt__remove-button" type="button" @click="${() => this.removeFile(index)}">
-            <i class="simple-icon-close"></i>
-          </button>
-        </div>
-      </div>
-    `)}
-  </div>`;
-  }
-
-  private async onPaste(e: ClipboardEvent) {
-    const clipboardData = e.clipboardData;
-    if (!clipboardData) return;
-
-    const items = clipboardData.items;
-    const imageFiles: File[] = [];
-
-    // Check for image items in clipboard
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (item.type.indexOf('image') !== -1) {
-        const file = item.getAsFile();
-        if (file) {
-          imageFiles.push(file);
-        }
-      }
-    }
-
-    // Process detected image files
-    if (imageFiles.length > 0) {
-      e.preventDefault(); // Prevent default paste behavior for images
-      await this.processFiles(imageFiles);
-    }
-  }
-
-  /**
-   * Handle drop event to process dropped files
-   */
-  private async onDrop(e: DragEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    this.isDragOver = false;
-    
-    const files = e.dataTransfer?.files;
-    if (!files || files.length === 0) return;
-    
-    // Filter for supported file types
-    const supportedFiles = Array.from(files).filter(file => {
-      return file.type.startsWith('image/') || 
-             file.type === 'application/pdf' ||
-             file.type === 'text/plain' ||
-             file.type === 'text/markdown' ||
-             file.type.includes('document') ||
-             file.type.includes('text');
-    });
-    
-    if (supportedFiles.length > 0) {
-      await this.processFiles(supportedFiles);
-    } else if (files.length > 0) {
-      // Show error for unsupported file types
-      this.dispatchEvent(new CustomEvent('popup:show', {
-        detail: {
-          message: 'file.upload.error.unsupported_type',
-          type: 'error'
-        },
-        bubbles: true,
-        composed: true
-      }));
-    }
-  }
-
-  /**
-   * Handle drag over event specifically for the form area
-   */
-  private onFormDragOver(e: DragEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // Check if dragged items contain files
-    if (e.dataTransfer?.types.includes('Files')) {
-      this.isDragOver = true;
-    }
-  }
-
-  /**
-   * Handle drag leave event specifically for the form area
-   */
-  private onFormDragLeave(e: DragEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // Check if we're actually leaving the form container
-    const form = this.renderRoot?.querySelector('#chat-form');
-    if (form && e.relatedTarget && !form.contains(e.relatedTarget as Node)) {
-      this.isDragOver = false;
-    }
-  }
-
-  // Render the chat component as a web component
   override render() {
-    return html`
-      <div id="overlay" class="overlay ${this.isAsideOpen ? 'active' : ''}"></div>
-      <section id="chat__containerWrapper" class="chat__containerWrapper ${this.isFullscreen ? ' has-fullscreen' : ''}${this.isAsideOpen ? ' aside-open' : ''}${this.isDragOver ? ' drag-over' : ''}">
-        ${this.isCustomBranding && !this.isChatStarted
-        ? html` <chat-stage
-              svgIcon="${iconLogo}"
-              pagetitle="${globalConfig.BRANDING_HEADLINE}"
-              url="${globalConfig.BRANDING_URL}"
-            >
-            </chat-stage>`
-        : ''}
-        
-        ${this.isFullscreen ? html`<div class="fullscreen-col"><conversation-list selectedconversationid="${this.convoId}" fullmode="true"></conversation-list></div>` : ''}            
-
-        <section class="chat__container" id="chat-container"> 
-        
-          ${this.isChatStarted
-        ? html`
-                <div class="chat__messages-container">
-                  ${this.renderChatThread(this.chatThread)}                  
-                  ${!this.chatController.isAwaitingResponse && this.isShowingProgress
-            ? html`<progress-bar 
-                    .progress="${this.progressPercentage}"
-                    .message="${this.progressMessage}"
-                    .stage="${this.progressStage}">
-                  </progress-bar>`
-            : ''}
-                  ${this.isDefaultPromptsEnabled && this.isChatStarted
-            ? html`<div style="padding: 1rem;">
-                      <teaser-list-component
-                        .heading="${this.interactionModel === 'chat'
-                ? teaserListTexts.HEADING_CHAT
-                : teaserListTexts.HEADING_ASK}"
-                        .clickable="${true}"
-                        .actionLabel="${teaserListTexts.TEASER_CTA_LABEL}"
-                        @teaser-click="${this.handleQuestionInputClick}"
-                        .teasers="${teaserListTexts.DEFAULT_PROMPTS}"
-                      ></teaser-list-component>
-                    </div>`
-            : ''}
-                </div>
-              `
-        : ''}
-       
-         
-           
-            ${this.isDefaultPromptsEnabled && !this.isChatStarted
-        ? html`<div class="chat__container">        
-                  <teaser-list-component
-                    .heading="${this.interactionModel === 'chat'
-            ? teaserListTexts.HEADING_CHAT
-            : teaserListTexts.HEADING_ASK}"
-                    .clickable="${true}"
-                    .actionLabel="${teaserListTexts.TEASER_CTA_LABEL}"
-                    @teaser-click="${this.handleQuestionInputClick}"
-                    .teasers="${teaserListTexts.DEFAULT_PROMPTS}"
-                  ></teaser-list-component>
-                </div>`
-        : ''}
-        
-          ${this.liveChatOn && (this.overrides.avatar || this.overrides.selectedModel) ? html`<voice-chat voice="${this.chatSettings.voice}" model="${this.overrides.selectedModel ? `${this.overrides.selectedModel.model.value}` : ''}" avatar="${this.overrides.avatar ? `${this.overrides.avatar}` : ''}"></voice-chat>` : ''}
-        
-          ${this.showControls ? html`<form
-            id="chat-form"
-            class="form__container ${this.inputPosition === 'sticky' ? 'form__container-sticky' : ''}${this.isDragOver ? ' drag-over' : ''}"
-            @dragover="${this.onFormDragOver}"
-            @dragleave="${this.onFormDragLeave}"
-            @drop="${this.onDrop}"
-          >
-            ${this.filePreviewRender()}
-            <div class="chatbox__container">
-              <div class="chatbox__input-container">
-                <div class="input_container_wrapper">
-                  <textarea
-                    class="chatbox__input"
-                    data-testid="question-input"
-                    id="question-input"
-                    placeholder="${globalConfig.CHAT_INPUT_PLACEHOLDER}"
-                    aria-labelledby="chatbox-label"
-                    name="chatbox"
-                    type="text"
-                    ?disabled="${this.isDisabled}"
-                    autocomplete="off"
-                    @keyup="${this.handleOnInputChange}"
-                    @paste="${this.onPaste}"
-                    title="Type your message or drag and drop files to upload"
-                  ></textarea>
-                  ${this.renderFilePrompt()}
-                  ${this.chatController.isAwaitingResponse
-          ? html`<loading-indicator label="${globalConfig.LOADING_INDICATOR_TEXT}"></loading-indicator>` : ''}                  
-                </div>
-                <div class="input-group-append">
-                  ${this.isResetInput ? html`<button
-                    title="${globalConfig.RESET_BUTTON_TITLE_TEXT}"
-                    class="chatbox__button btn-outline-danger chat-reset${this.isChatStarted ? ' started' : ''}"
-                    type="reset"
-                    id="resetBtn"
-                    @click="${this.resetInputField}"
-                  >
-                    <i class="simple-icon-ban"></i>
-                  </button>` : ''}
-                  ${this.renderChatOrCancelButton()}
-                  ${this.isResetInput ? '' : html`<voice-input-button label="${globalConfig.CHAT_VOICE_BUTTON_LABEL_TEXT}" @on-voice-input="${this.handleVoiceInput}" class="chatbox__button btn-outline-secondary" />`}
-                  ${this.dataCanTalk ? html`<button
-                    title="${globalConfig.LIVE_CHAT_BUTTON_LABEL_TEXT}"
-                    class="chatbox__button btn-outline-secondary live-chat"
-                    type="reset"
-                    id="resetBtn"
-                    @click="${this.startLiveChat}"
-                  >
-                    <i class="simple-icon-speech"></i>
-                  </button>` : ''}
-                </div>
-              </div>
-              
-            </div>
-
-            ${globalConfig.WEB_SEARCH_CHECKBOX_ENABLED
-          ? html`<div class="web-search__wrapper">                  
-                  <simple-model-select                         
-                    value="${this.overrides.selectedModel ? this.overrides.selectedModel.model.value : ( this.overrides.avatar ?  this.overrides.avatar : null)}">
-                  </simple-model-select> 
-                  <div class="web-search__container">
-                    <input
-                      type="checkbox"
-                      class="web-search__checkbox"
-                      id="web-search-checkbox"
-                      .checked="${this.webSearchEnabled}"
-                      @change="${this.handleWebSearchChange}"              
-                      ?disabled="${this.isDisabled}"
-                    />
-                    <label class="web-search__label" for="web-search-checkbox">
-                      ${globalConfig.WEB_SEARCH_CHECKBOX_LABEL}
-                    </label>
-                  </div>
-                  ${globalConfig.DEEP_SEARCH_CHECKBOX_ENABLED && this.webSearchEnabled
-              ? html`<div class="web-search__container">
-                        <input
-                          type="checkbox"
-                          class="web-search__checkbox"
-                          id="deep-search-checkbox"
-                          .checked="${this.deepSearchEnabled}"
-                          @change="${this.handleDeepSearchChange}"
-                          ?disabled="${this.isDisabled}"
-                        />
-                        <label class="web-search__label" for="deep-search-checkbox">
-                          ${globalConfig.DEEP_SEARCH_CHECKBOX_LABEL}
-                        </label>
-                      </div>`
-              : ''}
-                <knowledge-picker absolute="true"></knowledge-picker>          
-                <div class="settings-toggler"><button  type="button" @click="${this.handleSettingsExpandAside}"><i class="simple-icon-settings"></i></button></div>
-                </div>`
-          : html`
-                <div class="web-search__wrapper">
-                  <simple-model-select                         
-                        value="${this.overrides.selectedModel ? this.overrides.selectedModel.model.value : ( this.overrides.avatar ?  this.overrides.avatar : null)}">
-                  </simple-model-select>  
-                  <button 
-                    class="fullscreen-toggle-btn ${this.isFullscreen ? 'simple-icon-close' : 'simple-icon-size-fullscreen'}"
-                    @click="${this.handleFullscreenToggle}"
-                    title="${this.isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}"
-                    ?disabled="${this.isDisabled}"
-                  ></button>
-                  <knowledge-picker absolute="true"></knowledge-picker>                  
-                  <div class="settings-toggler"><button type="button" @click="${this.handleSettingsExpandAside}"><i class="simple-icon-settings"></i></button></div>
-                </div>`}
-
-            ${this.isDefaultPromptsEnabled
-          ? ''
-          : ''}
-          </form>` : ''}
-        </section>        
-        ${this.isAsideOpen && this.showCode?.id
-        ? html`
-              <aside class="aside">
-                <code-screen 
-                  language="${this.showCode.language}" 
-                  componentId=${this.showCode.id} 
-                  .passedContent=${this.showCode.code} 
-                  .activatePreview="${this.showCode.preview}" 
-                  .ended="${this.showCode.ended}"></code-screen>
-              </aside>
-            `
-        : ''}
-        ${this.showSettings
-        ? html`
-            <rws-modal name="chat_settings" centerTop="true"}">
-              <chat-settings></chat-settings>
-            </rws-modal>
-            `
-        : ''}
-      </section>
-    `;
+    return RenderHelper.mainRender.bind(this)(globalConfig, teaserListTexts);
   }
 }
