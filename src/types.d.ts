@@ -161,3 +161,49 @@ declare interface IChatSettings {
     voice: string | null;
 }
 
+declare interface IRWSAiAssistComponent extends HTMLElement {
+  getExternalSignal(): IExternalAssistSignal | null;
+  bindInputSource(input: HTMLTextAreaElement): Promise<string>;
+  updateContextFromMessages(context: Message[]): void;
+}
+
+declare enum ActiveAssistSignalType {
+  MESSAGE = 'message',
+  STATUS = 'status',
+  ACTION = 'action'
+}
+
+declare enum ActiveAssistActionContext {
+  TEXT_INSERTION = 'text_insertion',
+  KDB_ATTACHMENT = 'kdb_attachment'
+}
+
+declare interface IActiveAssistTextActionParams {
+  offset: number;
+  length: number;
+  text: string;
+}
+
+declare interface IActiveAssistKDBAttachmentActionParams {
+  kdbId: string | number;
+}
+
+declare interface IActiveAssistAction {
+  label: string;
+  context: ActiveAssistActionContext;
+  params: IActiveAssistTextActionParams & IActiveAssistKDBAttachmentActionParams;
+}
+
+declare interface IActiveAssist {
+  type: ActiveAssistSignalType;
+  text?: string;
+  actions?: IActiveAssistAction[];
+}
+
+declare interface IExternalAssistSignal {
+  getValue(): IActiveAssist | null;
+  setValue(value: IActiveAssist | null): void;
+  value$: {
+    subscribe(callback: (value: IActiveAssist | null) => void): void;
+  };
+}

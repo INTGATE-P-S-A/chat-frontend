@@ -10,6 +10,11 @@ export class EventsHelper {
             this.showSettings = false;
         });
 
+        this.addEventListener('rws_modal:ai-assist-suggestions:close', () => {
+            this.activeAssist = null;
+            this.aiAssistantSignal?.setValue(null);
+        });
+
         this.addEventListener('code:show', (event) => {
             const theEvent: CustomEvent<{ code: string, id: string, language: string }> = event as CustomEvent<{ code: string, id: string, language: string }>;
             this.handleCodeExpandAside(event, theEvent.detail);

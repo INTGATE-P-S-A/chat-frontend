@@ -29,6 +29,7 @@ import { InitMsgHelper } from '../helpers/InitMsgHelper.js';
 import { EventsHelper } from '../helpers/EventsHelper.js';
 import { RenderHelper } from '../helpers/RenderHelper.js';
 import { SubmitHelper } from '../helpers/SubmitHelper.js';
+import { ThreadHelper } from '../helpers/ThreadHelper.js';
 
 let teaserListTexts = configTeaserListTexts;
 let globalConfig = mainConfig;
@@ -96,7 +97,13 @@ export class ChatComponent extends LitElement {
   dataDeepSearch: boolean = false;
 
   @query('#question-input')
-  questionInput!: HTMLInputElement;
+  questionInput!: HTMLTextAreaElement;
+
+  @query('#ai-assist-component') 
+  aiAssist!: IRWSAiAssistComponent;
+
+  @state()
+  activeAssist: IActiveAssist | null = null;
 
   @state()
   isDisabled = false;
@@ -174,7 +181,24 @@ export class ChatComponent extends LitElement {
 
   chatThread: ChatThreadEntry[] = [];
 
+  aiAssistantSignal: IExternalAssistSignal | null = null;
+
+  private previousProcessingMessageId: string | null = null;
+
   static override styles = [chatStyle];
+
+
+  override firstUpdated() {
+    this.aiAssist.bindInputSource(this.questionInput);
+    this.aiAssistantSignal = this.aiAssist.getExternalSignal();
+
+    this.aiAssistantSignal?.value$.subscribe(async (value: IActiveAssist | null) => {
+      this.activeAssist = value;    
+    });
+
+    // Initial context update
+    setTimeout(() => this.updateAssistContext(), 100);
+  }
 
   override updated(changedProperties: Map<string | number | symbol, unknown>) {
     super.updated(changedProperties);    
@@ -189,6 +213,9 @@ export class ChatComponent extends LitElement {
 
       this.isChatStarted = true;
       this.isDefaultPromptsEnabled = false;
+      
+      // Update assist context when initial messages are loaded
+      this.updateAssistContext();
     }
     
     if (changedProperties.has('useWebSocket') || changedProperties.has('websocketEvents')) {
@@ -292,17 +319,7 @@ export class ChatComponent extends LitElement {
   }
 
   clearChat() {
-    this.chatThread = [];
-    this.isChatStarted = false;
-    this.isDefaultPromptsEnabled = true;
-    this.liveChatOn = false;
-    this.showControls = true;
-    this.showCode = null;
-
-    this.promptFiles = [];
-
-
-    this.resetCurrentChat(new Event('clear-chat'), true);
+    
   }
 
   setQuestionInputValue(value: string): void {
@@ -344,24 +361,17 @@ export class ChatComponent extends LitElement {
   }  
 
   getMessageContext(): Message[] {
-    if (this.interactionModel === 'ask') {
-      return [];
+    return ThreadHelper.getMessageContext.bind(this)();
+  }
+
+  updateAssistContext(): void {
+    if (this.aiAssist && typeof (this.aiAssist as any).updateContextFromMessages === 'function') {
+      const context = this.getMessageContext();
+      console.log('Updating AI assist context with', context.length, 'messages');
+      (this.aiAssist as any).updateContextFromMessages(context);
+    } else {
+      console.warn('AI assist component or updateContextFromMessages method not available');
     }
-
-    const messages: Message[] = this.chatThread.map((entry) => {
-      const message: Message = {                
-        content: entry.isUserMessage ? chatEntryToString(entry) : (entry.rawContent || chatEntryToString(entry)),
-        role: entry.isUserMessage ? 'user' : 'assistant',
-      };
-      
-      if (entry.files && entry.files.length > 0) {
-        message.files = entry.files;
-      }
-
-      return message;
-    });
-
-    return messages;
   }
   
   async handleUserChatSubmit(event: Event): Promise<void> {
@@ -369,6 +379,9 @@ export class ChatComponent extends LitElement {
     this.collapseAside(event);
 
     await SubmitHelper.handleSubmit.bind(this)(requestOptions, chatHttpOptions);
+    
+    // Update assist context after user message is sent
+    setTimeout(() => this.updateAssistContext(), 200);
   }
   
   resetInputField(event: Event): void {
@@ -383,43 +396,10 @@ export class ChatComponent extends LitElement {
     this.showControls = false;
     this.liveChatOn = true;
   }
-  
-  resetCurrentChat(event: Event, forced = false): void {
-    this.isChatStarted = false;
-    this.chatThread = [];
-    this.isDisabled = false;
-    this.isDefaultPromptsEnabled = true;
-    this.selectedCitation = undefined;
-    this.chatController.reset();
-    
-    this.promptFiles = [];
-    
-    const chatThreadComponent = this.renderRoot?.querySelector('chat-thread-component');
-    if (chatThreadComponent && typeof (chatThreadComponent as any).clearAllReasoning === 'function') {
-      (chatThreadComponent as any).clearAllReasoning();
-    }
-    
-    if (chatThreadComponent && typeof (chatThreadComponent as any).resetScrollState === 'function') {
-      (chatThreadComponent as any).resetScrollState();
-    }
-
-
-    this.collapseAside(event);
-    this.handleUserChatCancel(event);
-
-    if (!forced) {
-      const resetEvent = new CustomEvent('chat:conversation:end', {
-        detail: true,
-        bubbles: true,
-        composed: true
-      });
-      this.dispatchEvent(resetEvent);
-    }
-  }
 
   showDefaultPrompts(event: Event): void {
-    if (!this.isDefaultPromptsEnabled) {
-      this.resetCurrentChat(event);
+    if (!this.isDefaultPromptsEnabled) {      
+      ThreadHelper.resetThread.bind(this)(event);
     }
   }
   
@@ -472,15 +452,28 @@ export class ChatComponent extends LitElement {
   override willUpdate(): void {
     this.isDisabled = this.chatController.generatingAnswer;
 
+    const currentProcessingId = this.chatController.processingMessage?.id as string | null;
+
     if (this.chatController.processingMessage) {
       const processingEntry = this.chatController.processingMessage as ChatThreadEntry;
       const index = this.chatThread.findIndex((entry) => entry.id === processingEntry.id);
 
+      const oldLength = this.chatThread.length;
       this.chatThread =
         index > -1
           ? newListWithEntryAtIndex(this.chatThread, index, processingEntry)
           : [...this.chatThread, processingEntry];
+      
+      // Update assist context when chat thread changes
+      if (this.chatThread.length !== oldLength || index > -1) {
+        this.updateAssistContext();
+      }
+    } else if (this.previousProcessingMessageId && !currentProcessingId) {
+      // Processing just finished, update context with final state
+      setTimeout(() => this.updateAssistContext(), 100);
     }
+
+    this.previousProcessingMessageId = currentProcessingId;
   }  
 
   public debugSlotContent() {
@@ -514,6 +507,35 @@ export class ChatComponent extends LitElement {
 
     this.upperLoader = !this.upperLoader;
   }  
+
+  handleSuggestionApplied(event: CustomEvent) {
+    const { text, suggestion } = event.detail;
+    
+    console.log('Suggestion applied:', { text, suggestion });
+    
+    // Insert the suggestion text into the input field
+    if (this.questionInput) {
+      this.questionInput.value = text;
+      this.currentQuestion = text; // Update the reactive property
+      this.questionInput.focus();
+      
+      // Trigger input event to update any reactive properties and reset input check
+      this.questionInput.dispatchEvent(new Event('input', { bubbles: true }));
+      this.resetInputCheck(); // Ensure reset button appears
+
+      this.collapseAside(event);
+
+      SubmitHelper.handleSubmit.bind(this)(requestOptions, chatHttpOptions);
+    }
+    
+    // Clear the active assist to close the modal
+    this.activeAssist = null;
+  }
+
+  handleSuggestionsModalClose() {
+    console.log('Suggestions modal closed');
+    this.activeAssist = null;
+  }
 
   override render() {
     return RenderHelper.mainRender.bind(this)(globalConfig, teaserListTexts);

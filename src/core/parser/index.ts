@@ -1,10 +1,16 @@
 import { ReactiveControllerHost } from 'lit';
-import { ChatResponseError, newListWithEntryAtIndex } from '../../utils/index.js';
+import { ChatResponseError } from '../../utils/index.js';
 import { createReader, readStream } from '../stream/index.js';
 import { createBufferState, processChunkWithBuffering, parseText } from './bufferer.js';
 import { parseTool } from './toolsParser.js';
 import { ChatThreadComponent } from '../../components/chat-thread-component.js';
 import { CitationListComponent } from '../../components/citation-list.js';
+import { 
+  createHtmlTagBufferState, 
+  processChunkWithHtmlTagBuffering, 
+  handleRemainingHtmlTagBuffer
+} from './tags-close-detector.js';
+import { updateTextEntry, updateCitationsEntry } from './parser-functions.js';
 
 function getCodeViewer(host: ReactiveControllerHost, coderId: string): { updateRenderer: (text: string) => void, endStream: () => void } {
   const hoster = (host as any);
@@ -45,13 +51,16 @@ export async function parseStreamedMessages({
   const chunks = readStream<BotResponseChunk | BotResponseError>(reader);
   let startedCoding = false;
   let coderId: string | null = null;
-  let codeViewerCreated = false; // Track if we've already created the code-viewer
-  let accumulatedCodeContent = ''; // Accumulate all code content during streaming
+  let codeViewerCreated = false;
+  let accumulatedCodeContent = ''; 
   let citations: Citation[] = [];
   const streamedMessageRaw: string[] = [];
-  let rawContentAccumulator = ''; // Accumulate raw content before parsing
+  let rawContentAccumulator = ''; 
   const bufferState = createBufferState();
   let textBlockIndex = 0;
+  
+  // HTML tag buffering state
+  let htmlTagBufferState = createHtmlTagBufferState();
 
   let updatedEntry = {
     ...chatEntry,
@@ -109,7 +118,6 @@ export async function parseStreamedMessages({
 
     if ((chunk as any).requestId) {
       currentRequestId = (chunk as any).requestId;
-      // Dispatch event to notify that we have a request ID
       const event = new CustomEvent('chat:request:id', {
         detail: { requestId: currentRequestId },
         bubbles: true,
@@ -120,7 +128,6 @@ export async function parseStreamedMessages({
     }
 
     if (chunk.reasoning) {
-      // Use the callback function to add reasoning steps
       if (!reasoningId) {
         reasoningId = 'reasoning-' + Math.random().toString(36).substring(2, 15);
       }
@@ -150,12 +157,10 @@ export async function parseStreamedMessages({
       continue;
     }
 
-    // Handle rws_progress status for progress updates
     if (chunk.status === 'rws_progress') {
       if (chunk.progress) {
         const progress = chunk.progress as ProgressChunk;
 
-        // Dispatch progress event to chat component
         const event = new CustomEvent('chat:progress', {
           detail: {
             stage: progress.stage || '',
@@ -189,16 +194,20 @@ export async function parseStreamedMessages({
       continue;
     }    
 
-    // Accumulate raw content before applying parsing rules
     rawContentAccumulator += chunkValue;
 
     streamedMessageRaw.push(chunkValue);
+    
+    const { finalChunkValue, shouldSkip, bufferState: updatedHtmlBufferState } = processChunkWithHtmlTagBuffering(chunkValue, htmlTagBufferState);
+    htmlTagBufferState = updatedHtmlBufferState;
+    
+    if (shouldSkip) {
+      continue; 
+    }
 
-    // Store previous buffering state to detect completion
     const wasBufferingCodeViewer = bufferState.buffering && bufferState.currentRule === 'code-block';
 
-    // Process chunk with buffering
-    const { processedChunk, bufferState: updatedBufferState } = processChunkWithBuffering(chunkValue, bufferState, (bufferInfo, chunk) => {
+    const { processedChunk, bufferState: updatedBufferState } = processChunkWithBuffering(finalChunkValue, bufferState, (bufferInfo, chunk) => {
       if (bufferInfo.buffering && bufferInfo.currentRule === 'code-block' && coderId) {
         getCodeViewer(host, coderId)?.updateRenderer(chunk);
       } else if (bufferInfo.currentRule === 'code-block' && coderId) {
@@ -208,13 +217,9 @@ export async function parseStreamedMessages({
       }
     });
 
-    // Check if code-viewer buffering just completed
     const codeViewerJustCompleted = wasBufferingCodeViewer && !updatedBufferState.buffering && startedCoding;
 
     if (codeViewerJustCompleted) {
-      // Code-viewer buffering just completed - content was already sent via duringBuffering
-
-      // Stop code generation after rendering content
       try {
         const hoster = (host as any);
         const codeViewer: { stopCodeGeneration: () => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[componentId="' + coderId + '"]');
@@ -225,36 +230,25 @@ export async function parseStreamedMessages({
       } catch (e) {
         console.error('Error stopping code generation:', e);
       }
-
-      // DON'T clear coderId here - we need it for the final update!
     }
 
     if (codeViewerJustCompleted) {
-      // Code-viewer just completed, reset state 
-      // DON'T clear coderId yet - keep it to find the component for final update
-      startedCoding = false;
-      // DON'T clear accumulatedCodeContent yet - keep it for final update
-      // DON'T reset codeViewerCreated - once created, never recreate
+      startedCoding = false;    
     }
 
-    // Check if we're currently streaming to a code-viewer
     const isStreamingToCodeViewer = updatedBufferState.buffering &&
       updatedBufferState.currentRule === 'code-block' &&
       startedCoding;
 
-    // Only update text entry when we have a processed chunk AND we're not streaming to code-viewer
     if (processedChunk !== null && !isStreamingToCodeViewer) {
-      // Check if this chunk contains a new code-viewer tag being created
       if (processedChunk.includes('<code-viewer') && !startedCoding && !codeViewerCreated) {
         startedCoding = true;
-        codeViewerCreated = true; // Mark that we've created the component
+        codeViewerCreated = true; 
 
-        // Extract the componentId from the generated code-viewer tag
         const componentIdMatch = processedChunk.match(/componentId="([^"]+)"/);
         if (componentIdMatch) {
           coderId = componentIdMatch[1];
 
-          // Start code generation on the code-viewer component after a small delay
           setTimeout(() => {
             try {
               const hoster = (host as any);
@@ -265,24 +259,17 @@ export async function parseStreamedMessages({
             } catch (e) {
               console.error('Error starting code generation:', e);
             }
-          }, 100); // Small delay to ensure component is rendered
+          }, 100); 
         }
       }
 
-      // Always update text content normally (let everything render)
       updatedEntry = updateTextEntry({ chunkValue: processedChunk, textBlockIndex, chatEntry: updatedEntry });
     }
 
-    // Handle code-viewer completion (reset state)
     if (codeViewerJustCompleted) {
-      // Code-viewer just completed, reset some state but keep coderId and accumulatedCodeContent for final update
       startedCoding = false;
-      // DON'T reset codeViewerCreated - once created, never recreate
-      // DON'T reset coderId - need it for final update
-      // DON'T reset accumulatedCodeContent - need it for final update
     }
 
-    // Update buffer state for next iteration
     Object.assign(bufferState, updatedBufferState);
 
     updatedEntry = updateCitationsEntry({ citations: [], chatEntry: updatedEntry });
@@ -290,7 +277,14 @@ export async function parseStreamedMessages({
     onVisit(updatedEntry);
   }
 
-
+  // Handle any remaining buffered HTML tag content
+  const { hasRemainingContent, remainingContent } = handleRemainingHtmlTagBuffer(htmlTagBufferState);
+  if (hasRemainingContent) {
+    const { processedChunk } = processChunkWithBuffering(remainingContent, bufferState);
+    if (processedChunk !== null) {
+      updatedEntry = updateTextEntry({ chunkValue: processedChunk, textBlockIndex, chatEntry: updatedEntry });
+    }
+  }
 
   updatedEntry = updateCitationsEntry({ citations, chatEntry: updatedEntry });
 
@@ -358,121 +352,5 @@ export async function parseStreamedMessages({
     }, 500);    
   }
   
-  // Don't clear the reasoning - let it persist with the message
-  // The reasoning will be cleared when a new conversation starts
   reasoningId = null;
-}
-
-// update the citations entry and wrap the citations in a sup tag
-export function updateCitationsEntry({
-  citations,
-  chatEntry,
-}: {
-  citations: Citation[];
-  chatEntry: ChatThreadEntry;
-}): ChatThreadEntry {
-  const lastMessageEntry = chatEntry;
-  const updateCitationReference = (match, capture) => {
-    const citation = citations.find((citation) => citation.text === capture);
-    if (citation) {
-      return `<sup class="citation">${citation.ref}</sup>`;
-    }
-    return match;
-  };
-
-  const textEntrys = lastMessageEntry.text.map((textEntry) => {
-    const value = textEntry.value.replaceAll(/\[(.*?)]/g, updateCitationReference);
-    const followingSteps = textEntry.followingSteps?.map((step) =>
-      step.replaceAll(/\[(.*?)]/g, updateCitationReference),
-    );
-    return {
-      value,
-      followingSteps,
-    };
-  });
-
-  return {
-    ...lastMessageEntry,
-    text: textEntrys,
-    citations,
-  };
-}
-
-// parse and format citations
-export function parseCitations(inputText: string): Citation[] {
-  const findCitations = /\[(.*?)]/g;
-  const citation: NonNullable<unknown> = {};
-  let referenceCounter = 1;
-
-  // extract citation (filename) from the text and map it to a reference number
-  inputText.replaceAll(findCitations, (_, capture) => {
-    const citationText = capture.trim();
-    if (!citation[citationText]) {
-      citation[citationText] = referenceCounter++;
-    }
-    return '';
-  });
-
-  return Object.keys(citation).map((text, index) => ({
-    ref: index + 1,
-    text,
-  }));
-}
-
-// update the text block entry
-export function updateTextEntry({
-  chunkValue,
-  textBlockIndex,
-  chatEntry,
-}: {
-  chunkValue: string;
-  textBlockIndex: number;
-  chatEntry: ChatThreadEntry;
-}): ChatThreadEntry {
-  const { text: lastChatMessageTextEntry } = chatEntry;
-  const block = lastChatMessageTextEntry[textBlockIndex] ?? {
-    value: '',
-    followingSteps: [],
-  };
-
-  const value = (block.value || '') + chunkValue;
-
-  return {
-    ...chatEntry,
-    text: newListWithEntryAtIndex(lastChatMessageTextEntry, textBlockIndex, {
-      ...block,
-      value,
-    }),
-  };
-}
-
-// update the following steps or followup questions entry
-export function updateFollowingStepOrFollowupQuestionEntry({
-  chunkValue,
-  textBlockIndex,
-  stepIndex,
-  chatEntry,
-}: {
-  chunkValue: string;
-  textBlockIndex: number;
-  stepIndex: number;
-  chatEntry: ChatThreadEntry;
-}): ChatThreadEntry {
-  // following steps and followup questions are treated the same way. They are just stored in different arrays
-  const { text: lastChatMessageTextEntry } = chatEntry;
-  if (lastChatMessageTextEntry && lastChatMessageTextEntry[textBlockIndex]) {
-    const { followingSteps } = lastChatMessageTextEntry[textBlockIndex];
-    if (followingSteps) {
-      const step = (followingSteps[stepIndex] || '') + chunkValue;
-      return {
-        ...chatEntry,
-        text: newListWithEntryAtIndex(lastChatMessageTextEntry, textBlockIndex, {
-          ...lastChatMessageTextEntry[textBlockIndex],
-          followingSteps: newListWithEntryAtIndex(followingSteps, stepIndex, step),
-        }),
-      };
-    }
-  }
-
-  return chatEntry;
 }

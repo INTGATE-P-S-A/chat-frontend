@@ -1,6 +1,6 @@
 import { ReactiveControllerHost } from 'lit';
 import { ChatResponseError } from '../../utils/index.js';
-import { parseCitations, updateCitationsEntry, updateTextEntry } from './index.js';
+import { parseCitations, updateCitationsEntry, updateTextEntry } from './parser-functions.js';
 import { createBufferState, processChunkWithBuffering } from './bufferer.js';
 
 export async function parseStreamedMessagesFromWebSocket({

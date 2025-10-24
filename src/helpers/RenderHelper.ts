@@ -78,6 +78,7 @@ export class RenderHelper {
             @dragleave="${FilesHelper.onFormDragLeave.bind(this)}"
             @drop="${FilesHelper.onDrop.bind(this)}"
           >
+            ${RenderHelper.aiAssistRender.bind(this)()}
             ${RenderHelper.filePreviewRender.bind(this)()}
             <div class="chatbox__container">
               <div class="chatbox__input-container">
@@ -198,6 +199,11 @@ export class RenderHelper {
             </rws-modal>
             `
         : ''}
+        ${this.activeAssist ? html`<ai-suggestions 
+          modalName="ai-assist-suggestions"
+          .suggestions="${RenderHelper.convertToSuggestions(this.activeAssist)}"
+          @suggestion-applied="${this.handleSuggestionApplied}"
+          @modal-close="${this.handleSuggestionsModalClose}"></ai-suggestions>` : ''}
       </section>
     `;
   }
@@ -307,5 +313,23 @@ export class RenderHelper {
   static renderExtraInputFooterButtons(this: ChatComponent, globalConfig: any) {
     return html`<div class="kdb-pick"><knowledge-picker absolute="true"></knowledge-picker></div>          
                 <div class="settings-toggler"><rws-tooltip side="left" text="${globalConfig.TOOLTIPS.CHAT_SETTINGS}"><button  type="button" @click="${this.handleSettingsExpandAside}"><i class="simple-icon-settings"></i></button></rws-tooltip></div>`;
+  }
+
+  static aiAssistRender(this: ChatComponent) {
+    return html`<ai-assist id="ai-assist-component"></ai-assist>`;
+  }
+
+  static convertToSuggestions(activeAssist: any) {
+    if (!activeAssist?.actions) {
+      return [];
+    }
+
+    return activeAssist.actions.map((action: any, index: number) => ({
+      id: `suggestion-${index}`,
+      title: action.label,
+      description: activeAssist.text || '',
+      text: action.params.text || action.label,
+      selected: false
+    }));
   }
 }
