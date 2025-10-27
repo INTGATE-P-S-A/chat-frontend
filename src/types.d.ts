@@ -68,7 +68,7 @@ declare interface RequestOverrides {
   aiProvider?: any;
   avatar?: string;
   language?: string;
-  knowledge?: string[];
+  knowledge?: (string | number)[];
   conversationId?: string;
   conversationTitle?: string;
   userId?: string;
@@ -85,9 +85,9 @@ declare interface MessageContent {
 }
 
 declare interface MessageFile {
-  name: string; 
-  size: string; 
-  type: string; 
+  name: string;
+  size: string;
+  type: string;
   base64: string;
   tmp?: boolean; // Indicates if this is a temporary file (newly sent) vs a regular file reference
 }
@@ -156,9 +156,9 @@ declare interface BotResponseError {
 }
 
 declare interface IChatSettings {
-    imageModel: string | null;
-    videoModel: string | null;
-    voice: string | null;
+  imageModel: string | null;
+  videoModel: string | null;
+  voice: string | null;
 }
 
 declare interface IRWSAiAssistComponent extends HTMLElement {
@@ -189,6 +189,13 @@ declare interface IActiveAssistTextActionParams {
 
 declare interface IActiveAssistKDBAttachmentActionParams {
   kdbId: string | number;
+  title: string;
+  description: string;
+  file: {
+    name: string;
+    mimeType: string;
+    size: number;
+  }
 }
 
 declare interface IActiveAssistAction {
@@ -203,10 +210,25 @@ declare interface IActiveAssist {
   actions?: IActiveAssistAction[];
 }
 
+declare interface IAISuggestion {
+  id: string;
+  title: string;
+  description: string;
+  text: string;
+  context: string;
+  kdb?: IActiveAssistKDBAttachmentActionParams
+}
+
+
+declare interface IAssistSignalPayload {
+    command: 'attach_file' | 'pass_entry';
+    payload?: any;
+}
+
 declare interface IExternalAssistSignal {
-  getValue(): IActiveAssist | null;
-  setValue(value: IActiveAssist | null): void;
+  getValue(): IAssistSignalPayload | null;
+  setValue(value: IAssistSignalPayload | null): void;
   value$: {
-    subscribe(callback: (value: IActiveAssist | null) => void): void;
+    subscribe(callback: (value: IAssistSignalPayload | null) => void): void;
   };
 }

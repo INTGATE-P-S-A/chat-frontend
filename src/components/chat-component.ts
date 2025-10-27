@@ -99,7 +99,7 @@ export class ChatComponent extends LitElement {
   @query('#question-input')
   questionInput!: HTMLTextAreaElement;
 
-  @query('#ai-assist-component') 
+  @query('#ai-assist-component')
   aiAssist!: IRWSAiAssistComponent;
 
   @state()
@@ -139,7 +139,7 @@ export class ChatComponent extends LitElement {
   showSettings = false;
 
   chatController = new ChatController(this);
-  
+
   @state()
   showCode: { code: string, id: string, language: string, preview?: boolean, ended?: boolean } | null = null;
 
@@ -151,7 +151,7 @@ export class ChatComponent extends LitElement {
 
   @state()
   selectedChatEntry: ChatThreadEntry | undefined = undefined;
-  
+
   @state()
   isShowingProgress = false;
 
@@ -192,8 +192,10 @@ export class ChatComponent extends LitElement {
     this.aiAssist.bindInputSource(this.questionInput);
     this.aiAssistantSignal = this.aiAssist.getExternalSignal();
 
-    this.aiAssistantSignal?.value$.subscribe(async (value: IActiveAssist | null) => {
-      this.activeAssist = value;    
+    this.aiAssistantSignal?.value$.subscribe(async (value: IAssistSignalPayload | null) => {
+      if (value?.command === 'pass_entry') {
+        this.activeAssist = value?.payload;
+      }
     });
 
     // Initial context update
@@ -201,7 +203,7 @@ export class ChatComponent extends LitElement {
   }
 
   override updated(changedProperties: Map<string | number | symbol, unknown>) {
-    super.updated(changedProperties);    
+    super.updated(changedProperties);
     this.overrideConfig();
 
     if (changedProperties.has('customStyles')) {
@@ -213,11 +215,11 @@ export class ChatComponent extends LitElement {
 
       this.isChatStarted = true;
       this.isDefaultPromptsEnabled = false;
-      
+
       // Update assist context when initial messages are loaded
       this.updateAssistContext();
     }
-    
+
     if (changedProperties.has('useWebSocket') || changedProperties.has('websocketEvents')) {
       this.chatController.configureWebSocket(this.useWebSocket, this.websocketEvents);
     }
@@ -227,14 +229,14 @@ export class ChatComponent extends LitElement {
     super.connectedCallback();
 
     await addIconSheet.bind(this)();
-    
-    this.chatController.setReasoningCallback((_reasoningId: string, step: string) => {      
+
+    this.chatController.setReasoningCallback((_reasoningId: string, step: string) => {
       this.chatController.addReasoningToProcessingMessage(step);
     });
-    
+
     const webSearchAttr = this.getAttribute('data-web-search');
     const deepSearchAttr = this.getAttribute('data-deep-search');
-    
+
     if (webSearchAttr === 'true' || this.dataWebSearch === true) {
       this.webSearchEnabled = true;
     }
@@ -266,21 +268,21 @@ export class ChatComponent extends LitElement {
   override disconnectedCallback() {
     super.disconnectedCallback();
 
-    
+
     EventsHelper.removeFullScreenEventListeners.bind(this)();
-  
+
     this.showControls = false;
     this.liveChatOn = false;
   }
 
   override attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null) {
     super.attributeChangedCallback(name, oldValue, newValue);
-    
+
     // Handle dynamic attribute changes
     if (name === 'data-web-search') {
       this.webSearchEnabled = newValue === 'true';
     }
-    
+
     if (name === 'data-deep-search') {
       this.deepSearchEnabled = newValue === 'true';
     }
@@ -298,7 +300,7 @@ export class ChatComponent extends LitElement {
     this.progressMessage = message || '';
     this.progressPercentage = percentage || 0;
     this.isShowingProgress = true;
-    
+
     if (percentage >= 100 || stage === 'complete') {
       setTimeout(() => {
         this.isShowingProgress = false;
@@ -319,7 +321,7 @@ export class ChatComponent extends LitElement {
   }
 
   clearChat() {
-    
+
   }
 
   setQuestionInputValue(value: string): void {
@@ -351,14 +353,14 @@ export class ChatComponent extends LitElement {
   handleRecordingStateChange(event: CustomEvent): void {
     event?.preventDefault();
     const { isRecording } = event.detail;
-    
+
     const recordingStateEvent = new CustomEvent('recording-state-change', {
       detail: { isRecording },
       bubbles: true,
       composed: true
     });
     this.dispatchEvent(recordingStateEvent);
-  }  
+  }
 
   getMessageContext(): Message[] {
     return ThreadHelper.getMessageContext.bind(this)();
@@ -387,7 +389,7 @@ export class ChatComponent extends LitElement {
       console.warn('ChatComponent: AI assist component or analyzeAfterLLMResponse method not available');
     }
   }
-  
+
   async handleUserChatSubmit(event: Event): Promise<void> {
     event.preventDefault();
     this.collapseAside(event);
@@ -399,7 +401,7 @@ export class ChatComponent extends LitElement {
     }
 
     await SubmitHelper.handleSubmit.bind(this)(requestOptions, chatHttpOptions);
-    
+
     // Update assist context after user message is sent (but don't trigger analysis yet)
     setTimeout(() => {
       this.updateAssistContext();
@@ -407,7 +409,7 @@ export class ChatComponent extends LitElement {
       // AI assist will only be triggered after LLM responses
     }, 500);
   }
-  
+
   resetInputField(event: Event): void {
     event.preventDefault();
     this.questionInput.value = '';
@@ -422,11 +424,11 @@ export class ChatComponent extends LitElement {
   }
 
   showDefaultPrompts(event: Event): void {
-    if (!this.isDefaultPromptsEnabled) {      
+    if (!this.isDefaultPromptsEnabled) {
       ThreadHelper.resetThread.bind(this)(event);
     }
   }
-  
+
   handleOnInputChange(e: KeyboardEvent): void {
     this.resetInputCheck();
 
@@ -434,12 +436,12 @@ export class ChatComponent extends LitElement {
       this.handleUserChatSubmit(e);
     }
   }
-  
+
   handleUserChatCancel(event: Event): any {
     event?.preventDefault();
     this.chatController.cancelRequest();
   }
-  
+
   handleCodeExpandAside(event: Event | undefined = undefined, code: { id: string, code: string, language: string, preview?: boolean, ended?: boolean } | null = null): void {
     event?.preventDefault();
 
@@ -464,14 +466,14 @@ export class ChatComponent extends LitElement {
   openAside() {
     this.isAsideOpen = true;
   }
-  
+
   collapseAside(event: Event): void {
     event.preventDefault();
     this.selectedCitation = undefined;
     this.isAsideOpen = false;
-  }  
+  }
 
-  
+
 
   override willUpdate(): void {
     const currentGeneratingAnswer = this.chatController.generatingAnswer;
@@ -485,23 +487,23 @@ export class ChatComponent extends LitElement {
         index > -1
           ? newListWithEntryAtIndex(this.chatThread, index, processingEntry)
           : [...this.chatThread, processingEntry];
-      
+
       // Signal to AI assist that LLM is streaming (don't update context during streaming to avoid infinite loops)
       if (this.aiAssist && typeof (this.aiAssist as any).setLLMStreaming === 'function') {
         (this.aiAssist as any).setLLMStreaming(true);
       }
-      
+
     }
-    
+
     // Check if generation just finished (transitioned from true to false)
     if (this.previousGeneratingAnswer && !currentGeneratingAnswer) {
       console.log('ChatComponent: Generation completed, triggering post-LLM analysis');
-      
+
       // Signal end of streaming to AI assist
       if (this.aiAssist && typeof (this.aiAssist as any).setLLMStreaming === 'function') {
         (this.aiAssist as any).setLLMStreaming(false);
       }
-      
+
       // Update context and trigger analysis after LLM response is complete
       setTimeout(() => {
         console.log('ChatComponent: LLM response completed, updating context and triggering post-LLM analysis');
@@ -512,7 +514,7 @@ export class ChatComponent extends LitElement {
 
     // Update previous state
     this.previousGeneratingAnswer = currentGeneratingAnswer;
-  }  
+  }
 
   public debugSlotContent() {
 
@@ -544,35 +546,62 @@ export class ChatComponent extends LitElement {
     }
 
     this.upperLoader = !this.upperLoader;
-  }  
+  }
 
   handleSuggestionApplied(event: CustomEvent) {
-    const { text, suggestion } = event.detail;
-    
+    const text = event.detail.text;
+    const suggestion: IAISuggestion = event.detail.suggestion;
+
     console.log('Suggestion applied:', { text, suggestion });
-    
+
     // Insert the suggestion text into the input field
     if (this.questionInput) {
-      this.questionInput.value = text;
-      this.currentQuestion = text; // Update the reactive property
-      this.questionInput.focus();
-      
-      // Trigger input event to update any reactive properties and reset input check
-      this.questionInput.dispatchEvent(new Event('input', { bubbles: true }));
-      this.resetInputCheck(); // Ensure reset button appears
+
 
       this.collapseAside(event);
 
-      SubmitHelper.handleSubmit.bind(this)(requestOptions, chatHttpOptions);
+      if (suggestion.context === 'kdb_attachment') {
+        this.aiAssistantSignal?.setValue({
+          command: 'attach_file',
+          payload: suggestion.kdb
+        });        
+        
+        console.log(suggestion.kdb );
+        this.dispatchEvent(new CustomEvent('selectionChanged', {          
+          detail: { selectedIds: suggestion.kdb ? [suggestion.kdb.kdbId.toString()] : [] },
+          bubbles: true,
+          composed: true
+        }));
+        
+      } else {
+        this.questionInput.value = text;
+        this.currentQuestion = text; // Update the reactive property
+        this.questionInput.focus();
+
+        // Trigger input event to update any reactive properties and reset input check
+        this.questionInput.dispatchEvent(new Event('input', { bubbles: true }));
+        this.resetInputCheck(); // Ensure reset button appears
+        SubmitHelper.handleSubmit.bind(this)(requestOptions, chatHttpOptions);
+      }
     }
-    
+
     // Clear the active assist to close the modal
     this.activeAssist = null;
+
+    // Also clear the active entry in the ai-assist component
+    if (this.aiAssist && typeof (this.aiAssist as any).clearActiveEntry === 'function') {
+      (this.aiAssist as any).clearActiveEntry();
+    }
   }
 
   handleSuggestionsModalClose() {
     console.log('Suggestions modal closed');
     this.activeAssist = null;
+
+    // Also clear the active entry in the ai-assist component
+    if (this.aiAssist && typeof (this.aiAssist as any).clearActiveEntry === 'function') {
+      (this.aiAssist as any).clearActiveEntry();
+    }
   }
 
   override render() {

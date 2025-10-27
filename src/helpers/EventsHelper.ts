@@ -12,7 +12,10 @@ export class EventsHelper {
 
         this.addEventListener('rws_modal:ai-assist-suggestions:close', () => {
             this.activeAssist = null;
-            this.aiAssistantSignal?.setValue(null);
+            this.aiAssistantSignal?.setValue({
+                command: 'pass_entry',
+                payload: null
+            });
         });
 
         this.addEventListener('code:show', (event) => {
