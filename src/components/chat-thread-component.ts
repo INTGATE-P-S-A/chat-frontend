@@ -391,6 +391,11 @@ export class ChatThreadComponent extends LitElement {
   }
 
   renderTextEntry(textEntry: ChatMessageText) {
+    // Don't render empty text entries
+    if (!textEntry.value || textEntry.value.trim() === '') {
+      return '';
+    }
+    
     const entries = [html`<p class="chat__txt--entry">${unsafeHTML(textEntry.value)}</p>`];
     
     // render steps
@@ -410,27 +415,49 @@ export class ChatThreadComponent extends LitElement {
   }
 
   renderFiles(entry: ChatThreadEntry) {
-    if (!entry.files || entry.files.length === 0) {
-      return '';
-    }
-
-    const imageFiles = entry.files.filter(file => file.type.startsWith('image/'));
+    console.log('renderFiles called with entry:', entry);
+    console.log('entry.files:', entry.files);
     
-    if (imageFiles.length === 0) {
+    if (!entry.files || entry.files.length === 0) {
+      console.log('No files to render');
       return '';
     }
 
+    // Debug: let's see what properties each file has
+    entry.files.forEach((file, index) => {
+      console.log(`File ${index}:`, file);
+      console.log(`File ${index} properties:`, Object.keys(file));
+    });
+
+    // Handle both file structures: frontend uploaded files (type, name) and backend files (mimeType, originalName)
+    const imageFiles = entry.files.filter(file => {
+      const fileType = file.type || (file as any).mimeType;
+      return fileType && fileType.startsWith('image/');
+    });
+    
+    const nonImageFiles = entry.files.filter(file => {
+      const fileType = file.type || (file as any).mimeType;
+      return fileType && !fileType.startsWith('image/');
+    });
+    
+    console.log('imageFiles:', imageFiles);
+    console.log('nonImageFiles:', nonImageFiles);
+    
     return html`
       <div class="chat__files">
         ${imageFiles.map(file => {
-          if (file.tmp) {
+          const fileAny = file as any;
+          // Use the correct properties based on file structure
+          const mimeType = file.type || fileAny.mimeType;
+          
+          if (file.tmp || fileAny.tmp) {
             // For temporary files (newly sent), use base64 content
             return html`
               <div class="file-item">
                 <gen-image 
                   tmp="true"
-                  imageFormat="${file.type.split('/')[1] || 'png'}"
-                >${file.base64}</gen-image>
+                  imageFormat="${mimeType ? mimeType.split('/')[1] || 'png' : 'png'}"
+                >${file.base64 || fileAny.base64}</gen-image>
               </div>
             `;
           } else {
@@ -438,12 +465,27 @@ export class ChatThreadComponent extends LitElement {
             return html`
               <div class="file-item">
                 <gen-image 
-                  fileId="${(file as any).id}"
-                  imageFormat="${file.type.split('/')[1] || 'png'}"
+                  fileId="${fileAny.id}"
+                  imageFormat="${mimeType ? mimeType.split('/')[1] || 'png' : 'png'}"
                 ></gen-image>
               </div>
             `;
           }
+        })}
+        ${nonImageFiles.map(file => {
+          const fileAny = file as any;
+          const fileName = file.name || fileAny.originalName || fileAny.filename;
+          return html`
+            <div class="file-item non-image-file">
+              <div class="file-item__icon">
+                <i class="simple-icon-paper-clip"></i>
+              </div>
+              <div class="file-item__info">
+                <div class="file-item__name">${fileName || 'Unknown file'}</div>
+                <div class="file-item__size">${file.size || fileAny.size || 'Unknown size'}</div>
+              </div>
+            </div>
+          `;
         })}
       </div>
     `;
@@ -612,6 +654,7 @@ export class ChatThreadComponent extends LitElement {
       <ul class="chat__list" aria-live="assertive">
         ${this.chatThread.map(
           (message, index) => {
+            console.log('Rendering message:', message);
             const isLastMessage = index === this.chatThread.length - 1;
             const showLoadingIndicator = this.isProcessingResponse && isLastMessage && !message.isUserMessage;
 

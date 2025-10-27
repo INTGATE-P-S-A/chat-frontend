@@ -768,7 +768,67 @@ export const chatStyle = css`
 
       }
       
-    }  
+    }
+
+    /* Chat files display styles */
+    .chat__files {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .file-item {
+      max-width: 200px;
+      border-radius: 0.375rem;
+      overflow: hidden;
+      border: 1px solid var(--chat_border_color, #ced4da);
+
+      &.non-image-file {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem;
+        background: var(--background_color, #f8f9fa);
+        gap: 0.75rem;
+      }
+    }
+
+    .file-item__icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      background: var(--chat_border_color, #ced4da);
+      border-radius: 0.25rem;
+      flex-shrink: 0;
+
+      i {
+        font-size: 1rem;
+        color: white;
+      }
+    }
+
+    .file-item__info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.125rem;
+      overflow: hidden;
+    }
+
+    .file-item__name {
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--color_text, #333);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-item__size {
+      font-size: 0.625rem;
+      color: var(--color_text_muted, #6c757d);
+    }
   }
 
   #ai-assist-component {

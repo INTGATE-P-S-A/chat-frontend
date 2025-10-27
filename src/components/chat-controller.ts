@@ -442,8 +442,17 @@ export class ChatController implements ReactiveController {
           const lastMessage = messages[messages.length - 1];
           if (lastMessage.role === 'user') {
             const messageText = this.extractTextFromMultimodalContent(lastMessage.content);
-            const messageFiles = this.extractFilesFromMultimodalContent(lastMessage.content);
-            await this.processResponse(messageText || '', true, false, requestOptions.overrides, messageFiles);
+            const contentFiles = this.extractFilesFromMultimodalContent(lastMessage.content);
+            
+            // Filter out image files from the files array to avoid duplicates with multimodal content
+            const nonImageFiles = (lastMessage.files || []).filter(file => {
+              const fileType = file.type || (file as any).mimeType;
+              return fileType && !fileType.startsWith('image/');
+            });
+            
+            // Combine content files (images) with non-image files from files array
+            const allFiles = [...contentFiles, ...nonImageFiles];
+            await this.processResponse(messageText || '', true, false, requestOptions.overrides, allFiles);
           }
         }
 

@@ -111,7 +111,17 @@ export class FilesHelper {
                 file.type === 'text/plain' ||
                 file.type === 'text/markdown' ||
                 file.type.includes('document') ||
-                file.type.includes('text');
+                file.type.includes('text') ||
+                file.type === 'application/zip' ||
+                file.type === 'application/x-zip-compressed' ||
+                file.type.includes('compressed') ||
+                file.type.includes('archive') ||
+                file.type.includes('excel') ||
+                file.type.includes('spreadsheet') ||
+                file.type === 'application/vnd.ms-excel' ||
+                file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+                file.type.includes('powerpoint') ||
+                file.type.includes('presentation');
         });
 
         if (supportedFiles.length > 0) {
@@ -250,7 +260,7 @@ export class FilesHelper {
         // Create a file input element
         const fileInput = document.createElement('input');
         fileInput.type = 'file';
-        fileInput.accept = 'image/*,.pdf,.doc,.docx,.txt,.md';
+        fileInput.accept = 'image/*,.pdf,.doc,.docx,.txt,.md,.zip,.tar,.tar.gz,.bz2,.xls,.xlsx,.ppt,.pptx';
         fileInput.multiple = true;
 
         // Handle file selection

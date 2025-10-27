@@ -70,9 +70,52 @@ export const styles = css`
       flex-direction: row;
       gap: 10px;
       margin-bottom: 10px;
+      flex-wrap: wrap;
 
-      .file-item{
+      .file-item {
         max-width: 230px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .file-item.non-image-file {
+        background: #FFF;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 12px;
+        min-width: 120px;
+        max-width: 200px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+
+      .file-item__icon {
+        font-size: 24px;
+        color: #666;
+        margin-bottom: 8px;
+      }
+
+      .file-item__info {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .file-item__name {
+        font-size: 12px;
+        font-weight: 500;
+        color: #333;
+        margin-bottom: 4px;
+        word-break: break-word;
+        max-width: 100%;
+      }
+
+      .file-item__size {
+        font-size: 10px;
+        color: #888;
       }
     }    
 

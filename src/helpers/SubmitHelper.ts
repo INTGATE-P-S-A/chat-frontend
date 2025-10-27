@@ -63,10 +63,9 @@ export class SubmitHelper {
 
             // Build the new user message with multimodal content if files are present
             let userMessage: Message;
+            let contentArray: any[] = [];
+            
             if (filesToProcess.length > 0) {
-                // Create multimodal content array
-                const contentArray: any[] = [];
-
                 // Add text content if we have a question
                 if (question.trim()) {
                     contentArray.push({
@@ -75,19 +74,30 @@ export class SubmitHelper {
                     });
                 }
 
-                // Add image content for each file
-                for (const file of filesToProcess) {
+                // Add image content for image files only (non-image files will be processed by backend)
+                const imageFiles = filesToProcess.filter(file => file.type.startsWith('image/'));
+                for (const file of imageFiles) {
                     contentArray.push({
                         type: 'image',
                         image: file.base64 // This should already be in data URI format
                     });
                 }
 
-                userMessage = {
-                    content: contentArray,
-                    role: 'user',
-                    files: uploadedFiles.length > 0 ? uploadedFiles : filesToProcess // Include uploaded files or fallback to original format
-                };
+                // If we have image files or text, use multimodal format
+                if (imageFiles.length > 0 || question.trim()) {
+                    userMessage = {
+                        content: contentArray.length > 0 ? contentArray : question,
+                        role: 'user',
+                        files: uploadedFiles.length > 0 ? uploadedFiles : filesToProcess // Include uploaded files or fallback to original format
+                    };
+                } else {
+                    // Only non-image files with no text input - send empty content
+                    userMessage = {
+                        content: '', // Empty string when no text input, backend will only use file content
+                        role: 'user',
+                        files: uploadedFiles.length > 0 ? uploadedFiles : filesToProcess
+                    };
+                }
             } else {
                 // Simple text message
                 userMessage = {
@@ -113,7 +123,7 @@ export class SubmitHelper {
                 {
                     ...requestOptions,
                     overrides: requestOverrides,
-                    question: filesToProcess.length > 0 ? '' : question, // Clear question when using multimodal format
+                    question: (filesToProcess.some(file => file.type.startsWith('image/')) && contentArray.length > 1) ? '' : question, // Clear question only when using multimodal format with images
                     type: this.interactionModel,
                     messages: messagesWithNewInput,
                 },
