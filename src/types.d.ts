@@ -165,6 +165,9 @@ declare interface IRWSAiAssistComponent extends HTMLElement {
   getExternalSignal(): IExternalAssistSignal | null;
   bindInputSource(input: HTMLTextAreaElement): Promise<string>;
   updateContextFromMessages(context: Message[]): void;
+  analyzeAfterLLMResponse(): Promise<void>;
+  clearPromptWritingTimeout(): void;
+  setLLMStreaming(streaming: boolean): void;
 }
 
 declare enum ActiveAssistSignalType {

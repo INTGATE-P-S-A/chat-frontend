@@ -183,7 +183,7 @@ export class ChatComponent extends LitElement {
 
   aiAssistantSignal: IExternalAssistSignal | null = null;
 
-  private previousProcessingMessageId: string | null = null;
+  private previousGeneratingAnswer: boolean = false; // Track previous generatingAnswer state
 
   static override styles = [chatStyle];
 
@@ -367,10 +367,24 @@ export class ChatComponent extends LitElement {
   updateAssistContext(): void {
     if (this.aiAssist && typeof (this.aiAssist as any).updateContextFromMessages === 'function') {
       const context = this.getMessageContext();
-      console.log('Updating AI assist context with', context.length, 'messages');
+      console.log('ChatComponent: Updating AI assist context with', context.length, 'messages');
       (this.aiAssist as any).updateContextFromMessages(context);
     } else {
-      console.warn('AI assist component or updateContextFromMessages method not available');
+      console.warn('ChatComponent: AI assist component or updateContextFromMessages method not available');
+    }
+  }
+
+  // New method to trigger AI assist analysis after LLM response
+  async triggerAIAssistAfterLLMResponse(): Promise<void> {
+    if (this.aiAssist && typeof (this.aiAssist as any).analyzeAfterLLMResponse === 'function') {
+      console.log('ChatComponent: Triggering AI assist analysis after LLM response');
+      try {
+        await (this.aiAssist as any).analyzeAfterLLMResponse();
+      } catch (error) {
+        console.error('ChatComponent: Error triggering AI assist analysis after LLM response:', error);
+      }
+    } else {
+      console.warn('ChatComponent: AI assist component or analyzeAfterLLMResponse method not available');
     }
   }
   
@@ -378,10 +392,20 @@ export class ChatComponent extends LitElement {
     event.preventDefault();
     this.collapseAside(event);
 
+    // Clear any pending prompt-writing timeout in AI assist
+    if (this.aiAssist && typeof (this.aiAssist as any).clearPromptWritingTimeout === 'function') {
+      (this.aiAssist as any).clearPromptWritingTimeout();
+      console.log('ChatComponent: Cleared AI assist prompt-writing timeout before submitting message');
+    }
+
     await SubmitHelper.handleSubmit.bind(this)(requestOptions, chatHttpOptions);
     
-    // Update assist context after user message is sent
-    setTimeout(() => this.updateAssistContext(), 200);
+    // Update assist context after user message is sent (but don't trigger analysis yet)
+    setTimeout(() => {
+      this.updateAssistContext();
+      // Note: We no longer trigger AI assist analysis after user submit
+      // AI assist will only be triggered after LLM responses
+    }, 500);
   }
   
   resetInputField(event: Event): void {
@@ -450,30 +474,44 @@ export class ChatComponent extends LitElement {
   
 
   override willUpdate(): void {
-    this.isDisabled = this.chatController.generatingAnswer;
-
-    const currentProcessingId = this.chatController.processingMessage?.id as string | null;
+    const currentGeneratingAnswer = this.chatController.generatingAnswer;
+    this.isDisabled = currentGeneratingAnswer;
 
     if (this.chatController.processingMessage) {
       const processingEntry = this.chatController.processingMessage as ChatThreadEntry;
       const index = this.chatThread.findIndex((entry) => entry.id === processingEntry.id);
 
-      const oldLength = this.chatThread.length;
       this.chatThread =
         index > -1
           ? newListWithEntryAtIndex(this.chatThread, index, processingEntry)
           : [...this.chatThread, processingEntry];
       
-      // Update assist context when chat thread changes
-      if (this.chatThread.length !== oldLength || index > -1) {
-        this.updateAssistContext();
+      // Signal to AI assist that LLM is streaming (don't update context during streaming to avoid infinite loops)
+      if (this.aiAssist && typeof (this.aiAssist as any).setLLMStreaming === 'function') {
+        (this.aiAssist as any).setLLMStreaming(true);
       }
-    } else if (this.previousProcessingMessageId && !currentProcessingId) {
-      // Processing just finished, update context with final state
-      setTimeout(() => this.updateAssistContext(), 100);
+      
+    }
+    
+    // Check if generation just finished (transitioned from true to false)
+    if (this.previousGeneratingAnswer && !currentGeneratingAnswer) {
+      console.log('ChatComponent: Generation completed, triggering post-LLM analysis');
+      
+      // Signal end of streaming to AI assist
+      if (this.aiAssist && typeof (this.aiAssist as any).setLLMStreaming === 'function') {
+        (this.aiAssist as any).setLLMStreaming(false);
+      }
+      
+      // Update context and trigger analysis after LLM response is complete
+      setTimeout(() => {
+        console.log('ChatComponent: LLM response completed, updating context and triggering post-LLM analysis');
+        this.updateAssistContext();
+        this.triggerAIAssistAfterLLMResponse();
+      }, 500); // Longer delay to ensure everything is settled
     }
 
-    this.previousProcessingMessageId = currentProcessingId;
+    // Update previous state
+    this.previousGeneratingAnswer = currentGeneratingAnswer;
   }  
 
   public debugSlotContent() {
