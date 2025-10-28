@@ -357,7 +357,20 @@ export class ChatThreadComponent extends LitElement {
     this.dispatchEvent(citationClickEvent);
   }
 
-  addToKDB(entry: ChatThreadEntry) {
+  async addToKDB(entry: ChatThreadEntry) {
+
+    if((entry.files && entry.files?.length)) {    
+      this.addFileToKDB(entry.files[0]);
+      return;
+    }
+
+    // Check if there's a gen-image in the text and try to get the file
+    const imageFile = await this.detectTextImage(entry);
+    if (imageFile) {
+      this.addFileToKDB(imageFile);
+      return;
+    }
+
     this.aiAssistantSignal?.setValue({
       command: 'add_file',
       payload: {
@@ -366,6 +379,37 @@ export class ChatThreadComponent extends LitElement {
         contentType: 'text'
       }
     });
+  }
+
+  private async detectTextImage(entry: ChatThreadEntry): Promise<MessageFile | null> {
+    // Combine all text values from the entry
+    const allText = entry.text.map(textPart => textPart.value).join(' ');
+    
+    // Regular expression to match gen-image tags and extract fileid
+    const genImageRegex = /<gen-image[^>]+fileid="([^"]+)"[^>]*>/i;
+    const match = allText.match(genImageRegex);
+    
+    if (!match || !match[1]) {
+      return null;
+    }
+    
+    const fileId = match[1];
+    
+    try {
+      // Fetch the file from the API
+      const response = await fetch(`/api/file/${fileId}`, { headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('jwt_token')}` } });
+      
+      if (!response.ok) {
+        console.warn(`Failed to fetch file with ID ${fileId}: ${response.status} ${response.statusText}`);
+        return null;
+      }
+      
+      const fileData = await response.json();      
+      return fileData.data;
+    } catch (error) {
+      console.error(`Error fetching file with ID ${fileId}:`, error);
+      return null;
+    }
   }
 
   addFileToKDB(file: MessageFile) {    
