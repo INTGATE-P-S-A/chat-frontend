@@ -74,7 +74,7 @@ export class SubmitHelper {
                 }
 
                 // Add image content for image files only (non-image files will be processed by backend)
-                const imageFiles = filesToProcess.filter(file => file.type.startsWith('image/'));
+                const imageFiles = filesToProcess.filter(file => file.mimeType.startsWith('image/'));
                 for (const file of imageFiles) {
                     contentArray.push({
                         type: 'image',
@@ -120,7 +120,7 @@ export class SubmitHelper {
                 {
                     ...requestOptions,
                     overrides: requestOverrides,
-                    question: (filesToProcess.some(file => file.type.startsWith('image/')) && contentArray.length > 1) ? '' : question, // Clear question only when using multimodal format with images
+                    question: (filesToProcess.some(file => file.mimeType.startsWith('image/')) && contentArray.length > 1) ? '' : question, // Clear question only when using multimodal format with images
                     type: this.interactionModel,
                     messages: messagesWithNewInput,
                 },

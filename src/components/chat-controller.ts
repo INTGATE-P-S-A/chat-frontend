@@ -144,12 +144,17 @@ export class ChatController implements ReactiveController {
         const dataUri = item.image;
         const mimeTypeMatch = dataUri.match(/^data:([^;]+);base64,/);
         const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
+        const fileExtension = mimeType.split('/')[1] || 'jpg';
+        const fileName = `image_${index + 1}.${fileExtension}`;
         
         files.push({
-          name: `image_${index + 1}.${mimeType.split('/')[1]}`,
-          type: mimeType,
-          size: 0, 
-          base64: dataUri
+          id: crypto.randomUUID(),
+          filename: fileName,
+          originalName: fileName,
+          mimeType: mimeType,
+          size: 0, // We don't have size info from data URI, backend can handle this
+          base64: dataUri,
+          tmp: true
         });
       }
     });
@@ -444,7 +449,7 @@ export class ChatController implements ReactiveController {
             
             // Filter out image files from the files array to avoid duplicates with multimodal content
             const nonImageFiles = (lastMessage.files || []).filter(file => {
-              const fileType = file.type || (file as any).mimeType;
+              const fileType = file.mimeType;
               return fileType && !fileType.startsWith('image/');
             });
             

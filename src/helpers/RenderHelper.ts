@@ -228,15 +228,15 @@ export class RenderHelper {
     return html`<div id="file-prompt-preview" class="file-prompt-preview">
     ${this.promptFiles.map((file, index) => html`
       <div class="file-prompt__file">      
-        ${file.type.startsWith('image/')
-        ? html`<img class="file-prompt__img" src="data:${file.type};base64,${file.base64}" alt="${file.name}" />`
+        ${file.mimeType && file.mimeType.startsWith('image/')
+        ? html`<img class="file-prompt__img" src="data:${file.mimeType};base64,${file.base64}" alt="${file.filename}" />`
         : html`<div class="file-prompt__img file-prompt__file-icon">
               <i class="simple-icon-doc"></i>
-              <span>${file.type.split('/')[1]?.toUpperCase() || 'FILE'}</span>
+              <span>${file.mimeType ? file.mimeType.split('/')[1]?.toUpperCase() || 'FILE' : 'FILE'}</span>
             </div>`
       }
         <div class="file-prompt__footer">
-          <span class="file-prompt__file-size">${file.size}</span>
+          <span class="file-prompt__file-size">${file.size ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : 'Unknown size'}</span>
           <button class="file-prompt__remove-button" type="button" @click="${() => FilesHelper.removeFile.bind(this)(index)}">
             <i class="simple-icon-close"></i>
           </button>

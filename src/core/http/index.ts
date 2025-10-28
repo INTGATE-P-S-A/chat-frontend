@@ -38,7 +38,7 @@ export async function callHttpApi(
       files.forEach(file => {
         contentArray.push({
           type: 'image',
-          image: `data:${file.type};base64,${file.base64}`
+          image: `data:${file.mimeType};base64,${file.base64}`
         });
       });
     }

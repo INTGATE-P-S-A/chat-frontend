@@ -40,8 +40,7 @@ export class RenderThreadHelper {
 
   static renderMessage(this: ChatThreadComponent, message: ChatThreadEntry, index: number, currentConfig: any) {
     const isLastMessage = index === this.chatThread.length - 1;
-    const showLoadingIndicator = this.isProcessingResponse && isLastMessage && !message.isUserMessage;
-
+    const showLoadingIndicator = this.isProcessingResponse && isLastMessage && !message.isUserMessage;    
     return html`
       <li class="chat__listItem ${message.isUserMessage ? 'user-message' : 'ai-message'}">
         ${!message.isUserMessage ? RenderThreadHelper.renderAiAvatar() : ''}

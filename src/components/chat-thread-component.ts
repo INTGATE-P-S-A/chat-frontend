@@ -368,8 +368,7 @@ export class ChatThreadComponent extends LitElement {
     });
   }
 
-  addFileToKDB(file: MessageFile) {
-    console.log({file});
+  addFileToKDB(file: MessageFile) {    
     this.aiAssistantSignal?.setValue({
       command: 'add_file',
       payload: {

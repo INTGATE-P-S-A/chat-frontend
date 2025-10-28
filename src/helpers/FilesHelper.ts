@@ -1,6 +1,4 @@
 import { ChatComponent } from "../components/chat-component";
-import { parseFullMessage } from "../core/parser/bufferer";
-import { parseTool } from "../core/parser/toolsParser";
 
 export class FilesHelper {
     static MB = 1024 * 1024;
@@ -42,8 +40,8 @@ export class FilesHelper {
     static async uploadFiles(this: ChatComponent, files: MessageFile[]): Promise<{ success: boolean; files: any[] }> {
         try {
             const fileData = files.map(file => ({
-                name: file.name,
-                type: file.type,
+                name: file.filename,
+                type: file.mimeType,
                 base64: file.base64
             }));
 
@@ -167,17 +165,7 @@ export class FilesHelper {
 
     static async processFiles(this: ChatComponent, files: File[]): Promise<void> {
         // Calculate current total size
-        const currentTotalSize = this.promptFiles.reduce((total, file) => {
-            // Parse the size string back to bytes for calculation
-            const sizeMatch = file.size.match(/^([\d.]+)\s*(B|KB|MB|GB)$/);
-            if (sizeMatch) {
-                const value = parseFloat(sizeMatch[1]);
-                const unit = sizeMatch[2];
-                const multipliers = { B: 1, KB: 1024, MB: 1024 * 1024, GB: 1024 * 1024 * 1024 };
-                return total + (value * multipliers[unit]);
-            }
-            return total;
-        }, 0);
+        const currentTotalSize = this.promptFiles.reduce((total, file) => total + file.size, 0);
 
         let newFilesTotalSize = 0;
 
@@ -220,11 +208,14 @@ export class FilesHelper {
                 const base64 = await FilesHelper.fileToBase64(file);
 
                 // Create file object
-                const fileObject = {
-                    name: file.name,
-                    size: FilesHelper.formatFileSize(file.size),
-                    type: file.type,
-                    base64: base64
+                const fileObject: MessageFile = {
+                    id: crypto.randomUUID(),
+                    filename: file.name,
+                    originalName: file.name,
+                    size: file.size,
+                    mimeType: file.type,
+                    base64: base64,
+                    tmp: true
                 };
 
                 // Add to promptFiles array
