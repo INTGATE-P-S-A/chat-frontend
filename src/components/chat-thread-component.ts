@@ -37,6 +37,9 @@ export class ChatThreadComponent extends LitElement {
   @property({ type: String })
   conversationTitle;
 
+  @property({ type: String })
+  conversationUid;
+  
   @property({ type: Boolean })
   isFullscreen = false;
 

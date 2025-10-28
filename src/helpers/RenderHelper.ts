@@ -251,6 +251,7 @@ export class RenderHelper {
       .aiAssistantSignal="${this.aiAssistantSignal}"
       .chatThread="${chatThread}"
       .conversationTitle="${this.overrides.conversationTitle}"
+      .conversationUid="${this.overrides.conversationUid}"
       .customConfig="${this.customConfig}"
       .isTalking="${this.isTalking}"
       .upperLoader="${this.upperLoader}"

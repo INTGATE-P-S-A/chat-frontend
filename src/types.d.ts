@@ -70,6 +70,7 @@ declare interface RequestOverrides {
   language?: string;
   knowledge?: (string | number)[];
   conversationId?: string;
+  conversationUid?: string;
   conversationTitle?: string;
   userId?: string;
   webSearchEnabled?: boolean;

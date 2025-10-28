@@ -459,4 +459,9 @@ export const styles = css`
   .model-info {
     margin-left: 0.5rem;
   }
+
+  .share-link {
+    color: #73236b;
+    text-decoration: none;
+  }
 `;
