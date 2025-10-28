@@ -49,6 +49,9 @@ export class ChatThreadComponent extends LitElement {
   @state()
   isReasoningClosed = false;
 
+  @state()
+  aiAssistantSignal: IExternalAssistSignal | null = null;
+
   @query('#chat-list-footer')
   chatFooter!: HTMLElement;
 
@@ -352,6 +355,30 @@ export class ChatThreadComponent extends LitElement {
       composed: true,
     });
     this.dispatchEvent(citationClickEvent);
+  }
+
+  addToKDB(entry: ChatThreadEntry) {
+    this.aiAssistantSignal?.setValue({
+      command: 'add_file',
+      payload: {
+        title: '',
+        content: entry.text.map(part => part.value).join(', '),
+        contentType: 'text'
+      }
+    });
+  }
+
+  addFileToKDB(file: MessageFile) {
+    console.log({file});
+    this.aiAssistantSignal?.setValue({
+      command: 'add_file',
+      payload: {
+        title: file.originalName,
+        content: '',
+        contentType: 'file',
+        file
+      }
+    });
   }
 
   renderPendingReasoning() {

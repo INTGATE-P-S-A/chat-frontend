@@ -248,6 +248,7 @@ export class RenderHelper {
 
   static renderChatThread(this: ChatComponent, chatThread: ChatThreadEntry[], globalConfig: any) {
     return html`<chat-thread-component
+      .aiAssistantSignal="${this.aiAssistantSignal}"
       .chatThread="${chatThread}"
       .conversationTitle="${this.overrides.conversationTitle}"
       .customConfig="${this.customConfig}"

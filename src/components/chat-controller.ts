@@ -148,7 +148,7 @@ export class ChatController implements ReactiveController {
         files.push({
           name: `image_${index + 1}.${mimeType.split('/')[1]}`,
           type: mimeType,
-          size: '0', // We don't have size info from data URI
+          size: 0, 
           base64: dataUri
         });
       }
@@ -175,7 +175,6 @@ export class ChatController implements ReactiveController {
 
   private handleRequestId(event: CustomEvent) {
     this._currentRequestId = event.detail.requestId;
-    console.log('Received request ID:', this._currentRequestId);
   }
 
   private disconnectWebSocket() {
@@ -234,7 +233,7 @@ export class ChatController implements ReactiveController {
               },
             }, this.host);
           } catch (error) {
-            console.error('Error processing WebSocket chunk:', error);
+            // Error processing WebSocket chunk
           }
         }
       });
@@ -276,7 +275,6 @@ export class ChatController implements ReactiveController {
             
 
     const updateChatWithMessageOrChunk = async (message: string | BotResponse | Response, chunked: boolean) => {
-      console.log({mod: effectiveOverrides?.selectedModel});
       if (chunked) {
         // Always create a new AI message for each response
         let messageValue: string;

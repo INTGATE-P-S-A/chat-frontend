@@ -39,7 +39,6 @@ export class RenderThreadHelper {
   }
 
   static renderMessage(this: ChatThreadComponent, message: ChatThreadEntry, index: number, currentConfig: any) {
-    console.log('Rendering message:', message);
     const isLastMessage = index === this.chatThread.length - 1;
     const showLoadingIndicator = this.isProcessingResponse && isLastMessage && !message.isUserMessage;
 
@@ -50,7 +49,7 @@ export class RenderThreadHelper {
         <div class="message-content">
           <div class="chat__txt ${message.isUserMessage ? 'user-message' : ''}">
             ${!message.isUserMessage ? RenderThreadHelper.renderReasoningViewer.bind(this)(index, currentConfig) : ''}
-            ${RenderThreadHelper.renderFiles.bind(this)(message)}
+            ${RenderThreadHelper.renderFiles.bind(this)(message, currentConfig)}
             ${message.text.map((textEntry) => RenderThreadHelper.renderTextEntry.bind(this)(textEntry))}                      
             ${RenderThreadHelper.renderCitation.bind(this)(message, currentConfig)}
             ${RenderThreadHelper.renderFollowupQuestions.bind(this)(message)} 
@@ -115,6 +114,14 @@ export class RenderThreadHelper {
               : currentConfig.COPY_RESPONSE_BUTTON_LABEL_TEXT}"
             @click="${() => this.copyResponseToClipboard(entry)}"
           ></chat-action-button>
+          <chat-action-button
+            .label="${currentConfig.ADD_KDB_BUTTON_LABEL_TEXT}"
+            simpleIcon="book-open"            
+            .isDisabled="${this.isDisabled}"
+            actionId="add-to-kdb"
+            .tooltip="${currentConfig.ADD_KDB_BUTTON_LABEL_TEXT}"
+            @click="${() => this.addToKDB(entry)}"
+          ></chat-action-button>
         </div>
       </header>
     `;
@@ -144,56 +151,43 @@ export class RenderThreadHelper {
     return html`<div class="chat_txt--entry-container">${entries}</div>`;
   }
 
-  static renderFiles(this: ChatThreadComponent, entry: ChatThreadEntry) {
-    console.log('renderFiles called with entry:', entry);
-    console.log('entry.files:', entry.files);
-    
+  static renderFiles(this: ChatThreadComponent, entry: ChatThreadEntry, currentConfig: any) {
     if (!entry.files || entry.files.length === 0) {
-      console.log('No files to render');
       return '';
     }
 
-    // Debug: let's see what properties each file has
-    entry.files.forEach((file, index) => {
-      console.log(`File ${index}:`, file);
-      console.log(`File ${index} properties:`, Object.keys(file));
-    });
-
     // Handle both file structures: frontend uploaded files (type, name) and backend files (mimeType, originalName)
     const imageFiles = entry.files.filter(file => {
-      const fileType = file.type || (file as any).mimeType;
+      const fileType = file.mimeType;
       return fileType && fileType.startsWith('image/');
     });
     
     const nonImageFiles = entry.files.filter(file => {
-      const fileType = file.type || (file as any).mimeType;
+      const fileType = file.mimeType;
       return fileType && !fileType.startsWith('image/');
     });
     
-    console.log('imageFiles:', imageFiles);
-    console.log('nonImageFiles:', nonImageFiles);
-    
     return html`
       <div class="chat__files">
-        ${imageFiles.map(file => RenderThreadHelper.renderImageFile(file))}
-        ${nonImageFiles.map(file => RenderThreadHelper.renderNonImageFile(file))}
+        ${imageFiles.map(file => RenderThreadHelper.renderImageFile.bind(this)(file, currentConfig))}
+        ${nonImageFiles.map(file => RenderThreadHelper.renderNonImageFile.bind(this)(file, currentConfig))}
       </div>
     `;
   }
 
-  static renderImageFile(file: any) {
-    const fileAny = file as any;
+  static renderImageFile(this: ChatThreadComponent, file: MessageFile, currentConfig: any) {    
     // Use the correct properties based on file structure
-    const mimeType = file.type || fileAny.mimeType;
+    const mimeType = file.mimeType;
     
-    if (file.tmp || fileAny.tmp) {
+    if (file.tmp) {
       // For temporary files (newly sent), use base64 content
       return html`
         <div class="file-item">
           <gen-image 
             tmp="true"
             imageFormat="${mimeType ? mimeType.split('/')[1] || 'png' : 'png'}"
-          >${file.base64 || fileAny.base64}</gen-image>
+          >${file.base64}</gen-image>
+          
         </div>
       `;
     } else {
@@ -201,17 +195,30 @@ export class RenderThreadHelper {
       return html`
         <div class="file-item">
           <gen-image 
-            fileId="${fileAny.id}"
+            fileId="${file.id}"
             imageFormat="${mimeType ? mimeType.split('/')[1] || 'png' : 'png'}"
           ></gen-image>
+          <div class="file-item__actions">
+            <chat-action-button
+            .label="${currentConfig.ADD_KDB_BUTTON_LABEL_TEXT}"
+            simpleIcon="book-open"                        
+            actionId="add-to-kdb"
+            .altColor="${true}"
+            .tooltip="${currentConfig.ADD_KDB_BUTTON_LABEL_TEXT}"
+            @click="${() => this.addFileToKDB(file)}"
+          ></chat-action-button>
+          </div>
         </div>
       `;
     }
   }
 
-  static renderNonImageFile(file: any) {
-    const fileAny = file as any;
-    const fileName = file.name || fileAny.originalName || fileAny.filename;
+  static renderNonImageFile(this: ChatThreadComponent, file: MessageFile, currentConfig: any) {
+  
+    const fileName = file.originalName;
+    const fileSize = file.size;
+    
+
     return html`
       <div class="file-item non-image-file">
         <div class="file-item__icon">
@@ -219,7 +226,17 @@ export class RenderThreadHelper {
         </div>
         <div class="file-item__info">
           <div class="file-item__name">${fileName || 'Unknown file'}</div>
-          <div class="file-item__size">${file.size || fileAny.size || 'Unknown size'}</div>
+          <div class="file-item__size">${ fileSize ? `${(fileSize / 1024 / 1024).toFixed(2)} MB` : 'Unknown size'}</div>
+          <div class="file-item__actions">
+            <chat-action-button
+            .label="${currentConfig.ADD_KDB_BUTTON_LABEL_TEXT}"
+            simpleIcon="book-open"                        
+            actionId="add-to-kdb"
+            .altColor="${true}"
+            .tooltip="${currentConfig.ADD_KDB_BUTTON_LABEL_TEXT}"
+            @click="${() => this.addFileToKDB(file)}"
+          ></chat-action-button>
+          </div>
         </div>
       </div>
     `;
@@ -233,7 +250,7 @@ export class RenderThreadHelper {
           <citation-list
             .citations="${citations}"
             .label="${currentConfig.CITATIONS_LABEL}"
-            .selectedCitation=${this.selectedCitation}
+            .selectedCitation=${this.selectedCitation}            
             @on-citation-click="${(event: CustomEvent) =>
               this.handleCitationClick(event.detail.citation, entry, event)}"
           ></citation-list>

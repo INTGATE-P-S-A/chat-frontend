@@ -146,7 +146,7 @@ export async function parseStreamedMessages({
         updatedEntry = updateTextEntry({ chunkValue: parseTool(chunk.tool), textBlockIndex, chatEntry: updatedEntry });
         onVisit(updatedEntry);
       } catch (e) {
-        console.error('Error parsing tool chunk:', e);
+        // Error parsing tool chunk
       }
 
       continue;
@@ -228,7 +228,7 @@ export async function parseStreamedMessages({
           codeViewer.stopCodeGeneration();
         }
       } catch (e) {
-        console.error('Error stopping code generation:', e);
+        // Error stopping code generation
       }
     }
 
@@ -257,7 +257,7 @@ export async function parseStreamedMessages({
                 codeViewer.startCodeGeneration();
               }
             } catch (e) {
-              console.error('Error starting code generation:', e);
+              // Error starting code generation
             }
           }, 100); 
         }
@@ -317,7 +317,7 @@ export async function parseStreamedMessages({
           coderId = null;
         }
       } catch (e) {
-        console.error('Error updating code-viewer with accumulated content:', e);
+        // Error updating code-viewer with accumulated content
       }
     }, 500); // Longer delay to ensure DOM is fully rendered
   }

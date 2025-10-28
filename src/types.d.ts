@@ -85,9 +85,11 @@ declare interface MessageContent {
 }
 
 declare interface MessageFile {
-  name: string;
-  size: string;
-  type: string;
+  id: string | number;
+  filename: string;
+  originalName?: string;
+  size: number;
+  mimeType: string;
   base64: string;
   tmp?: boolean; // Indicates if this is a temporary file (newly sent) vs a regular file reference
 }
@@ -221,7 +223,7 @@ declare interface IAISuggestion {
 
 
 declare interface IAssistSignalPayload {
-    command: 'attach_file' | 'pass_entry';
+    command: 'attach_file' | 'pass_entry' | 'add_file';
     payload?: any;
 }
 

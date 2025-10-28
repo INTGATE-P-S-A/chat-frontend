@@ -116,11 +116,9 @@ export function processChunkWithHtmlTagBuffering(
       finalChunkValue = completeTag + remainingContent;
       bufferState.isBufferingHtmlTag = false;
       bufferState.htmlTagBuffer = '';
-      console.debug('HTML tag buffering completed:', completeTag);
     } else {
       // Still incomplete, update buffer and don't process anything yet
       bufferState.htmlTagBuffer = combined;
-      console.debug('HTML tag buffering continues:', bufferState.htmlTagBuffer);
       shouldSkip = true; // Skip processing this chunk
     }
   } else {
@@ -132,7 +130,6 @@ export function processChunkWithHtmlTagBuffering(
       bufferState.isBufferingHtmlTag = true;
       bufferState.htmlTagBuffer = bufferContent;
       finalChunkValue = processableContent;
-      console.debug('HTML tag buffering started:', bufferContent);
       
       // If there's no processable content, skip this iteration
       if (processableContent === '') {
@@ -153,7 +150,6 @@ export function handleRemainingHtmlTagBuffer(
   bufferState: HtmlTagBufferState
 ): { hasRemainingContent: boolean; remainingContent: string } {
   if (bufferState.isBufferingHtmlTag && bufferState.htmlTagBuffer) {
-    console.debug('Processing remaining HTML tag buffer:', bufferState.htmlTagBuffer);
     const remainingContent = bufferState.htmlTagBuffer;
     
     // Clear the buffer

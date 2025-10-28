@@ -16,6 +16,10 @@ export const styles = css`
     transition: all 0.3s ease-in-out;
     position: relative;
     cursor: pointer;
+
+    &.alt-color {
+      background: var(--c-accent-dark);
+    }
   }
   button:disabled {
     opacity: 0.5;
@@ -65,5 +69,9 @@ export const styles = css`
     background-color: var(--c-light-gray);
     border-radius: var(--radius-small);
     transition: background 0.3s ease-in-out;
+  }
+
+  button > i {
+    margin: 6px;
   }
 `;
