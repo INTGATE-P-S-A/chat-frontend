@@ -2,19 +2,23 @@ import { ChatComponent } from "../components/chat-component";
 import { chatEntryToString } from "../utils";
 
 export class ThreadHelper {
-    static clearChat(this: ChatComponent){
-    this.chatThread = [];
-    this.isChatStarted = false;
-    this.isDefaultPromptsEnabled = true;
-    this.liveChatOn = false;
-    this.showControls = true;
-    this.showCode = null;
+    static clearChat(this: ChatComponent) {
+        this.chatThread = [];
+        this.isChatStarted = false;
+        this.isDefaultPromptsEnabled = true;
+        this.liveChatOn = false;
+        this.showControls = true;
+        this.showCode = null;
 
-    this.promptFiles = [];
+        this.promptFiles = [];
+        this.initialMessages = [];
+        
+        // Also remove the HTML attribute to prevent restoration
+        this.removeAttribute('data-initial-messages');
 
-    // Update assist context after clearing chat
-    this.updateAssistContext();
-    
+        // Update assist context after clearing chat
+        this.updateAssistContext();
+
         ThreadHelper.resetThread.bind(this)(new Event('clear-chat'), true);
 
     }
