@@ -369,24 +369,18 @@ export class ChatComponent extends LitElement {
   updateAssistContext(): void {
     if (this.aiAssist && typeof (this.aiAssist as any).updateContextFromMessages === 'function') {
       const context = this.getMessageContext();
-      console.log('ChatComponent: Updating AI assist context with', context.length, 'messages');
       (this.aiAssist as any).updateContextFromMessages(context);
-    } else {
-      console.warn('ChatComponent: AI assist component or updateContextFromMessages method not available');
     }
   }
 
   // New method to trigger AI assist analysis after LLM response
   async triggerAIAssistAfterLLMResponse(): Promise<void> {
     if (this.aiAssist && typeof (this.aiAssist as any).analyzeAfterLLMResponse === 'function') {
-      console.log('ChatComponent: Triggering AI assist analysis after LLM response');
       try {
         await (this.aiAssist as any).analyzeAfterLLMResponse();
       } catch (error) {
-        console.error('ChatComponent: Error triggering AI assist analysis after LLM response:', error);
+        // Error handled silently
       }
-    } else {
-      console.warn('ChatComponent: AI assist component or analyzeAfterLLMResponse method not available');
     }
   }
 
@@ -397,7 +391,6 @@ export class ChatComponent extends LitElement {
     // Clear any pending prompt-writing timeout in AI assist
     if (this.aiAssist && typeof (this.aiAssist as any).clearPromptWritingTimeout === 'function') {
       (this.aiAssist as any).clearPromptWritingTimeout();
-      console.log('ChatComponent: Cleared AI assist prompt-writing timeout before submitting message');
     }
 
     await SubmitHelper.handleSubmit.bind(this)(requestOptions, chatHttpOptions);
@@ -497,8 +490,6 @@ export class ChatComponent extends LitElement {
 
     // Check if generation just finished (transitioned from true to false)
     if (this.previousGeneratingAnswer && !currentGeneratingAnswer) {
-      console.log('ChatComponent: Generation completed, triggering post-LLM analysis');
-
       // Signal end of streaming to AI assist
       if (this.aiAssist && typeof (this.aiAssist as any).setLLMStreaming === 'function') {
         (this.aiAssist as any).setLLMStreaming(false);
@@ -506,7 +497,6 @@ export class ChatComponent extends LitElement {
 
       // Update context and trigger analysis after LLM response is complete
       setTimeout(() => {
-        console.log('ChatComponent: LLM response completed, updating context and triggering post-LLM analysis');
         this.updateAssistContext();
         this.triggerAIAssistAfterLLMResponse();
       }, 500); // Longer delay to ensure everything is settled
@@ -552,8 +542,6 @@ export class ChatComponent extends LitElement {
     const text = event.detail.text;
     const suggestion: IAISuggestion = event.detail.suggestion;
 
-    console.log('Suggestion applied:', { text, suggestion });
-
     // Insert the suggestion text into the input field
     if (this.questionInput) {
 
@@ -566,7 +554,6 @@ export class ChatComponent extends LitElement {
           payload: suggestion.kdb
         });        
         
-        console.log(suggestion.kdb );
         this.dispatchEvent(new CustomEvent('selectionChanged', {          
           detail: { selectedIds: suggestion.kdb ? [suggestion.kdb.kdbId.toString()] : [] },
           bubbles: true,
@@ -595,7 +582,6 @@ export class ChatComponent extends LitElement {
   }
 
   handleSuggestionsModalClose() {
-    console.log('Suggestions modal closed');
     this.activeAssist = null;
 
     // Also clear the active entry in the ai-assist component

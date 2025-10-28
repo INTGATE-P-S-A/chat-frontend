@@ -45,7 +45,6 @@ export class SubmitHelper {
                         uploadedFiles = uploadResponse.files;
                     }
                 } catch (error) {
-                    console.error('Error uploading files:', error);
                     this.dispatchEvent(new CustomEvent('popup:show', {
                         detail: {
                             message: 'file.upload.error.upload_failed',
@@ -117,8 +116,6 @@ export class SubmitHelper {
                 deepSearchEnabled: this.deepSearchEnabled,
             };
 
-            console.log('Final request overrides:', requestOverrides);
-
             await this.chatController.generateAnswer(
                 {
                     ...requestOptions,
@@ -149,7 +146,6 @@ export class SubmitHelper {
             }, 100);
         } catch (error) {
             // If there's an error during the submission process, make sure to clear the loading state
-            console.error('Error during chat submission:', error);
             this.dispatchEvent(new CustomEvent('popup:show', {
                 detail: {
                     message: 'file.upload.error.submission_failed',

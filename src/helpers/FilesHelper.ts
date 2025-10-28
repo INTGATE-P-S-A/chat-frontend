@@ -62,7 +62,6 @@ export class FilesHelper {
 
             return await response.json();
         } catch (error) {
-            console.error('Error uploading files:', error);
             return { success: false, files: [] };
         }
     }
@@ -186,7 +185,6 @@ export class FilesHelper {
             try {
                 // Check individual file size
                 if (file.size > FilesHelper.MAX_FILE_SIZE) {
-                    console.error('File too large:', file.name);
                     this.dispatchEvent(new CustomEvent('popup:show', {
                         detail: {
                             message: 'file.upload.error.size_too_large',
@@ -233,7 +231,6 @@ export class FilesHelper {
                 this.promptFiles = [...this.promptFiles, fileObject];
 
             } catch (error) {
-                console.error('Error processing file:', error);
                 this.dispatchEvent(new CustomEvent('popup:show', {
                     detail: {
                         message: 'file.upload.error.processing_failed',
