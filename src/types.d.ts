@@ -31,6 +31,15 @@ declare interface ChatThreadEntry {
   costs?: IPromptCost[]; // Add costs array to support backend format
   model?: string; // Add model property to store which AI model was used
   files?: MessageFile[]; // Add files property for file attachments
+  user?: {
+    id: string;
+    username: string;
+    name?: string;
+    last_name?: string;
+    profile_pic?: {
+      filename: string;
+    };
+  } | null; // Add user property to match backend ChatThreadEntry
 }
 
 declare interface Citation {

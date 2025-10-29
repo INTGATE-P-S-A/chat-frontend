@@ -15,7 +15,7 @@ export class RenderThreadHelper {
         <h5 class="mr-3">
           ${this.conversationTitle}
         </h5>
-        <a class="share-link" href="/share/${this.conversationUid}"><i class="simple-icon-share"></i></a>
+        <share-window convoUid="${this.conversationUid}"></share-window>
         ${ isTalking ? html`<div class="talking-indicator"><i class="simple-icon-earphones-alt" /></div>` : '' }
         ${ upperLoader ? html`<loading-indicator></loading-indicator>` : '' }
         <button 
@@ -58,7 +58,8 @@ export class RenderThreadHelper {
           </div>
           <div class="chat__txt--footer">
             <div class="chat__txt--info">                              
-              <span class="timestamp">${RenderThreadHelper.formatTo24Hour(message.timestamp)}</span>                        
+              <span class="timestamp">${RenderThreadHelper.formatTo24Hour(message.timestamp)}</span>
+              ${RenderThreadHelper.renderUserInfo(message)}                       
               ${RenderThreadHelper.renderCostInfo(message)}
               ${RenderThreadHelper.renderModelInfo(message)}     
             </div>
@@ -186,14 +187,13 @@ export class RenderThreadHelper {
           <gen-image 
             tmp="true"
             imageFormat="${mimeType ? mimeType.split('/')[1] || 'png' : 'png'}"
-          >${file.base64}</gen-image>
-          
+          >${file.base64}</gen-image>          
         </div>
       `;
     } else {
       // For persisted files (from data-initial-messages), use fileId
       return html`
-        <div class="file-item">
+        <div class="file-item is-userborn">
           <gen-image 
             fileId="${file.id}"
             imageFormat="${mimeType ? mimeType.split('/')[1] || 'png' : 'png'}"
@@ -213,32 +213,15 @@ export class RenderThreadHelper {
     }
   }
 
-  static renderNonImageFile(this: ChatThreadComponent, file: MessageFile, currentConfig: any) {
-  
-    const fileName = file.originalName;
-    const fileSize = file.size;
-    
-
+  static renderNonImageFile(this: ChatThreadComponent, file: MessageFile, _currentConfig: any) {
+    // Use the file-card component instead of custom HTML
     return html`
-      <div class="file-item non-image-file">
-        <div class="file-item__icon">
-          <i class="simple-icon-paper-clip"></i>
-        </div>
-        <div class="file-item__info">
-          <div class="file-item__name">${fileName || 'Unknown file'}</div>
-          <div class="file-item__size">${ fileSize ? `${(fileSize / 1024 / 1024).toFixed(2)} MB` : 'Unknown size'}</div>
-          <div class="file-item__actions">
-            <chat-action-button
-            .label="${currentConfig.ADD_KDB_BUTTON_LABEL_TEXT}"
-            simpleIcon="book-open"                        
-            actionId="add-to-kdb"
-            .altColor="${true}"
-            .tooltip="${currentConfig.ADD_KDB_BUTTON_LABEL_TEXT}"
-            @click="${() => this.addFileToKDB(file)}"
-          ></chat-action-button>
-          </div>
-        </div>
-      </div>
+      <file-card 
+        fileId="${file.id}" 
+        showDownload="true" 
+        showAddToKdb="true"
+        @add-to-kdb="${() => this.addFileToKDB(file)}"
+      ></file-card>
     `;
   }
 
@@ -380,6 +363,42 @@ export class RenderThreadHelper {
     return html`
       <span class="model-info" title="AI Model: ${entry.model}">
         🤖 ${entry.model}
+      </span>
+    `;
+  }
+
+  static renderUserInfo(entry: ChatThreadEntry) {
+    // For AI messages, don't show user info
+    if (!entry.isUserMessage) {
+      return '';
+    }
+
+    let userData = entry.user;
+
+    // If user data is not available in the entry (fresh message), get it from localStorage
+    if (!userData) {
+      try {
+        const jwtUserString = localStorage.getItem('jwt_user');
+        if (jwtUserString) {
+          userData = JSON.parse(jwtUserString);
+        }
+      } catch (error) {
+        console.warn('Failed to parse jwt_user from localStorage:', error);
+      }
+    }
+
+    // If still no user data available, don't show user info
+    if (!userData) {
+      return '';
+    }
+
+    const displayName = userData.name && userData.last_name 
+      ? `${userData.name} ${userData.last_name}` 
+      : userData.username;
+
+    return html`
+      <span class="user-info">
+        ${displayName}
       </span>
     `;
   }

@@ -441,8 +441,7 @@ export const styles = css`
 
   .cost-info {
     font-size: 0.75rem;
-    color: #666;
-    margin-left: 0.5rem;
+    color: #666;    
     opacity: 0.8;
   }
 
@@ -454,6 +453,7 @@ export const styles = css`
   .timestamp {
     font-size: 0.75rem;
     color: #999;
+    margin-right: 0.5rem;
   }
 
   .model-info {
@@ -463,5 +463,13 @@ export const styles = css`
   .share-link {
     color: #73236b;
     text-decoration: none;
+  }
+
+  .file-item.is-userborn {
+    .file-item__actions {
+      position: absolute;
+      left: 20px;
+      top: 35px;
+    }
   }
 `;
