@@ -199,11 +199,6 @@ export class RenderHelper {
             </rws-modal>
             `
         : ''}
-        ${this.activeAssist ? html`<ai-suggestions 
-          modalName="ai-assist-suggestions"
-          .suggestions="${RenderHelper.convertToSuggestions(this.activeAssist)}"
-          @suggestion-applied="${this.handleSuggestionApplied}"
-          @modal-close="${this.handleSuggestionsModalClose}"></ai-suggestions>` : ''}
       </section>
     `;
   }
@@ -319,20 +314,5 @@ export class RenderHelper {
 
   static aiAssistRender(this: ChatComponent) {
     return html`<ai-assist id="ai-assist-component"></ai-assist>`;
-  }
-
-  static convertToSuggestions(activeAssist: IActiveAssist) {
-    if (!activeAssist?.actions) {
-      return [];
-    }
-
-    return activeAssist.actions.map((action: IActiveAssistAction, index: number) => ({
-      id: `suggestion-${index}`,
-      title: action.label,
-      description: activeAssist.text || '',
-      text: action.params.text || action.label,
-      context: action.context,
-      kdb: action.context === 'kdb_attachment' ? action.params : undefined
-    }));
   }
 }
