@@ -198,6 +198,12 @@ export class ChatComponent extends LitElement {
       }
     });
 
+    // Listen for webchat:submit event from ai-assist component
+    this.aiAssist.addEventListener('webchat:submit', (event: Event) => {
+      // Submit the form when ai-assist emits this event
+      this.handleUserChatSubmit(event);
+    });
+
     // Initial context update
     setTimeout(() => this.updateAssistContext(), 100);
   }
