@@ -31,7 +31,10 @@ export async function parseStreamedMessagesFromWebSocket({
   // Handle conversation ID
   if (chunk.conversationId) {
     const event = new CustomEvent('chat:conversation:start', {
-      detail: { conversationId: chunk.conversationId },
+      detail: { 
+        conversationId: chunk.conversationId,
+        conversationUid: (chunk as any).conversationUid 
+      },
       bubbles: true,
       composed: true
     });

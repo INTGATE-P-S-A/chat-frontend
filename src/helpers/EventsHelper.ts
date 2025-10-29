@@ -52,8 +52,16 @@ export class EventsHelper {
         });
 
         this.addEventListener('chat:conversation:start', (event) => {
-            const theEvent: CustomEvent<{ conversationId: string }> = event as CustomEvent<{ conversationId: string }>;
+            const theEvent: CustomEvent<{ conversationId: string, conversationUid?: string }> = event as CustomEvent<{ conversationId: string, conversationUid?: string }>;
             this.convoId = Number(theEvent?.detail?.conversationId || null);
+            
+            // Set the conversationUid in overrides for the share button
+            if (theEvent?.detail?.conversationUid) {
+                this.overrides = {
+                    ...this.overrides,
+                    conversationUid: theEvent.detail.conversationUid
+                };
+            }
         });
 
         this.addEventListener('code:update', (event) => {

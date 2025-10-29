@@ -15,7 +15,7 @@ export class RenderThreadHelper {
         <h5 class="mr-3">
           ${this.conversationTitle}
         </h5>
-        <share-window convoUid="${this.conversationUid}"></share-window>
+        ${this.conversationUid ? html`<share-window convoUid="${this.conversationUid}"></share-window>` : ''}
         ${ isTalking ? html`<div class="talking-indicator"><i class="simple-icon-earphones-alt" /></div>` : '' }
         ${ upperLoader ? html`<loading-indicator></loading-indicator>` : '' }
         <button 

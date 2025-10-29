@@ -207,13 +207,16 @@ export class ChatController implements ReactiveController {
 
     // Set up event listeners for WebSocket
     if (webSocketManager.websocketEvents.start) {
-      socket.on(webSocketManager.websocketEvents.start, (data: { conversationId?: string }) => {
+      socket.on(webSocketManager.websocketEvents.start, (data: { conversationId?: string, conversationUid?: string }) => {
         if (data.conversationId) {
           webSocketManager.conversationId = data.conversationId;
           
           // Dispatch the same event that the parser would dispatch
           const event = new CustomEvent('chat:conversation:start', {
-            detail: { conversationId: data.conversationId },
+            detail: { 
+              conversationId: data.conversationId,
+              conversationUid: data.conversationUid 
+            },
             bubbles: true,
             composed: true
           });
