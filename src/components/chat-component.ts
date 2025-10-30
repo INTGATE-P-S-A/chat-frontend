@@ -38,7 +38,8 @@ let globalConfig = mainConfig;
 const DEFAULT_CHAT_SETTINGS: IChatSettings = {
   imageModel: 'stableDiffusionXL',
   videoModel: null,
-  voice: null
+  voice: null,
+  chatLearning: false
 }
 
 @customElement('chat-component')

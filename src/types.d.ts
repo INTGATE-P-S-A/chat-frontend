@@ -84,6 +84,7 @@ declare interface RequestOverrides {
   userId?: string;
   webSearchEnabled?: boolean;
   deepSearchEnabled?: boolean;
+  chatSettings?: IChatSettings;
 }
 
 declare type MessageRole = 'system' | 'user' | 'assistant' | 'function';
@@ -171,6 +172,7 @@ declare interface IChatSettings {
   imageModel: string | null;
   videoModel: string | null;
   voice: string | null;
+  chatLearning: boolean;
 }
 
 declare interface IRWSAiAssistComponent extends HTMLElement {
