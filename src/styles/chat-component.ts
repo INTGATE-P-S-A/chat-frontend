@@ -68,6 +68,11 @@ export const chatStyle = css`
     --c-error-background: rgb(253, 231, 233);
     --c-success: #26b32b;
   }
+
+  :host([data-theme='dark']) .input-helper-text {
+    color: #b3b3b3;
+  }
+
   html {
     scroll-behavior: smooth;
   }
@@ -360,6 +365,30 @@ export const chatStyle = css`
     padding: var(-d-xsmall) 0;
     font-size: var(--font-small);
   }
+
+  /* Input helper text styling */
+  .input-helper-text {
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
+    color: #6c757d;
+    text-align: right;
+    margin-bottom: 0.25rem;
+  }
+
+  .keyboard-shortcut {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-style: italic;
+  }
+
+  @media (max-width: 768px) {
+    .input-helper-text {
+      font-size: 0.7rem;
+      padding: 0.2rem 0.5rem;
+    }
+  }
+
   .chatbox__button svg {
     fill: currentColor;
     width: 1em;
@@ -407,14 +436,17 @@ export const chatStyle = css`
     padding: 0.5rem 3.75rem 0.5rem 0.75rem;
     font-size: 1rem;
     font-weight: 400;
-    line-height: 0.8;
+    line-height: 1.2;
     background-clip: padding-box;
     border-radius: 0.375rem 0 0 0.375rem;
     border: 1px solid #ced4da;
     min-height: 40px;
-    max-height: 100px;
-    resize: vertical;
+    max-height: 120px;
+    height: 40px;
+    resize: none;
+    overflow-y: hidden;
     box-sizing: border-box;
+    transition: height 0.1s ease-out;
     // border-radius: 0.375rem;
   }
 
@@ -450,7 +482,7 @@ export const chatStyle = css`
   .input-group-append {
     display: flex;
     margin-left: -1px;
-    align-items: flex-start;
+    align-items: flex-end;
   }
   
   .input-group-append .chatbox__button {
@@ -458,8 +490,8 @@ export const chatStyle = css`
     z-index: 2;
     margin-left: 0;
     border-radius: 0;
-    height: 44px;
-    align-self: flex-start;
+    min-height: 44px;
+    align-self: flex-end;
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
   }

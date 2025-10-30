@@ -16,6 +16,7 @@ const globalConfig = {
   LIVE_CHAT_BUTTON_LABEL_TEXT: 'Live Chat',
   ADD_KDB_BUTTON_LABEL_TEXT: 'Add to Knowledge Base',
   CHAT_INPUT_PLACEHOLDER: 'Type your question, eg. "How to search and book rentals?"',
+  CHAT_INPUT_NEWLINE_HELPER: 'Shift + Enter for new line',
   USER_IS_BOT: 'Support Assistant',
   RESET_BUTTON_LABEL_TEXT: 'X',
   RESET_BUTTON_TITLE_TEXT: 'Reset current question',

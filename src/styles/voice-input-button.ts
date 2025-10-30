@@ -20,6 +20,8 @@ export const styles = css`
   }
   :host{
     box-sizing: border-box;
+    display: inline-flex !important;
+    align-items: center;
   }
   :host(:hover) button{
     color: #fff;

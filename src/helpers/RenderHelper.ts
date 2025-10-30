@@ -80,6 +80,11 @@ export class RenderHelper {
           >
             ${RenderHelper.aiAssistRender.bind(this)()}
             ${RenderHelper.filePreviewRender.bind(this)()}
+            ${this.showControls ? html`<div class="input-helper-text">
+              <span class="keyboard-shortcut">
+                ${globalConfig.CHAT_INPUT_NEWLINE_HELPER}
+              </span>
+            </div>` : ''}
             <div class="chatbox__container">
               <div class="chatbox__input-container">
                 <div class="input_container_wrapper">
@@ -94,7 +99,8 @@ export class RenderHelper {
                     ?disabled="${this.isDisabled}"
                     autocomplete="off"
                     @keyup="${this.handleOnInputChange}"
-                    @paste="${FilesHelper.onPaste.bind(this)}"                    
+                    @input="${this.handleOnInputChange}"
+                    @paste="${this.handlePasteEvent.bind(this)}"                    
                   ></textarea>
                   ${RenderHelper.renderFilePrompt.bind(this)(globalConfig)}
                   ${this.chatController.isAwaitingResponse

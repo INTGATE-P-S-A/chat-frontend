@@ -17,6 +17,7 @@ export class SubmitHelper {
         // Clear the form and uploaded files immediately after clicking send
         this.questionInput.value = '';
         this.isResetInput = false;
+        this.autoResizeTextarea();
         const filesToProcess = [...this.promptFiles]; // Store files to process
         this.promptFiles = []; // Clear uploaded files immediately
 

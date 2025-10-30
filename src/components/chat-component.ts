@@ -31,6 +31,7 @@ import { RenderHelper } from '../helpers/RenderHelper.js';
 import { SubmitHelper } from '../helpers/SubmitHelper.js';
 import { ThreadHelper } from '../helpers/ThreadHelper.js';
 import { HandlerHelper } from '../helpers/HandlerHelper.js';
+import { FilesHelper } from '../helpers/FilesHelper.js';
 
 let teaserListTexts = configTeaserListTexts;
 let globalConfig = mainConfig;
@@ -206,8 +207,11 @@ export class ChatComponent extends LitElement {
       this.handleUserChatSubmit(event);
     });
 
-    // Initial context update
-    setTimeout(() => this.updateAssistContext(), 100);
+    // Initialize textarea auto-resize
+    setTimeout(() => {
+      this.autoResizeTextarea();
+      this.updateAssistContext();
+    }, 100);
   }
 
   override updated(changedProperties: Map<string | number | symbol, unknown>) {
@@ -230,6 +234,11 @@ export class ChatComponent extends LitElement {
 
     if (changedProperties.has('useWebSocket') || changedProperties.has('websocketEvents')) {
       this.chatController.configureWebSocket(this.useWebSocket, this.websocketEvents);
+    }
+
+    // Auto-resize textarea when component layout changes
+    if (changedProperties.has('isFullscreen') || changedProperties.has('isAsideOpen')) {
+      setTimeout(() => this.autoResizeTextarea(), 100);
     }
   }
 
@@ -265,6 +274,10 @@ export class ChatComponent extends LitElement {
 
     this.overrideConfig();
 
+    // Handle window resize to recalculate textarea height
+    this.boundHandleResize = this.handleResize.bind(this);
+    window.addEventListener('resize', this.boundHandleResize);
+
     const ev = new CustomEvent('chat-component-connected', {
       detail: true,
       bubbles: true,
@@ -273,11 +286,34 @@ export class ChatComponent extends LitElement {
     this.dispatchEvent(ev);
   }
 
+  private boundHandleResize?: () => void;
+
+  private handleResize(): void {
+    // Debounce resize events
+    if (this.resizeTimeout) {
+      clearTimeout(this.resizeTimeout);
+    }
+    this.resizeTimeout = window.setTimeout(() => {
+      this.autoResizeTextarea();
+    }, 100);
+  }
+
+  private resizeTimeout?: number;
+
   override disconnectedCallback() {
     super.disconnectedCallback();
 
-
     EventsHelper.removeFullScreenEventListeners.bind(this)();
+
+    // Clean up resize timeout
+    if (this.resizeTimeout) {
+      clearTimeout(this.resizeTimeout);
+    }
+
+    // Remove resize event listener
+    if (this.boundHandleResize) {
+      window.removeEventListener('resize', this.boundHandleResize);
+    }
 
     this.showControls = false;
     this.liveChatOn = false;
@@ -335,6 +371,7 @@ export class ChatComponent extends LitElement {
   setQuestionInputValue(value: string): void {
     this.questionInput.value = DOMPurify.sanitize(value || '');
     this.currentQuestion = this.questionInput.value;
+    this.autoResizeTextarea();
   }
 
   public setInputValue(value: string, append: boolean = false): void {
@@ -356,6 +393,7 @@ export class ChatComponent extends LitElement {
   handleVoiceInput(event: CustomEvent): void {
     event?.preventDefault();
     this.setQuestionInputValue(event?.detail?.input);
+    this.resetInputCheck();
   }
 
   handleRecordingStateChange(event: CustomEvent): void {
@@ -411,6 +449,7 @@ export class ChatComponent extends LitElement {
     this.questionInput.value = '';
     this.currentQuestion = '';
     this.isResetInput = false;
+    this.autoResizeTextarea();
   }
 
   startLiveChat(event: Event): void {
@@ -425,11 +464,51 @@ export class ChatComponent extends LitElement {
     }
   }
 
-  handleOnInputChange(e: KeyboardEvent): void {
+  handleOnInputChange(e: KeyboardEvent | Event): void {
     this.resetInputCheck();
+    this.autoResizeTextarea();
 
-    if (e.key === 'Enter' && !e.shiftKey && this.questionInput.value.trim().length > 0) {
+    if (e instanceof KeyboardEvent && e.key === 'Enter' && !e.shiftKey && this.questionInput.value.trim().length > 0) {
       this.handleUserChatSubmit(e);
+    }
+  }
+
+  async handlePasteEvent(e: ClipboardEvent): Promise<void> {
+    // First handle file pasting through FilesHelper
+    await FilesHelper.onPaste.bind(this)(e);
+    
+    // Then handle text auto-resize after a short delay to ensure paste content is processed
+    setTimeout(() => {
+      this.autoResizeTextarea();
+      this.resetInputCheck();
+    }, 10);
+  }
+
+  autoResizeTextarea(): void {
+    if (!this.questionInput) return;
+
+    // Reset height to auto to get the correct scrollHeight
+    this.questionInput.style.height = 'auto';
+    
+    // Get the computed styles to access min and max height from CSS
+    const computedStyle = getComputedStyle(this.questionInput);
+    const minHeight = parseInt(computedStyle.minHeight) || 40;
+    const maxHeight = parseInt(computedStyle.maxHeight) || 120;
+    
+    // Calculate the new height based on content
+    const scrollHeight = this.questionInput.scrollHeight - 10;
+    const newHeight = Math.min(Math.max(scrollHeight, minHeight), maxHeight);
+
+    console.log({minHeight, maxHeight, scrollHeight, newHeight});
+    
+    // Set the new height
+    this.questionInput.style.height = `${newHeight}px`;
+    
+    // If content exceeds max height, enable scrolling
+    if (scrollHeight > maxHeight) {
+      this.questionInput.style.overflowY = 'auto';
+    } else {
+      this.questionInput.style.overflowY = 'hidden';
     }
   }
 
@@ -570,6 +649,7 @@ export class ChatComponent extends LitElement {
 
         // Trigger input event to update any reactive properties and reset input check
         this.questionInput.dispatchEvent(new Event('input', { bubbles: true }));
+        this.autoResizeTextarea();
         this.resetInputCheck(); // Ensure reset button appears
         SubmitHelper.handleSubmit.bind(this)(requestOptions, chatHttpOptions);
       }
