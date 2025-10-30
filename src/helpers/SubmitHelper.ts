@@ -1,6 +1,7 @@
 import { ChatComponent } from "../components/chat-component";
 import DOMPurify from 'dompurify';
 import { FilesHelper } from "./FilesHelper";
+import { HandlerHelper } from "./HandlerHelper";
 
 export class SubmitHelper {
     static async handleSubmit(this: ChatComponent, requestOptions: any, chatHttpOptions: any): Promise<void> {        
@@ -115,6 +116,8 @@ export class SubmitHelper {
                 webSearchEnabled: this.webSearchEnabled,
                 deepSearchEnabled: this.deepSearchEnabled,
             };
+
+            HandlerHelper.handleDiscussionUserTurn.bind(this)(messagesWithNewInput);
 
             await this.chatController.generateAnswer(
                 {

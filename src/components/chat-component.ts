@@ -30,6 +30,7 @@ import { EventsHelper } from '../helpers/EventsHelper.js';
 import { RenderHelper } from '../helpers/RenderHelper.js';
 import { SubmitHelper } from '../helpers/SubmitHelper.js';
 import { ThreadHelper } from '../helpers/ThreadHelper.js';
+import { HandlerHelper } from '../helpers/HandlerHelper.js';
 
 let teaserListTexts = configTeaserListTexts;
 let globalConfig = mainConfig;
@@ -373,10 +374,7 @@ export class ChatComponent extends LitElement {
   }
 
   updateAssistContext(): void {
-    if (this.aiAssist && typeof (this.aiAssist as any).updateContextFromMessages === 'function') {
-      const context = this.getMessageContext();
-      (this.aiAssist as any).updateContextFromMessages(context);
-    }
+    HandlerHelper.handleDiscussionLLMTurn.bind(this)();
   }
 
   // New method to trigger AI assist analysis after LLM response
@@ -403,9 +401,7 @@ export class ChatComponent extends LitElement {
 
     // Update assist context after user message is sent (but don't trigger analysis yet)
     setTimeout(() => {
-      this.updateAssistContext();
-      // Note: We no longer trigger AI assist analysis after user submit
-      // AI assist will only be triggered after LLM responses
+      this.updateAssistContext();      
     }, 500);
   }
 

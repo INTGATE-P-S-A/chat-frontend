@@ -90,4 +90,34 @@ export class HandlerHelper {
 
         this.dispatchEvent(speakEvent);
     }
+
+    static handleDiscussionLLMTurn(this: ChatComponent): void {
+        const context = this.getMessageContext();
+
+        if (this.aiAssist && typeof (this.aiAssist as any).updateContextFromMessages === 'function') {
+            (this.aiAssist as any).updateContextFromMessages(context);            
+        }
+
+         const llmTurnEvent = new CustomEvent('chat:llm-turn', {
+            detail: {
+                messageContext: context,
+            },
+            bubbles: true,
+            composed: true,
+        });
+
+        this.dispatchEvent(llmTurnEvent);
+    }
+
+    static handleDiscussionUserTurn(this: ChatComponent, messagesWithNewInput: Message[]): void {        
+        const llmTurnEvent = new CustomEvent('chat:user-turn', {
+            detail: {
+                messageContext: messagesWithNewInput,
+            },
+            bubbles: true,
+            composed: true,
+        });
+
+        this.dispatchEvent(llmTurnEvent);
+    }
 }
