@@ -171,13 +171,40 @@ export class FilesHelper {
 
         for (const file of files) {
             try {
-                // Check individual file size
-                if (file.size > FilesHelper.MAX_FILE_SIZE) {
+                // Check if this is an image file larger than 5MB
+                if (file.type.startsWith('image/') && file.size > 5 * FilesHelper.MB) {
                     this.dispatchEvent(new CustomEvent('popup:show', {
                         detail: {
-                            message: 'file.upload.error.size_too_large',
+                            message: 'file.upload.error.image_too_large',
                             type: 'error',
-                            params: { fileName: file.name }
+                            params: {
+                                filename: file.name,
+                                size: FilesHelper.formatFileSize(file.size),
+                                maxSize: '5MB'
+                            }
+                        },
+                        bubbles: true,
+                        composed: true
+                    }));
+                    continue; // Skip this file and continue with others
+                }
+
+                // Check individual file size for non-image files or smaller images
+                if (file.size > FilesHelper.MAX_FILE_SIZE) {
+                    // Convert file to base64 for potential knowledge base upload
+                    const base64 = await FilesHelper.fileToBase64(file);
+                    
+                    this.dispatchEvent(new CustomEvent('big_file:confirm:kdb', {
+                        detail: {                      
+                            payload: {
+                                    title: file.name,
+                                    content: base64,
+                                    mimeType: file.type,
+                                    originalName: file.name,
+                                    size: file.size,
+                                    isBase64Content: true, // Flag to indicate base64 content for file upload
+                                    contentType: 'file' // Specify this is file content, not text
+                            }
                         },
                         bubbles: true,
                         composed: true
