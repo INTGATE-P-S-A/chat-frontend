@@ -389,7 +389,7 @@ export class RenderThreadHelper {
           userData = JSON.parse(jwtUserString);
         }
       } catch (error) {
-        console.warn('Failed to parse jwt_user from localStorage:', error);
+        // Failed to parse jwt_user from localStorage
       }
     }
 

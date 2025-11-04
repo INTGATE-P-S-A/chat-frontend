@@ -504,8 +504,6 @@ export class ChatComponent extends LitElement {
     // Calculate the new height based on content
     const scrollHeight = this.questionInput.scrollHeight - 10;
     const newHeight = Math.min(Math.max(scrollHeight, minHeight), maxHeight);
-
-    console.log({minHeight, maxHeight, scrollHeight, newHeight});
     
     // Set the new height
     this.questionInput.style.height = `${newHeight}px`;

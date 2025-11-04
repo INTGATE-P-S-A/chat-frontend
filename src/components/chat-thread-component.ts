@@ -403,14 +403,12 @@ export class ChatThreadComponent extends LitElement {
       const response = await fetch(`/api/file/${fileId}`, { headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('jwt_token')}` } });
       
       if (!response.ok) {
-        console.warn(`Failed to fetch file with ID ${fileId}: ${response.status} ${response.statusText}`);
         return null;
       }
       
       const fileData = await response.json();      
       return fileData.data;
     } catch (error) {
-      console.error(`Error fetching file with ID ${fileId}:`, error);
       return null;
     }
   }
