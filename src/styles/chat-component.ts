@@ -866,7 +866,7 @@ export const chatStyle = css`
   #ai-assist-component {
     position: absolute;
     width: 300px;
-    height: 250px;
+    height: 210px;
     right: 0;
     top: -15px;
     transform: translateY(-100%);
