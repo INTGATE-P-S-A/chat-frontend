@@ -25,6 +25,18 @@ export const styles = css`
     opacity: 0.5;
     cursor: not-allowed;
   }
+  button:disabled:hover,
+  button:disabled:focus {
+    background-color: var(--c-white);
+    cursor: not-allowed;
+  }
+  button:disabled:hover > svg,
+  button:disabled:focus > svg {
+    background-color: transparent;
+  }
+  button:disabled > span {
+    display: none !important;
+  }
   span {
     font-size: smaller;
     transition: all 0.3s ease-out 0s;

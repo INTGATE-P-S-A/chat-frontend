@@ -14,8 +14,15 @@ export const styles = css`
     height: 100%;
     padding: 0;
   }
-  button:hover,
-  {    
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    color: var(--text-muted, #888);
+  }
+  button:disabled:hover {
+    color: var(--text-muted, #888);
+  }
+  button:hover:not(:disabled) {    
     color: #fff;
   }
   :host{
@@ -23,15 +30,23 @@ export const styles = css`
     display: inline-flex !important;
     align-items: center;
   }
-  :host(:hover) button{
+  :host(:hover) button:not(:disabled){
     color: #fff;
   }
-  button:hover svg,
-  button:focus svg {
+  :host(:hover) button:disabled{
+    color: var(--text-muted, #888);
+  }
+  button:hover:not(:disabled) svg,
+  button:focus:not(:disabled) svg {
     opacity: 0.8;
   }
   .not-recording svg {
     color: var(--alt_blu);
+  }
+  button:disabled .not-recording svg,
+  button:disabled .recording svg {
+    color: var(--text-muted, #888);
+    opacity: 0.5;
   }
   .recording svg {
     

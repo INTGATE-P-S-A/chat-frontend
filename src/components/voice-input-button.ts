@@ -14,7 +14,10 @@ export class VoiceInputButton extends LitElement {
   enableVoiceListening = false;
 
   @property({ type: String })
-  label: string = 'Voice input';
+  label: string | null = null;
+
+  @property({ type: Boolean })
+  disabled: boolean = false;
 
   override async connectedCallback() {
     super.connectedCallback();
@@ -24,6 +27,11 @@ export class VoiceInputButton extends LitElement {
 
   handleVoiceInput(event: Event): void {
     event.preventDefault();
+    
+    // Don't handle voice input if disabled
+    if (this.disabled) {
+      return;
+    }
     
     this.enableVoiceListening = !this.enableVoiceListening;
 
@@ -40,9 +48,10 @@ export class VoiceInputButton extends LitElement {
   renderVoiceButton() {
     return html`
       <button
-        title="${this.label}
+        title="${this.label}"
         class="${this.enableVoiceListening ? 'recording' : 'not-recording'}"
         @click="${this.handleVoiceInput}"
+        ?disabled="${this.disabled}"
       >
         ${this.enableVoiceListening ? html`<i class="simple-icon-microphone"></i><i class="simple-icon-close"></i>` : html`<i class="simple-icon-microphone"></i>`}
       </button>
