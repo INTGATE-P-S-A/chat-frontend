@@ -50,7 +50,7 @@ export class RenderThreadHelper {
           <div class="chat__txt ${message.isUserMessage ? 'user-message' : ''}">
             ${!message.isUserMessage ? RenderThreadHelper.renderReasoningViewer.bind(this)(index, currentConfig) : ''}
             ${RenderThreadHelper.renderFiles.bind(this)(message, currentConfig)}
-            ${message.text.map((textEntry) => RenderThreadHelper.renderTextEntry.bind(this)(textEntry))}                      
+            ${message.text.map((textEntry) => RenderThreadHelper.renderTextEntry.bind(this)(textEntry, message.isUserMessage))}                      
             ${RenderThreadHelper.renderCitation.bind(this)(message, currentConfig)}
             ${RenderThreadHelper.renderFollowupQuestions.bind(this)(message)} 
             ${message.error ? RenderThreadHelper.renderError(message.error) : ''}
@@ -128,13 +128,19 @@ export class RenderThreadHelper {
     `;
   }
 
-  static renderTextEntry(this: ChatThreadComponent, textEntry: ChatMessageText) {
+  static renderTextEntry(this: ChatThreadComponent, textEntry: ChatMessageText, isUserMessage: boolean = false) {
     // Don't render empty text entries
     if (!textEntry.value || textEntry.value.trim() === '') {
       return '';
     }
     
-    const entries = [html`<p class="chat__txt--entry">${unsafeHTML(textEntry.value)}</p>`];
+    // Convert newlines to <br/> tags for user messages
+    let processedValue = textEntry.value;
+    if (isUserMessage) {
+      processedValue = textEntry.value.replace(/\n/g, '<br/>');
+    }
+    
+    const entries = [html`<p class="chat__txt--entry">${unsafeHTML(processedValue)}</p>`];
     
     // render steps
     if (textEntry.followingSteps && textEntry.followingSteps.length > 0) {

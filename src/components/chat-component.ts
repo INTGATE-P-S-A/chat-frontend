@@ -207,6 +207,12 @@ export class ChatComponent extends LitElement {
       this.handleUserChatSubmit(event);
     });
 
+    // Listen for webchat:text-insert event from ai-assist component (no auto-submit)
+    this.aiAssist.addEventListener('webchat:text-insert', (event: Event) => {
+      // Handle text insertion without auto-submit
+      this.handleTextInsert(event as CustomEvent);
+    });
+
     // Initialize textarea auto-resize
     setTimeout(() => {
       this.autoResizeTextarea();
@@ -620,13 +626,38 @@ export class ChatComponent extends LitElement {
     this.upperLoader = !this.upperLoader;
   }
 
+  handleTextInsert(event: CustomEvent) {
+    const { text } = event.detail;
+
+    // Insert the text into the input field without auto-submitting
+    if (this.questionInput && text) {
+      this.questionInput.value = text;
+      this.currentQuestion = text; // Update the reactive property
+      this.questionInput.focus();
+
+      // Trigger input event to update any reactive properties and reset input check
+      this.questionInput.dispatchEvent(new Event('input', { bubbles: true }));
+      this.autoResizeTextarea();
+      this.resetInputCheck(); // Ensure reset button appears
+      
+      // Do NOT call SubmitHelper.handleSubmit - let user review and submit manually
+    }
+
+    // Clear the active assist to close the modal
+    this.activeAssist = null;
+
+    // Also clear the active entry in the ai-assist component
+    if (this.aiAssist && typeof (this.aiAssist as any).clearActiveEntry === 'function') {
+      (this.aiAssist as any).clearActiveEntry();
+    }
+  }
+
   handleSuggestionApplied(event: CustomEvent) {
     const text = event.detail.text;
     const suggestion: IAISuggestion = event.detail.suggestion;
 
     // Insert the suggestion text into the input field
     if (this.questionInput) {
-
 
       this.collapseAside(event);
 
@@ -643,6 +674,7 @@ export class ChatComponent extends LitElement {
         }));
         
       } else {
+        // For all text suggestions, use the no-auto-submit flow
         this.questionInput.value = text;
         this.currentQuestion = text; // Update the reactive property
         this.questionInput.focus();
@@ -651,7 +683,8 @@ export class ChatComponent extends LitElement {
         this.questionInput.dispatchEvent(new Event('input', { bubbles: true }));
         this.autoResizeTextarea();
         this.resetInputCheck(); // Ensure reset button appears
-        SubmitHelper.handleSubmit.bind(this)(requestOptions, chatHttpOptions);
+        
+        // NO AUTO-SUBMIT - let user review and submit manually
       }
     }
 
