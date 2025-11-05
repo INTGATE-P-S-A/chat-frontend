@@ -437,6 +437,15 @@ export class ChatComponent extends LitElement {
     event.preventDefault();
     this.collapseAside(event);
 
+    // Minimize AI assist window when submitting input
+    if (this.aiAssist && typeof (this.aiAssist as any).toggleMinimize === 'function') {
+      // Check if it's currently expanded (not minimized) before minimizing
+      const currentMinimized = (this.aiAssist as any).minimized;
+      if (!currentMinimized) {
+        (this.aiAssist as any).toggleMinimize();
+      }
+    }
+
     // Clear any pending prompt-writing timeout in AI assist
     if (this.aiAssist && typeof (this.aiAssist as any).clearPromptWritingTimeout === 'function') {
       (this.aiAssist as any).clearPromptWritingTimeout();
