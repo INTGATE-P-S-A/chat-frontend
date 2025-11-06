@@ -698,7 +698,7 @@ export const chatStyle = css`
     padding: var(--d-base);
   }
   .kdb-pick {
-    margin-left: auto;
+    // margin-left: auto;
   }
   .settings-toggler {
     margin-left: 0;
@@ -884,5 +884,22 @@ export const chatStyle = css`
     &.minimized {
       height: 40px;
     }
+  }
+
+  .footer-btns{
+    margin-left: auto;
+    display: flex;
+    gap: 10px;
+  }
+
+  .selected-style-badge {
+    display: inline-block;
+    background-color: var(--c-accent-light);
+    color: #000;
+    border: 1px solid var(--c-accent-dark);
+    border-radius: var(--radius-small);
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;        
+    height: 15px;
   }
 `;

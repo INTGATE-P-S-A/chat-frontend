@@ -185,6 +185,9 @@ export class ChatComponent extends LitElement {
   @state()
   enterSubmitBlocked = false;
 
+  @state()
+  selectedStyles: { type: string; id: string; title: string }[]  = [];
+
   @property({ type: Number, attribute: 'data-convo-id' })
   convoId: number | null = null;
 
@@ -218,6 +221,13 @@ export class ChatComponent extends LitElement {
     this.aiAssist.addEventListener('webchat:text-insert', (event: Event) => {
       // Handle text insertion without auto-submit
       this.handleTextInsert(event as CustomEvent);
+    });
+
+    this.autocompleteTriggers.addEventListener('autocomplete:trigger:selected', (event) => {
+      const detail = (event as CustomEvent<{ type: string; id: string; title: string }>).detail;
+      if(detail.type === 'style'){
+        this.selectedStyles.push({ type: detail.type, id: detail.id, title: detail.title });
+      }
     });
 
     // Initialize textarea auto-resize
