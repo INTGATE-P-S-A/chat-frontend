@@ -10,6 +10,10 @@ export class EventsHelper {
             this.showSettings = false;
         });
 
+        this.addEventListener('rws_modal:force_close', () => {
+            this.showSettings = false;
+        });
+
         this.addEventListener('rws_modal:ai-assist-suggestions:close', () => {
             this.activeAssist = null;
             this.aiAssistantSignal?.setValue({

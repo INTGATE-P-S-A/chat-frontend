@@ -41,6 +41,7 @@ export const chatStyle = css`
     --d-large: 30px;
     --d-xlarge: 50px;
     --shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    --ac-width: 350px;
     width: 100%;
     height: 100%;
     max-height: 100vh;
@@ -371,8 +372,17 @@ export const chatStyle = css`
     padding: 0.25rem 0.75rem;
     font-size: 0.75rem;
     color: #6c757d;
-    text-align: right;
     margin-bottom: 0.25rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .helper-explanation {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.75rem;
+    color: #6c757d;
   }
 
   .keyboard-shortcut {

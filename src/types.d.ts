@@ -84,6 +84,7 @@ declare interface RequestOverrides {
   userId?: string;
   webSearchEnabled?: boolean;
   deepSearchEnabled?: boolean;
+  writingStyle?: string[];
   chatSettings?: IChatSettings;
 }
 
@@ -182,6 +183,10 @@ declare interface IRWSAiAssistComponent extends HTMLElement {
   analyzeAfterLLMResponse(): Promise<void>;
   clearPromptWritingTimeout(): void;
   setLLMStreaming(streaming: boolean): void;
+}
+
+declare interface IRWSAutocompleteTriggerComponent extends HTMLElement {
+ bindTextarea(textarea: HTMLTextAreaElement | null): void;
 }
 
 declare enum ActiveAssistSignalType {

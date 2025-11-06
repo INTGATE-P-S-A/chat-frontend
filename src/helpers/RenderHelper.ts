@@ -80,14 +80,16 @@ export class RenderHelper {
           >
             ${RenderHelper.aiAssistRender.bind(this)()}
             ${RenderHelper.filePreviewRender.bind(this)()}
-            ${this.showControls ? html`<div class="input-helper-text">
+            ${this.showControls ? html`            ${this.showControls ? html`<div class="input-helper-text">
+              <span class="helper-explanation">${globalConfig.TOOLTIPS.SHORTCUTS_HELPER}</span>
               <span class="keyboard-shortcut">
                 ${globalConfig.CHAT_INPUT_NEWLINE_HELPER}
               </span>
-            </div>` : ''}
+            </div>` : ''}` : ''}
             <div class="chatbox__container">
               <div class="chatbox__input-container">
                 <div class="input_container_wrapper">
+                  ${RenderHelper.renderAutocomplete.bind(this)(globalConfig)}
                   <textarea
                     class="chatbox__input"
                     data-testid="question-input"
@@ -102,7 +104,7 @@ export class RenderHelper {
                     @input="${this.handleOnInputChange}"
                     @paste="${this.handlePasteEvent.bind(this)}"                    
                   ></textarea>
-                  ${RenderHelper.renderFilePrompt.bind(this)(globalConfig)}
+                  ${RenderHelper.renderFilePrompt.bind(this)(globalConfig)}                  
                   ${this.chatController.isAwaitingResponse
           ? html`<loading-indicator label="${globalConfig.LOADING_INDICATOR_TEXT}"></loading-indicator>` : ''}                  
                 </div>
@@ -219,6 +221,10 @@ export class RenderHelper {
     >
       <rws-tooltip side="left" text="${globalConfig.TOOLTIPS.ATTACH_FILE_TO_PROMPT}"><i class="simple-icon-paper-clip"></i></rws-tooltip>
     </button></div>`;
+  }
+
+   static renderAutocomplete(this: ChatComponent, globalConfig: any) {    
+    return html`<autocomplete-triggers id="prompt-autocomplete-component" route="ai.triggerSearch"></autocomplete-triggers>`;
   }
 
   static filePreviewRender(this: ChatComponent) {

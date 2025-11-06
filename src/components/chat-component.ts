@@ -105,6 +105,9 @@ export class ChatComponent extends LitElement {
   @query('#ai-assist-component')
   aiAssist!: IRWSAiAssistComponent;
 
+  @query('#prompt-autocomplete-component')
+  autocompleteTriggers!: IRWSAutocompleteTriggerComponent;
+
   @state()
   activeAssist: IActiveAssist | null = null;
 
@@ -179,6 +182,9 @@ export class ChatComponent extends LitElement {
   @state()
   isDragOver = false;
 
+  @state()
+  enterSubmitBlocked = false;
+
   @property({ type: Number, attribute: 'data-convo-id' })
   convoId: number | null = null;
 
@@ -192,6 +198,7 @@ export class ChatComponent extends LitElement {
 
 
   override firstUpdated() {
+    this.autocompleteTriggers.bindTextarea(this.questionInput);
     this.aiAssist.bindInputSource(this.questionInput);
     this.aiAssistantSignal = this.aiAssist.getExternalSignal();
 
@@ -284,6 +291,9 @@ export class ChatComponent extends LitElement {
     this.boundHandleResize = this.handleResize.bind(this);
     window.addEventListener('resize', this.boundHandleResize);
 
+    // Listen for autocomplete state change events
+    this.addEventListener('autocomplete:state:change', this.handleAutocompleteStateChange.bind(this));
+
     const ev = new CustomEvent('chat-component-connected', {
       detail: true,
       bubbles: true,
@@ -320,6 +330,9 @@ export class ChatComponent extends LitElement {
     if (this.boundHandleResize) {
       window.removeEventListener('resize', this.boundHandleResize);
     }
+
+    // Remove autocomplete event listener
+    this.removeEventListener('autocomplete:state:change', this.handleAutocompleteStateChange.bind(this));
 
     this.showControls = false;
     this.liveChatOn = false;
@@ -359,6 +372,12 @@ export class ChatComponent extends LitElement {
         this.progressStage = '';
       }, 1000);
     }
+  }
+
+  handleAutocompleteStateChange(event: Event) {
+    const customEvent = event as CustomEvent;
+    const { isOpen } = customEvent.detail;
+    this.enterSubmitBlocked = isOpen;
   }
 
   overrideConfig() {
@@ -484,6 +503,11 @@ export class ChatComponent extends LitElement {
     this.autoResizeTextarea();
 
     if (e instanceof KeyboardEvent && e.key === 'Enter' && !e.shiftKey && this.questionInput.value.trim().length > 0) {
+      // Block Enter submission if enter submit is blocked (e.g., autocomplete is open)
+      if (this.enterSubmitBlocked) {
+        return; // Don't submit, let the blocking component handle the Enter key
+      }
+      
       this.handleUserChatSubmit(e);
     }
   }
