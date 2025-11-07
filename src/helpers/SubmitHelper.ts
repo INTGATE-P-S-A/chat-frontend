@@ -107,9 +107,8 @@ export class SubmitHelper {
                 };
             }
 
-            console.log('slotsVal', this.promptSlots.value);
 
-            if(this.promptSlots.value){
+            if(this.promptSlots?.value){
                 this.overrides.promptSlots = this.promptSlots.value;
             }
             
