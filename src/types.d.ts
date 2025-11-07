@@ -86,6 +86,7 @@ declare interface RequestOverrides {
   deepSearchEnabled?: boolean;
   writingStyle?: string[];
   chatSettings?: IChatSettings;
+  promptSlots?: IPromptSlotsContent;
 }
 
 declare type MessageRole = 'system' | 'user' | 'assistant' | 'function';
@@ -250,4 +251,11 @@ declare interface IExternalAssistSignal {
   value$: {
     subscribe(callback: (value: IAssistSignalPayload | null) => void): void;
   };
+}
+
+declare interface IPromptSlotsContent {
+  conversation_context: string | null,
+  conversation_goal: string | null,
+  conversation_target: string | null,
+  conversation_format: string | null
 }

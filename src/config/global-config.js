@@ -22,6 +22,7 @@ const globalConfig = {
   RESET_BUTTON_LABEL_TEXT: 'X',
   RESET_BUTTON_TITLE_TEXT: 'Reset current question',
   RESET_CHAT_BUTTON_TITLE: 'Reset chat',
+  ADV_PROMPT_CHECKBOX_LABEL: 'Advanced prompting',
   // Copy response to clipboard
   COPY_RESPONSE_BUTTON_LABEL_TEXT: 'Copy Response',
   COPIED_SUCCESSFULLY_MESSAGE: 'Response copied!',
@@ -65,7 +66,6 @@ const globalConfig = {
     CANCEL_REQUEST: 'Cancel request',
     SHORTCUTS_HELPER: '/ for styles, # for projects, @ for knowledge',
   },
-
   AUTOCOMPLETE: {
     STYLES_PLACEHOLDER: 'Type / to search styles...',
     PROJECTS_PLACEHOLDER: 'Type # to search projects...',

@@ -101,6 +101,15 @@ export class EventsHelper {
 
             FilesHelper.handleAddFile.bind(this)(theEvent.detail.event);
         });
+
+        this.addEventListener('prompt-slots:change', (e: Event) => {
+            const theEvent = e as CustomEvent<IPromptSlotsContent>;
+
+            this.overrides = {
+                ...this.overrides,
+                promptSlots: theEvent.detail,
+            };
+        });
     }
 
     static listenForFullScreenEvents(this: ChatComponent) {         

@@ -134,11 +134,26 @@ export class RenderHelper {
               
             </div>
 
+            ${this.advancedPromptingEnabled ? RenderHelper.slotPromptRender() : ''}
+
             ${globalConfig.WEB_SEARCH_CHECKBOX_ENABLED
           ? html`<div class="web-search__wrapper">                  
                   <simple-model-select                         
                     value="${this.overrides.selectedModel ? this.overrides.selectedModel.model.value : (this.overrides.avatar ? this.overrides.avatar : null)}">
                   </simple-model-select> 
+                  <div class="web-search__container">
+                    <input
+                      type="checkbox"
+                      class="web-search__checkbox"
+                      id="adv-prompt-checkbox"
+                      .checked="${this.advancedPromptingEnabled}"
+                      @change="${HandlerHelper.handleAdvancedPromptingChange.bind(this)}"              
+                      ?disabled="${this.isDisabled}"
+                    />
+                    <label class="web-search__label" for="adv-prompt-checkbox">
+                      ${globalConfig.ADV_PROMPT_CHECKBOX_LABEL}
+                    </label>
+                  </div>
                   <div class="web-search__container">
                     <input
                       type="checkbox"
@@ -329,5 +344,9 @@ export class RenderHelper {
 
   static aiAssistRender(this: ChatComponent) {
     return html`<ai-assist id="ai-assist-component"></ai-assist>`;
+  }
+
+  static slotPromptRender() {
+    return html`<prompt-slots></prompt-slots>`;
   }
 }

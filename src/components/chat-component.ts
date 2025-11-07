@@ -133,6 +133,9 @@ export class ChatComponent extends LitElement {
   deepSearchEnabled = false;
 
   @state()
+  advancedPromptingEnabled = false;
+
+  @state()
   isFullscreen = false;
 
   @state()

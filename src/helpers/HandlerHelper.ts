@@ -18,6 +18,10 @@ export class HandlerHelper {
         }
     }
 
+    static handleAdvancedPromptingChange(this: ChatComponent, event: Event): void {
+        this.advancedPromptingEnabled = !this.advancedPromptingEnabled;
+    }
+
     static handleWebSearchChange(this: ChatComponent, event: Event): void {
         const target = event.target as HTMLInputElement;
         this.webSearchEnabled = target.checked;
