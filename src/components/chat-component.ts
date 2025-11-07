@@ -108,6 +108,9 @@ export class ChatComponent extends LitElement {
   @query('#prompt-autocomplete-component')
   autocompleteTriggers!: IRWSAutocompleteTriggerComponent;
 
+  @query('#prompt-slots')
+  promptSlots!: { value: IPromptSlotsContent | null };
+
   @state()
   activeAssist: IActiveAssist | null = null;
 

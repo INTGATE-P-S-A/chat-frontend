@@ -107,7 +107,12 @@ export class SubmitHelper {
                 };
             }
 
-            // Add the new message to the context
+            console.log('slotsVal', this.promptSlots.value);
+
+            if(this.promptSlots.value){
+                this.overrides.promptSlots = this.promptSlots.value;
+            }
+            
             const messagesWithNewInput = [...currentMessages, userMessage];
 
             const requestOverrides = {

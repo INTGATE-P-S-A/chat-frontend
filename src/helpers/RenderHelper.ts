@@ -347,6 +347,6 @@ export class RenderHelper {
   }
 
   static slotPromptRender() {
-    return html`<prompt-slots></prompt-slots>`;
+    return html`<prompt-slots id="prompt-slots"></prompt-slots>`;
   }
 }
