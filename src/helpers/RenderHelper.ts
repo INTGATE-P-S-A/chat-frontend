@@ -86,6 +86,8 @@ export class RenderHelper {
                 ${globalConfig.CHAT_INPUT_NEWLINE_HELPER}
               </span>
             </div>` : ''}` : ''}
+            ${this.advancedPromptingEnabled ? RenderHelper.slotPromptRender.bind(this)() : ''}
+
             <div class="chatbox__container">
               <div class="chatbox__input-container">
                 <div class="input_container_wrapper">
@@ -133,8 +135,6 @@ export class RenderHelper {
               </div>
               
             </div>
-
-            ${this.advancedPromptingEnabled ? RenderHelper.slotPromptRender() : ''}
 
             ${globalConfig.WEB_SEARCH_CHECKBOX_ENABLED
           ? html`<div class="web-search__wrapper">                  
@@ -239,7 +239,14 @@ export class RenderHelper {
   }
 
   static renderAutocomplete(this: ChatComponent, globalConfig: any) {
-    return html`<autocomplete-triggers id="prompt-autocomplete-component" route="ai.triggerSearch"></autocomplete-triggers>`;
+    return html`<autocomplete-triggers 
+      id="prompt-autocomplete-component" 
+      route="ai.triggerSearch"
+      .selectedNotification="${{
+        '/': globalConfig.AUTOCOMPLETE_STYLE_SELECTED || '{name} has been added',
+        '#': globalConfig.AUTOCOMPLETE_PROJECT_SELECTED || '{name} has been added', 
+        '@': globalConfig.AUTOCOMPLETE_KNOWLEDGE_SELECTED || '{name} has been added'
+      }}"></autocomplete-triggers>`;
   }
 
   static filePreviewRender(this: ChatComponent) {
@@ -346,7 +353,7 @@ export class RenderHelper {
     return html`<ai-assist id="ai-assist-component"></ai-assist>`;
   }
 
-  static slotPromptRender() {
-    return html`<prompt-slots id="prompt-slots"></prompt-slots>`;
+  static slotPromptRender(this: ChatComponent) {
+    return html`<prompt-slots @change="${this.handleSlotChanges}" id="prompt-slots"></prompt-slots>`;
   }
 }

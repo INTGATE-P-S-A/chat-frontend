@@ -109,7 +109,7 @@ export class ChatComponent extends LitElement {
   autocompleteTriggers!: IRWSAutocompleteTriggerComponent;
 
   @query('#prompt-slots')
-  promptSlots!: { value: IPromptSlotsContent | null };
+  promptSlots!: { value: IPromptSlotsContent | null } & HTMLElement;
 
   @state()
   activeAssist: IActiveAssist | null = null;
@@ -328,6 +328,15 @@ export class ChatComponent extends LitElement {
     this.resizeTimeout = window.setTimeout(() => {
       this.autoResizeTextarea();
     }, 100);
+  }
+
+  handleSlotChanges(e: Event) {
+      const theEvent = e as CustomEvent<IPromptSlotsContent>;
+
+      this.overrides = {
+          ...this.overrides,
+          promptSlots: theEvent.detail,
+      };
   }
 
   private resizeTimeout?: number;

@@ -56,6 +56,11 @@ const globalConfig = {
   DEEP_SEARCH_CHECKBOX_LABEL: 'Use deep search',
   DEEP_SEARCH_CHECKBOX_ENABLED: true,
   REASONING_LABEL: 'Reasoning',
+  
+  // Autocomplete trigger notifications
+  AUTOCOMPLETE_STYLE_SELECTED: 'Style "{name}" has been added',
+  AUTOCOMPLETE_PROJECT_SELECTED: 'Project "{name}" has been added', 
+  AUTOCOMPLETE_KNOWLEDGE_SELECTED: 'Knowledge "{name}" has been added',
 
   TOOLTIPS: {
     CHAT_PICK_KDB: 'Pick knowledge base entries',

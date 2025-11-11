@@ -368,9 +368,9 @@ export class ChatThreadComponent extends LitElement {
     }
 
     // Check if there's a gen-image in the text and try to get the file
-    const imageFile = await this.detectTextImage(entry);
-    if (imageFile) {
-      this.addFileToKDB(imageFile);
+    const txtFile = await this.detectTextFile(entry);
+    if (txtFile) {
+      this.addFileToKDB(txtFile);
       return;
     }
 
@@ -384,22 +384,29 @@ export class ChatThreadComponent extends LitElement {
     });
   }
 
-  private async detectTextImage(entry: ChatThreadEntry): Promise<MessageFile | null> {
+  private async detectTextFile(entry: ChatThreadEntry): Promise<MessageFile | null> {
     // Combine all text values from the entry
     const allText = entry.text.map(textPart => textPart.value).join(' ');
     
     // Regular expression to match gen-image tags and extract fileid
     const genImageRegex = /<gen-image[^>]+fileid="([^"]+)"[^>]*>/i;
     const match = allText.match(genImageRegex);
-    
+    let fileId;
+
     if (!match || !match[1]) {
-      return null;
+      const genImageRegex2 = /<file-card[^>]+fileid="([^"]+)"[^>]*>/i;
+      const match2 = allText.match(genImageRegex2);
+
+      if (!match2 || !match2[1]) {
+        return null;
+      }else{
+         fileId = match2[1];
+      }    
+    }else{
+       fileId = match[1];
     }
-    
-    const fileId = match[1];
-    
-    try {
-      // Fetch the file from the API
+  
+    try {      
       const response = await fetch(`/api/file/${fileId}`, { headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('jwt_token')}` } });
       
       if (!response.ok) {
