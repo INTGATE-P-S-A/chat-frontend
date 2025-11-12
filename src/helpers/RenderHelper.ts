@@ -81,10 +81,15 @@ export class RenderHelper {
             ${RenderHelper.aiAssistRender.bind(this)()}
             ${RenderHelper.filePreviewRender.bind(this)()}
             ${this.showControls ? html`            ${this.showControls ? html`<div class="input-helper-text">
-              <span class="helper-explanation">${globalConfig.TOOLTIPS.SHORTCUTS_HELPER}</span>
-              <span class="keyboard-shortcut">
-                ${globalConfig.CHAT_INPUT_NEWLINE_HELPER}
-              </span>
+              <div class="helper-explanation">
+                <div class="helper-ex-item"><kbd-key noclick="true" small="true">/</kbd-key>${globalConfig.AUTOCOMPLETE_STYLES_HELPER}</div>
+                <div class="helper-ex-item"><kbd-key noclick="true" small="true">#</kbd-key>${globalConfig.AUTOCOMPLETE_PROJECTS_HELPER}</div>
+                <div class="helper-ex-item"><kbd-key noclick="true" small="true">@</kbd-key>${globalConfig.AUTOCOMPLETE_KNOWLEDGE_HELPER}</div>
+              </div>
+              <div class="keyboard-shortcut">
+                <kbd-key noclick="true" small="true">Shift</kbd-key> + <kbd-key noclick="true" small="true">Enter</kbd-key>${globalConfig.CHAT_INPUT_NEWLINE_HELPER}
+              </div>
+              <shortcuts-info></shortcuts-info>
             </div>` : ''}` : ''}
             ${this.advancedPromptingEnabled ? RenderHelper.slotPromptRender.bind(this)() : ''}
 
@@ -217,7 +222,7 @@ export class RenderHelper {
         : ''}
         ${this.showSettings
         ? html`
-            <rws-modal name="chat_settings" centerTop="true"}">
+            <rws-modal name="chat_settings" header="${globalConfig.MODAL_TITLES.CHAT_SETTINGS}" centerTop="true">
               <chat-settings></chat-settings>
             </rws-modal>
             `

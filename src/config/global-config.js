@@ -16,8 +16,10 @@ const globalConfig = {
   LIVE_CHAT_BUTTON_LABEL_TEXT: 'Live Chat',
   ADD_KDB_BUTTON_LABEL_TEXT: 'Add to Knowledge Base',
   CHAT_INPUT_PLACEHOLDER: 'Type your question, eg. "How to search and book rentals?"',
-  CHAT_INPUT_NEWLINE_HELPER: 'Shift + Enter for new line',
-  CHAT_INPUT_SHORTCUTS_HELPER: '/ for styles, # for projects, @ for knowledge',
+  CHAT_INPUT_NEWLINE_HELPER: ' for new line',
+  AUTOCOMPLETE_STYLES_HELPER: ' for styles',
+  AUTOCOMPLETE_PROJECTS_HELPER: ' for projects', 
+  AUTOCOMPLETE_KNOWLEDGE_HELPER: ' for knowledge',
   USER_IS_BOT: 'Support Assistant',
   RESET_BUTTON_LABEL_TEXT: 'X',
   RESET_BUTTON_TITLE_TEXT: 'Reset current question',
@@ -69,12 +71,14 @@ const globalConfig = {
     PROMPT_WITH_MICROPHONE: 'Prompt with microphone',
     ATTACH_FILE_TO_PROMPT: 'Attach file to prompt',
     CANCEL_REQUEST: 'Cancel request',
-    SHORTCUTS_HELPER: '/ for styles, # for projects, @ for knowledge',
   },
   AUTOCOMPLETE: {
     STYLES_PLACEHOLDER: 'Type / to search styles...',
     PROJECTS_PLACEHOLDER: 'Type # to search projects...',
     KNOWLEDGE_PLACEHOLDER: 'Type @ to search knowledge...',
+  },
+  MODAL_TITLES: {
+    CHAT_SETTINGS: 'Chat Settings',
   }
 };
 

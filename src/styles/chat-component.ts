@@ -182,7 +182,7 @@ export const chatStyle = css`
 
   #chat-container > #chat-form {
     margin-top: 1rem;
-    padding: 1rem;
+    padding: 0.5rem;
     background: white;
     border: 1px solid var(--chat_header_color, #e3e6f0);
     border-radius: 0.35rem;
@@ -368,8 +368,7 @@ export const chatStyle = css`
   }
 
   /* Input helper text styling */
-  .input-helper-text {
-    padding: 0.25rem 0.75rem;
+  .input-helper-text {    
     font-size: 0.75rem;
     color: #6c757d;
     margin-bottom: 0.25rem;
@@ -381,8 +380,15 @@ export const chatStyle = css`
   .helper-explanation {
     display: inline-flex;
     align-items: center;
+    gap: 5px;
     font-size: 0.75rem;
     color: #6c757d;
+
+    .helper-ex-item {
+      display: inline-flex;
+      align-items: center;      
+      gap: 5px;
+    }
   }
 
   .keyboard-shortcut {
@@ -390,12 +396,16 @@ export const chatStyle = css`
     align-items: center;
     gap: 0.25rem;
     font-style: italic;
+    margin-left: auto;
+  }
+
+  shortcuts-info {
+    margin-left: 10px;
   }
 
   @media (max-width: 768px) {
     .input-helper-text {
-      font-size: 0.7rem;
-      padding: 0.2rem 0.5rem;
+      font-size: 0.7rem;      
     }
   }
 

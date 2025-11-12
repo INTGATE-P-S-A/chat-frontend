@@ -241,7 +241,7 @@ declare interface IAISuggestion {
 
 
 declare interface IAssistSignalPayload {
-    command: 'attach_file' | 'pass_entry' | 'add_file';
+    command: 'attach_file' | 'pass_entry' | 'add_file' | 'open_knowledge_picker_create_form' | 'open_knowledge_picker';
     payload?: any;
 }
 

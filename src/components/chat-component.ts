@@ -32,6 +32,7 @@ import { SubmitHelper } from '../helpers/SubmitHelper.js';
 import { ThreadHelper } from '../helpers/ThreadHelper.js';
 import { HandlerHelper } from '../helpers/HandlerHelper.js';
 import { FilesHelper } from '../helpers/FilesHelper.js';
+import { KeyboardShortcutsHelper } from '../helpers/KeyboardShortcutsHelper.js';
 
 let teaserListTexts = configTeaserListTexts;
 let globalConfig = mainConfig;
@@ -310,6 +311,13 @@ export class ChatComponent extends LitElement {
     // Listen for autocomplete state change events
     this.addEventListener('autocomplete:state:change', this.handleAutocompleteStateChange.bind(this));
 
+    // Initialize keyboard shortcuts
+    KeyboardShortcutsHelper.initializeShortcuts.bind(this)();
+
+    // Listen for keyboard shortcut events
+    this.addEventListener('keyboard:web-search-toggle', this.handleWebSearchToggle.bind(this) as EventListener);
+    this.addEventListener('keyboard:advanced-prompts-toggle', this.handleAdvancedPromptsToggle.bind(this) as EventListener);
+
     const ev = new CustomEvent('chat-component-connected', {
       detail: true,
       bubbles: true,
@@ -359,6 +367,13 @@ export class ChatComponent extends LitElement {
     // Remove autocomplete event listener
     this.removeEventListener('autocomplete:state:change', this.handleAutocompleteStateChange.bind(this));
 
+    // Remove keyboard shortcut event listeners
+    this.removeEventListener('keyboard:web-search-toggle', this.handleWebSearchToggle.bind(this) as EventListener);
+    this.removeEventListener('keyboard:advanced-prompts-toggle', this.handleAdvancedPromptsToggle.bind(this) as EventListener);
+
+    // Clean up keyboard shortcuts
+    KeyboardShortcutsHelper.stopListening();
+
     this.showControls = false;
     this.liveChatOn = false;
   }
@@ -403,6 +418,36 @@ export class ChatComponent extends LitElement {
     const customEvent = event as CustomEvent;
     const { isOpen } = customEvent.detail;
     this.enterSubmitBlocked = isOpen;
+  }
+
+  handleWebSearchToggle(event: Event) {
+    const customEvent = event as CustomEvent;
+    const { enabled } = customEvent.detail;
+    
+    // Provide user feedback about the toggle
+    this.dispatchEvent(new CustomEvent('show-notification', {
+      detail: { 
+        message: `Web Search ${enabled ? 'enabled' : 'disabled'}`,
+        type: 'info'
+      },
+      bubbles: true,
+      composed: true
+    }));
+  }
+
+  handleAdvancedPromptsToggle(event: Event) {
+    const customEvent = event as CustomEvent;
+    const { enabled } = customEvent.detail;
+    
+    // Provide user feedback about the toggle
+    this.dispatchEvent(new CustomEvent('show-notification', {
+      detail: { 
+        message: `Advanced Prompts ${enabled ? 'enabled' : 'disabled'}`,
+        type: 'info'
+      },
+      bubbles: true,
+      composed: true
+    }));
   }
 
   overrideConfig() {
@@ -662,6 +707,10 @@ export class ChatComponent extends LitElement {
       lightDOMContent: this.innerHTML,
       shadowDOMContent: this.shadowRoot?.innerHTML
     };
+  }
+
+  public getKeyboardShortcuts() {
+    return KeyboardShortcutsHelper.getShortcuts();
   }
 
   toggleTalk(value?: boolean) {
