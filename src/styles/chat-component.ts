@@ -903,13 +903,35 @@ export const chatStyle = css`
   }
 
   .selected-style-badge {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
     background-color: var(--c-accent-light);
     color: #000;
     border: 1px solid var(--c-accent-dark);
     border-radius: var(--radius-small);
-    padding: 0.25rem 0.5rem;
-    font-size: 0.75rem;        
-    height: 15px;
+    padding: 0.125rem 0.25rem;
+    font-size: 0.65rem;        
+    min-height: 18px;
+  }
+
+  .selected-style-badge .simple-icon-close {
+    cursor: pointer;
+    font-size: 0.6rem;
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+    margin-left: 0.125rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 12px;
+    height: 12px;
+  }
+
+  .selected-style-badge .simple-icon-close:hover {
+    opacity: 1;
+    color: var(--c-red);
+    background-color: rgba(255, 0, 0, 0.1);
+    border-radius: 50%;
   }
 `;

@@ -811,6 +811,25 @@ export class ChatComponent extends LitElement {
     }
   }
 
+  removeStyle(event: Event, styleId: string) {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    // Remove the style from selectedStyles array
+    this.selectedStyles = this.selectedStyles.filter(style => style.id !== styleId);
+    
+    // Emit custom event to notify about style removal
+    const removeStyleEvent = new CustomEvent('chat:remove:style', {
+      detail: { styleId },
+      bubbles: true,
+      composed: true
+    });
+    this.dispatchEvent(removeStyleEvent);
+    
+    // Force a re-render to update the UI
+    this.requestUpdate();
+  }
+
   override render() {
     return RenderHelper.mainRender.bind(this)(globalConfig, teaserListTexts);
   }

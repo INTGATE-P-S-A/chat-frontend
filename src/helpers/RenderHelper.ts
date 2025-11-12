@@ -348,7 +348,12 @@ export class RenderHelper {
 
   static renderExtraInputFooterButtons(this: ChatComponent, globalConfig: any) {
     return html`<div class="footer-btns">
-        ${this.selectedStyles.map(style => html`<div class="selected-style-badge">${style.title}</div>`)}
+        ${this.selectedStyles.map(style => html`
+          <div class="selected-style-badge">
+            ${style.title}
+            <i class="simple-icon-close" @click="${(e: Event) => this.removeStyle(e, style.id)}" title="Remove style"></i>
+          </div>
+        `)}
         <div class="kdb-pick"><knowledge-picker absolute="true"></knowledge-picker></div>          
         <div class="settings-toggler"><rws-tooltip side="left" text="${globalConfig.TOOLTIPS.CHAT_SETTINGS}"><button  type="button" @click="${this.handleSettingsExpandAside}"><i class="simple-icon-settings"></i></button></rws-tooltip></div>
     </div>`;
