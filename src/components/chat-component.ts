@@ -196,6 +196,9 @@ export class ChatComponent extends LitElement {
   currentUser: IRWSUser | null = null;
 
   @state()
+  currentBalance: number = 0;
+
+  @state()
   selectedStyles: { type: string; id: string; title: string }[]  = [];
 
   @property({ type: Number, attribute: 'data-convo-id' })
@@ -204,6 +207,7 @@ export class ChatComponent extends LitElement {
   chatThread: ChatThreadEntry[] = [];
 
   aiAssistantSignal: IExternalAssistSignal | null = null;
+  creditBalanceSignal: IExternalBalanceSignal | null = null;
 
   private previousGeneratingAnswer: boolean = false; // Track previous generatingAnswer state
 
@@ -219,6 +223,13 @@ export class ChatComponent extends LitElement {
       if (value?.command === 'pass_entry') {
         this.activeAssist = value?.payload;
       }
+    });
+
+    this.creditBalanceSignal?.value$.subscribe(async (value: number | null) => {
+      this.currentBalance = value || 0;
+      if(this.currentUser){
+        this.currentUser.accountBalance.credits = this.currentBalance;
+      }      
     });
 
     // Listen for webchat:submit event from ai-assist component
@@ -530,6 +541,22 @@ export class ChatComponent extends LitElement {
   async handleUserChatSubmit(event: Event): Promise<void> {
     event.preventDefault();
     this.collapseAside(event);
+
+    // Check if user has credits before allowing chat submission
+    if (this.currentBalance <= 0) {
+      // Emit popup event using the existing appEvents system
+      const noCreditsEvent = new CustomEvent('appEvents.popupShow', {
+        detail: {
+          message: 'chat.noCredits.message',
+          type: 'error',
+          params: { balance: this.currentBalance }
+        },
+        bubbles: true,
+        composed: true
+      });
+      this.dispatchEvent(noCreditsEvent);
+      return; // Block chat execution
+    }
 
     // Minimize AI assist window when submitting input
     if (this.aiAssist && typeof (this.aiAssist as any).toggleMinimize === 'function') {

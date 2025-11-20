@@ -50,6 +50,9 @@ declare interface IRWSUser {
   profile_pic?: {
     filename: string;
   };
+  accountBalance: {
+    credits: number;
+  };
   accountGrade: {
     advancedPrompts: boolean;
     promptAssist: boolean;
@@ -276,6 +279,14 @@ declare interface IExternalAssistSignal {
   setValue(value: IAssistSignalPayload | null): void;
   value$: {
     subscribe(callback: (value: IAssistSignalPayload | null) => void): void;
+  };
+}
+
+declare interface IExternalBalanceSignal {
+  getValue(): number | null;
+  setValue(value: number | null): void;
+  value$: {
+    subscribe(callback: (value: number | null) => void): void;
   };
 }
 
