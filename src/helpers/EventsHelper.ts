@@ -96,11 +96,11 @@ export class EventsHelper {
             this.collapseAside(e);
         });
 
-        this.addEventListener('prompt-file:pick', (e: Event) => {
+        this.addEventListener('add-file', (e) => {
             const theEvent = e as CustomEvent<{ event: Event }>;
 
             FilesHelper.handleAddFile.bind(this)(theEvent.detail.event);
-        });       
+        });            
     }
 
     static listenForFullScreenEvents(this: ChatComponent) {         

@@ -193,6 +193,9 @@ export class ChatComponent extends LitElement {
   enterSubmitBlocked = false;
 
   @state()
+  currentUser: IRWSUser | null = null;
+
+  @state()
   selectedStyles: { type: string; id: string; title: string }[]  = [];
 
   @property({ type: Number, attribute: 'data-convo-id' })
@@ -324,6 +327,8 @@ export class ChatComponent extends LitElement {
       composed: true
     });
     this.dispatchEvent(ev);
+
+    this.currentUser = (document.querySelector('default-layout') as HTMLElement & { getCurrentUser: () => IRWSUser | null }).getCurrentUser();
   }
 
   private boundHandleResize?: () => void;

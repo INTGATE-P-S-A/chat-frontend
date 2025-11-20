@@ -91,7 +91,7 @@ export class RenderHelper {
               </div>
               <shortcuts-info></shortcuts-info>
             </div>` : ''}` : ''}
-            ${this.advancedPromptingEnabled ? RenderHelper.slotPromptRender.bind(this)() : ''}
+            ${this.advancedPromptingEnabled && this.currentUser?.accountGrade?.advancedPrompts ? RenderHelper.slotPromptRender.bind(this)() : ''}
 
             <div class="chatbox__container">
               <div class="chatbox__input-container">
@@ -146,19 +146,19 @@ export class RenderHelper {
                   <simple-model-select                         
                     value="${this.overrides.selectedModel ? this.overrides.selectedModel.model.value : (this.overrides.avatar ? this.overrides.avatar : null)}">
                   </simple-model-select> 
-                  <div class="web-search__container">
+                  ${this.currentUser?.accountGrade?.advancedPrompts ? html`<div class="web-search__container">
                     <input
                       type="checkbox"
                       class="web-search__checkbox"
                       id="adv-prompt-checkbox"
                       .checked="${this.advancedPromptingEnabled}"
-                      @change="${HandlerHelper.handleAdvancedPromptingChange.bind(this)}"              
+                      @change="${HandlerHelper.handleAdvancedPromptingChange.bind(this)}"
                       ?disabled="${this.isDisabled}"
                     />
                     <label class="web-search__label" for="adv-prompt-checkbox">
                       ${globalConfig.ADV_PROMPT_CHECKBOX_LABEL}
                     </label>
-                  </div>
+                  </div>` : ''}
                   <div class="web-search__container">
                     <input
                       type="checkbox"

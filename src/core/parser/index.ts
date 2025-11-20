@@ -95,6 +95,12 @@ export async function parseStreamedMessages({
         cost: promptCost
       };
       onVisit(updatedEntry);
+            
+      (host as any).dispatchEvent(new CustomEvent('credit:balance:updated', {
+        bubbles: true,
+        composed: true
+      }));
+      
       continue;
     }
 

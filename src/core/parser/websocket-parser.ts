@@ -76,6 +76,22 @@ export async function parseStreamedMessagesFromWebSocket({
     return;
   }
 
+  // Handle credit balance updates
+  if (chunk.status === 'rws_cost') {
+    const event = new CustomEvent('credit:balance:updated', {
+      detail: {
+        userId: chunk.userId,
+        previousBalance: chunk.previousBalance,
+        newBalance: chunk.newBalance,
+        transaction: chunk.transaction
+      },
+      bubbles: true,
+      composed: true
+    });
+    (host as any).dispatchEvent(event);
+    return;
+  }
+
   let chunkValue = chunk.content ?? chunk.delta?.content ?? '';
 
   if (chunkValue === '') {

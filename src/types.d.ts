@@ -42,6 +42,32 @@ declare interface ChatThreadEntry {
   } | null; // Add user property to match backend ChatThreadEntry
 }
 
+declare interface IRWSUser {
+  id: string | number;
+  username: string;
+  name?: string;
+  last_name?: string;
+  profile_pic?: {
+    filename: string;
+  };
+  accountGrade: {
+    advancedPrompts: boolean;
+    promptAssist: boolean;
+    maxAvatars: number | null; // null means infinite
+    maxUsers: number | null; // null means infinite
+    maxProjectsCount: number | null; // null means infinite
+    maxKnowledgeEntries: number | null; // null means infinite
+    antiHallucination: boolean;
+    advancedReports: boolean;
+    chatThreadSharing: boolean;
+    customBranding: boolean;
+    widgets: boolean;
+    customAiModels: number | null; // null means infinite
+    voiceAgent: boolean;
+    writingStyles: boolean;
+  }
+}
+
 declare interface Citation {
   ref: number;
   text: string;
