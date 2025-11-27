@@ -78,7 +78,7 @@ export class RenderHelper {
             @dragleave="${FilesHelper.onFormDragLeave.bind(this)}"
             @drop="${FilesHelper.onDrop.bind(this)}"
           >
-            ${RenderHelper.aiAssistRender.bind(this)()}
+            ${this.currentUser?.accountGrade?.promptAssist ? RenderHelper.aiAssistRender.bind(this)() : ''}
             ${RenderHelper.filePreviewRender.bind(this)()}
             ${this.showControls ? html`            ${this.showControls ? html`<div class="input-helper-text">
               <div class="helper-explanation">
@@ -360,6 +360,10 @@ export class RenderHelper {
   }
 
   static aiAssistRender(this: ChatComponent) {
+    // Check if user has prompt assist feature enabled
+    if (!this.currentUser?.accountGrade?.promptAssist) {
+      return html``;
+    }
     return html`<ai-assist id="ai-assist-component"></ai-assist>`;
   }
 

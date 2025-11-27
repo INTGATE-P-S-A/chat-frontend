@@ -98,7 +98,8 @@ export class HandlerHelper {
     static handleDiscussionLLMTurn(this: ChatComponent): void {
         const context = this.getMessageContext();
 
-        if (this.aiAssist && typeof (this.aiAssist as any).updateContextFromMessages === 'function') {
+        // Only update AI assist if the feature is enabled and component is available
+        if (this.aiAssist && this.currentUser?.accountGrade?.promptAssist && typeof (this.aiAssist as any).updateContextFromMessages === 'function') {
             (this.aiAssist as any).updateContextFromMessages(context);            
         }
 

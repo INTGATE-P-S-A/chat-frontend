@@ -37,8 +37,5 @@ export const parseTool = (tool: { name: string, data: Record<string, any> }): st
     if (!toolsParseList[tool.name]) {
         return '';
     }
-    return `<div class="tool-entry">
-          <div class="tool-name">Tool: ${tool.name}</div>
-          <div class="tool-info">${toolsParseList[tool.name](tool)}</div>
-        </div>`;
+    return `<rws-tools data='${JSON.stringify([tool])}'></rws-tools>`;
 }

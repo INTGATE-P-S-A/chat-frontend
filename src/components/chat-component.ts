@@ -104,7 +104,7 @@ export class ChatComponent extends LitElement {
   questionInput!: HTMLTextAreaElement;
 
   @query('#ai-assist-component')
-  aiAssist!: IRWSAiAssistComponent;
+  aiAssist?: IRWSAiAssistComponent;
 
   @query('#prompt-autocomplete-component')
   autocompleteTriggers!: IRWSAutocompleteTriggerComponent;
@@ -216,32 +216,40 @@ export class ChatComponent extends LitElement {
 
   override firstUpdated() {
     this.autocompleteTriggers.bindTextarea(this.questionInput);
-    this.aiAssist.bindInputSource(this.questionInput);
-    this.aiAssistantSignal = this.aiAssist.getExternalSignal();
+    
+    // Only initialize AI assist if the feature is enabled for the user
+    if (this.aiAssist && this.currentUser?.accountGrade?.promptAssist) {
+      this.aiAssist.bindInputSource(this.questionInput);
+      this.aiAssistantSignal = this.aiAssist.getExternalSignal();
 
-    this.aiAssistantSignal?.value$.subscribe(async (value: IAssistSignalPayload | null) => {
-      if (value?.command === 'pass_entry') {
-        this.activeAssist = value?.payload;
-      }
-    });
+      this.aiAssistantSignal?.value$.subscribe(async (value: IAssistSignalPayload | null) => {
+        if (value?.command === 'pass_entry') {
+          this.activeAssist = value?.payload;
+        }
+      });
 
+      // Listen for webchat:submit event from ai-assist component
+      this.aiAssist.addEventListener('webchat:submit', (event: Event) => {
+        // Submit the form when ai-assist emits this event
+        this.handleUserChatSubmit(event);
+      });
+
+      // Listen for webchat:text-insert event from ai-assist component (no auto-submit)
+      this.aiAssist.addEventListener('webchat:text-insert', (event: Event) => {
+        // Handle text insertion without auto-submit
+        this.handleTextInsert(event as CustomEvent);
+      });
+    }
+
+    this.creditBalanceSignal = (document.querySelector('default-layout') as HTMLElement & { getCreditBalanceSignal: () => IExternalBalanceSignal | null }).getCreditBalanceSignal();
+    
     this.creditBalanceSignal?.value$.subscribe(async (value: number | null) => {
+      console.log({value});
       this.currentBalance = value || 0;
+
       if(this.currentUser){
         this.currentUser.accountBalance.credits = this.currentBalance;
       }      
-    });
-
-    // Listen for webchat:submit event from ai-assist component
-    this.aiAssist.addEventListener('webchat:submit', (event: Event) => {
-      // Submit the form when ai-assist emits this event
-      this.handleUserChatSubmit(event);
-    });
-
-    // Listen for webchat:text-insert event from ai-assist component (no auto-submit)
-    this.aiAssist.addEventListener('webchat:text-insert', (event: Event) => {
-      // Handle text insertion without auto-submit
-      this.handleTextInsert(event as CustomEvent);
     });
 
     this.autocompleteTriggers.addEventListener('autocomplete:trigger:selected', (event) => {
@@ -524,12 +532,16 @@ export class ChatComponent extends LitElement {
   }
 
   updateAssistContext(): void {
-    HandlerHelper.handleDiscussionLLMTurn.bind(this)();
+    // Only update assist context if AI assist is enabled
+    if (this.currentUser?.accountGrade?.promptAssist) {
+      HandlerHelper.handleDiscussionLLMTurn.bind(this)();
+    }
   }
 
   // New method to trigger AI assist analysis after LLM response
   async triggerAIAssistAfterLLMResponse(): Promise<void> {
-    if (this.aiAssist && typeof (this.aiAssist as any).analyzeAfterLLMResponse === 'function') {
+    // Only trigger AI assist if the feature is enabled and component is available
+    if (this.aiAssist && this.currentUser?.accountGrade?.promptAssist && typeof (this.aiAssist as any).analyzeAfterLLMResponse === 'function') {
       try {
         await (this.aiAssist as any).analyzeAfterLLMResponse();
       } catch (error) {
@@ -541,6 +553,8 @@ export class ChatComponent extends LitElement {
   async handleUserChatSubmit(event: Event): Promise<void> {
     event.preventDefault();
     this.collapseAside(event);
+
+    console.log('1111');
 
     // Check if user has credits before allowing chat submission
     if (this.currentBalance <= 0) {
@@ -555,9 +569,11 @@ export class ChatComponent extends LitElement {
         composed: true
       });
       this.dispatchEvent(noCreditsEvent);
+      console.log('no credits');
+
       return; // Block chat execution
     }
-
+    console.log('2222');
     // Minimize AI assist window when submitting input
     if (this.aiAssist && typeof (this.aiAssist as any).toggleMinimize === 'function') {
       // Check if it's currently expanded (not minimized) before minimizing
@@ -573,6 +589,8 @@ export class ChatComponent extends LitElement {
     }
 
     await SubmitHelper.handleSubmit.bind(this)(requestOptions, chatHttpOptions);
+
+    console.log({event});
 
     // Update assist context after user message is sent (but don't trigger analysis yet)
     setTimeout(() => {
