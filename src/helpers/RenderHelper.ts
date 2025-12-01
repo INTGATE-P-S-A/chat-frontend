@@ -144,7 +144,8 @@ export class RenderHelper {
             ${globalConfig.WEB_SEARCH_CHECKBOX_ENABLED
           ? html`<div class="web-search__wrapper">                  
                   <simple-model-select                         
-                    value="${this.overrides.selectedModel ? this.overrides.selectedModel.model.value : (this.overrides.avatar ? this.overrides.avatar : null)}">
+                    value="${this.overrides.selectedModel ? this.overrides.selectedModel.model.value : (this.overrides.avatar ? this.overrides.avatar : null)}"
+                    @model:selected="${HandlerHelper.handleModelSelected.bind(this)}">
                   </simple-model-select> 
                   ${this.currentUser?.accountGrade?.advancedPrompts ? html`<div class="web-search__container">
                     <input
@@ -192,7 +193,8 @@ export class RenderHelper {
           : html`
                 <div class="web-search__wrapper">
                   <simple-model-select                         
-                        value="${this.overrides.selectedModel ? this.overrides.selectedModel.model.value : (this.overrides.avatar ? this.overrides.avatar : null)}">
+                        value="${this.overrides.selectedModel ? this.overrides.selectedModel.model.value : (this.overrides.avatar ? this.overrides.avatar : null)}"
+                        @model:selected="${HandlerHelper.handleModelSelected.bind(this)}">
                   </simple-model-select>  
                   <button 
                     class="fullscreen-toggle-btn ${this.isFullscreen ? 'simple-icon-close' : 'simple-icon-size-fullscreen'}"

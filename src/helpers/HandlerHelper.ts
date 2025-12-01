@@ -125,4 +125,38 @@ export class HandlerHelper {
 
         this.dispatchEvent(llmTurnEvent);
     }
+
+    static handleModelSelected(this: ChatComponent, event: CustomEvent): void {
+        const selectedModel = event.detail;
+        
+        // Update local overrides to reflect the new selection
+        this.overrides = {
+            ...this.overrides,
+            selectedModel: selectedModel,
+            avatar: selectedModel?.avatar
+        };
+
+        // Dispatch event to notify other components (like nav-bar) about model selection
+        const modelChangeEvent = new CustomEvent('model:selected', {
+            detail: selectedModel,
+            bubbles: true,
+            composed: true
+        });
+        
+        this.dispatchEvent(modelChangeEvent);
+
+        // Also try to reach the signal service if available in the parent document
+        try {
+            const parentWindow = (window.parent !== window) ? window.parent : window;
+            const defaultLayout = parentWindow.document.querySelector('default-layout');
+            
+            if (defaultLayout && (defaultLayout as any).signalService) {
+                const signalService = (defaultLayout as any).signalService;
+                const modelSignal = signalService.getSignal('selected_model', { initialValue: null });
+                modelSignal.setValue(selectedModel);
+            }
+        } catch (error) {
+            console.warn('Could not access parent signal service:', error);
+        }
+    }
 }
