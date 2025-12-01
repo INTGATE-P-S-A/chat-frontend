@@ -201,6 +201,12 @@ export class ChatComponent extends LitElement {
   @state()
   selectedStyles: { type: string; id: string; title: string }[]  = [];
 
+  @state()
+  selectedProjects: { type: string; id: string; title: string }[]  = [];
+
+  @state()
+  selectedKnowledge: string[] = [];
+
   @property({ type: Number, attribute: 'data-convo-id' })
   convoId: number | null = null;
 
@@ -256,6 +262,10 @@ export class ChatComponent extends LitElement {
       const detail = (event as CustomEvent<{ type: string; id: string; title: string }>).detail;
       if(detail.type === 'style'){
         this.selectedStyles.push({ type: detail.type, id: detail.id, title: detail.title });
+      } else if(detail.type === 'project'){
+        this.selectedProjects.push({ type: detail.type, id: detail.id, title: detail.title });
+        // Notify knowledge picker about the selected project
+        this.notifyKnowledgePickerOfProjectSelection(detail.id, detail.title);
       }
     });
 
@@ -340,6 +350,9 @@ export class ChatComponent extends LitElement {
     this.addEventListener('keyboard:web-search-toggle', this.handleWebSearchToggle.bind(this) as EventListener);
     this.addEventListener('keyboard:advanced-prompts-toggle', this.handleAdvancedPromptsToggle.bind(this) as EventListener);
 
+    // Listen for knowledge picker selection changes
+    this.addEventListener('knowledge:selection:changed', this.handleKnowledgeSelectionChanged.bind(this) as EventListener);
+
     const ev = new CustomEvent('chat-component-connected', {
       detail: true,
       bubbles: true,
@@ -394,6 +407,7 @@ export class ChatComponent extends LitElement {
     // Remove keyboard shortcut event listeners
     this.removeEventListener('keyboard:web-search-toggle', this.handleWebSearchToggle.bind(this) as EventListener);
     this.removeEventListener('keyboard:advanced-prompts-toggle', this.handleAdvancedPromptsToggle.bind(this) as EventListener);
+    this.removeEventListener('knowledge:selection:changed', this.handleKnowledgeSelectionChanged.bind(this) as EventListener);
 
     // Clean up keyboard shortcuts
     KeyboardShortcutsHelper.stopListening();
@@ -878,6 +892,90 @@ export class ChatComponent extends LitElement {
     
     // Force a re-render to update the UI
     this.requestUpdate();
+  }
+
+  removeProject(event: Event, projectId: string) {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    // Remove the project from selectedProjects array
+    this.selectedProjects = this.selectedProjects.filter(project => project.id !== projectId);
+    
+    // Notify knowledge picker about project removal
+    this.notifyKnowledgePickerOfProjectRemoval(projectId);
+    
+    // Emit custom event to notify about project removal
+    const removeProjectEvent = new CustomEvent('chat:remove:project', {
+      detail: { projectId },
+      bubbles: true,
+      composed: true
+    });
+    this.dispatchEvent(removeProjectEvent);
+    
+    // Force a re-render to update the UI
+    this.requestUpdate();
+  }
+
+  private notifyKnowledgePickerOfProjectSelection(projectId: string, projectTitle: string) {
+    const knowledgePicker = this.shadowRoot?.querySelector('knowledge-picker');
+    if (knowledgePicker) {
+      // Dispatch event to knowledge picker to select project and load its knowledge
+      const event = new CustomEvent('chat:project:selected', {
+        detail: { projectId, projectTitle },
+        bubbles: true,
+        composed: true
+      });
+      knowledgePicker.dispatchEvent(event);
+    }
+  }
+
+  private notifyKnowledgePickerOfProjectRemoval(projectId: string) {
+    const knowledgePicker = this.shadowRoot?.querySelector('knowledge-picker');
+    if (knowledgePicker) {
+      // Dispatch event to knowledge picker to remove project
+      const event = new CustomEvent('chat:project:removed', {
+        detail: { projectId },
+        bubbles: true,
+        composed: true
+      });
+      knowledgePicker.dispatchEvent(event);
+    }
+  }
+
+  private handleKnowledgeSelectionChanged(event: Event) {
+    const customEvent = event as CustomEvent<{ selectedIds: string[], selectedKnowledge: any[] }>;
+    const { selectedIds } = customEvent.detail;
+    
+    // Update the selectedKnowledge array with knowledge IDs (not project IDs)
+    this.selectedKnowledge = selectedIds || [];
+    
+    // Here you can emit or use the knowledge IDs for chat functionality
+    console.log('Updated selected knowledge IDs:', this.selectedKnowledge);
+  }
+
+  handleKnowledgePickerChange(event: CustomEvent) {
+    const { selectedIds, selectedKnowledge } = event.detail;
+    
+    // Update the selectedKnowledge array with knowledge IDs
+    this.selectedKnowledge = selectedIds || [];
+    
+    // Emit custom event for the main chat page to handle knowledge updates
+    const kdbPickEvent = new CustomEvent('kdbPick', {
+      detail: { selectedIds, selectedKnowledge },
+      bubbles: true,
+      composed: true
+    });
+    this.dispatchEvent(kdbPickEvent);
+    
+    // Emit custom event for other components that might need to know about knowledge selection
+    const knowledgeChangeEvent = new CustomEvent('knowledge:selection:changed', {
+      detail: { selectedIds, selectedKnowledge },
+      bubbles: true,
+      composed: true
+    });
+    this.dispatchEvent(knowledgeChangeEvent);
+    
+    console.log('Knowledge picker selection changed:', this.selectedKnowledge);
   }
 
   override render() {

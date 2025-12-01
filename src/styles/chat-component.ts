@@ -716,10 +716,16 @@ export const chatStyle = css`
   .settings-toggler button{
     background: none;
     border: 1px solid var(--alt_blu);
-    border-radius: 5px;
+    border-radius: 20px;
     cursor: pointer;
     color: var(--alt_blu);
-    padding: 5px;
+    padding: 8px 5px 5px 5px;
+    height: 35px;
+    width: 35px;
+
+    i {
+          font-size: 1.1rem;
+    }
   }
 
   #chat-form .input_container_wrapper .file-prompt-wrap {
@@ -899,39 +905,122 @@ export const chatStyle = css`
   .footer-btns{
     margin-left: auto;
     display: flex;
+    align-items: flex-start;
     gap: 10px;
   }
 
   .selected-style-badge {
+    box-sizing: border-box;
     display: inline-flex;
     align-items: center;
-    gap: 0.25rem;
-    background-color: var(--c-accent-light);
-    color: #000;
-    border: 1px solid var(--c-accent-dark);
-    border-radius: var(--radius-small);
-    padding: 0.125rem 0.25rem;
-    font-size: 0.65rem;        
-    min-height: 18px;
+    gap: 0.375rem;
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    border: 1px solid #0056b3;
+    border-radius: 1rem;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;        
+    height: 37px;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
+    transition: all 0.2s ease;
+    white-space: nowrap;
+  }
+
+  .selected-style-badge:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
   }
 
   .selected-style-badge .simple-icon-close {
     cursor: pointer;
-    font-size: 0.6rem;
-    opacity: 0.8;
-    transition: opacity 0.2s ease;
-    margin-left: 0.125rem;
+    font-size: 0.75rem;
+    opacity: 0.9;
+    transition: all 0.2s ease;
+    margin-left: 0.25rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 12px;
-    height: 12px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.1);
   }
 
   .selected-style-badge .simple-icon-close:hover {
     opacity: 1;
-    color: var(--c-red);
-    background-color: rgba(255, 0, 0, 0.1);
+    background-color: rgba(255, 255, 255, 0.25);
+    transform: scale(1.1);
+  }
+
+
+  .selected-project-badge:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+  }
+
+  .selected-project-badge .simple-icon-close {
+    cursor: pointer;
+    font-size: 0.75rem;
+    opacity: 0.9;
+    transition: all 0.2s ease;
+    margin-left: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .selected-style-badge .simple-icon-close:hover {
+    opacity: 1;
+    background-color: rgba(255, 255, 255, 0.25);
+    transform: scale(1.1);
+  }
+
+  .selected-project-badge {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+    color: white;
+    border: 1px solid #1e7e34;
+    border-radius: 1rem;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;        
+    height: 37px;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(40, 167, 69, 0.2);
+    transition: all 0.2s ease;
+    white-space: nowrap;
+  }
+
+  .selected-project-badge:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+  }
+
+  .selected-project-badge .simple-icon-close {
+    cursor: pointer;
+    font-size: 0.75rem;
+    opacity: 0.9;
+    transition: all 0.2s ease;
+    margin-left: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .selected-project-badge .simple-icon-close:hover {
+    opacity: 1;
+    background-color: rgba(255, 255, 255, 0.25);
+    transform: scale(1.1);
   }
 `;

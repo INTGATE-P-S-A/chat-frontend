@@ -354,7 +354,13 @@ export class RenderHelper {
             <i class="simple-icon-close" @click="${(e: Event) => this.removeStyle(e, style.id)}" title="Remove style"></i>
           </div>
         `)}
-        <div class="kdb-pick"><knowledge-picker absolute="true"></knowledge-picker></div>          
+        ${this.selectedProjects.map(project => html`
+          <div class="selected-project-badge">
+            ${project.title}
+            <i class="simple-icon-close" @click="${(e: Event) => this.removeProject(e, project.id)}" title="Remove project"></i>
+          </div>
+        `)}
+        <div class="kdb-pick"><knowledge-picker absolute="true" @selectionChanged="${(e: CustomEvent) => this.handleKnowledgePickerChange(e)}"></knowledge-picker></div>          
         <div class="settings-toggler"><rws-tooltip side="left" text="${globalConfig.TOOLTIPS.CHAT_SETTINGS}"><button  type="button" @click="${this.handleSettingsExpandAside}"><i class="simple-icon-settings"></i></button></rws-tooltip></div>
     </div>`;
   }
