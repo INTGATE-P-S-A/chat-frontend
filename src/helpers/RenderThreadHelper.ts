@@ -7,6 +7,8 @@ import iconSuccess from '../svg/success-icon.svg?raw';
 import iconCopyToClipboard from '../svg/copy-icon.svg?raw';
 import iconQuestion from '../svg/bubblequestion-icon.svg?raw';
 
+import { parseTools } from '../core/parser/toolsParser.js';
+
 export class RenderThreadHelper {
   static renderMainThread(this: ChatThreadComponent, currentConfig: any, isTalking: boolean = false, upperLoader: boolean = false) {
     return html`
@@ -49,6 +51,7 @@ export class RenderThreadHelper {
         <div class="message-content">
           <div class="chat__txt ${message.isUserMessage ? 'user-message' : ''}">
             ${!message.isUserMessage ? RenderThreadHelper.renderReasoningViewer.bind(this)(index, currentConfig) : ''}
+${message.tools && message.tools.length > 0 ? unsafeHTML(parseTools(message.tools)) : ''}
             ${RenderThreadHelper.renderFiles.bind(this)(message, currentConfig)}
             ${message.text.map((textEntry) => RenderThreadHelper.renderTextEntry.bind(this)(textEntry, message.isUserMessage))}                      
             ${RenderThreadHelper.renderCitation.bind(this)(message, currentConfig)}
@@ -157,6 +160,8 @@ export class RenderThreadHelper {
     }
     return html`<div class="chat_txt--entry-container">${entries}</div>`;
   }
+
+
 
   static renderFiles(this: ChatThreadComponent, entry: ChatThreadEntry, currentConfig: any) {
     if (!entry.files || entry.files.length === 0) {

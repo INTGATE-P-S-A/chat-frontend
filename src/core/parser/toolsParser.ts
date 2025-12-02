@@ -39,3 +39,10 @@ export const parseTool = (tool: { name: string, data: Record<string, any> }): st
     }
     return `<rws-tools data='${JSON.stringify([tool])}'></rws-tools>`;
 }
+
+export const parseTools = (tools: { name: string, data: Record<string, any> }[]): string => {
+    if (!tools || tools.length === 0) {
+        return '';
+    }
+    return `<rws-tools data='${JSON.stringify(tools)}'></rws-tools>`;
+}

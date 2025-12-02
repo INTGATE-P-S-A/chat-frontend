@@ -1,6 +1,6 @@
 import { ReactiveControllerHost } from 'lit';
 import { ChatResponseError } from '../../utils/index.js';
-import { parseCitations, updateCitationsEntry, updateTextEntry } from './parser-functions.js';
+import { parseCitations, updateCitationsEntry, updateTextEntry, updateToolsEntry } from './parser-functions.js';
 import { createBufferState, processChunkWithBuffering } from './bufferer.js';
 
 export async function parseStreamedMessagesFromWebSocket({
@@ -89,6 +89,17 @@ export async function parseStreamedMessagesFromWebSocket({
       composed: true
     });
     (host as any).dispatchEvent(event);
+    return;
+  }
+
+  // Handle tool chunks
+  if (chunk.status === 'rws_tool' && chunk.tool) {
+    try {
+      updatedEntry = updateToolsEntry({ tool: chunk.tool, chatEntry: updatedEntry });
+      onVisit(updatedEntry);
+    } catch (e) {
+      // Error parsing tool chunk
+    }
     return;
   }
 

@@ -113,3 +113,19 @@ export function updateFollowingStepOrFollowupQuestionEntry({
 
   return chatEntry;
 }
+
+// update the tools entry by aggregating tools instead of adding them to text content
+export function updateToolsEntry({
+  tool,
+  chatEntry,
+}: {
+  tool: { name: string; data: Record<string, any> };
+  chatEntry: ChatThreadEntry;
+}): ChatThreadEntry {
+  const existingTools = chatEntry.tools || [];
+  
+  return {
+    ...chatEntry,
+    tools: [...existingTools, { name: tool.name, data: tool.data }],
+  };
+}

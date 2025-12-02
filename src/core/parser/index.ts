@@ -10,7 +10,7 @@ import {
   processChunkWithHtmlTagBuffering, 
   handleRemainingHtmlTagBuffer
 } from './tags-close-detector.js';
-import { updateTextEntry, updateCitationsEntry } from './parser-functions.js';
+import { updateTextEntry, updateCitationsEntry, updateToolsEntry } from './parser-functions.js';
 
 function getCodeViewer(host: ReactiveControllerHost, coderId: string): { updateRenderer: (text: string) => void, endStream: () => void } {
   const hoster = (host as any);
@@ -152,7 +152,7 @@ export async function parseStreamedMessages({
 
     if (chunk.tool) {
       try {
-        updatedEntry = updateTextEntry({ chunkValue: parseTool(chunk.tool), textBlockIndex, chatEntry: updatedEntry });
+        updatedEntry = updateToolsEntry({ tool: chunk.tool, chatEntry: updatedEntry });
         onVisit(updatedEntry);
       } catch (e) {
         // Error parsing tool chunk
