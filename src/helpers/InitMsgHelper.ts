@@ -24,7 +24,7 @@ export class InitMsgHelper {
                 for (const tool of processedMessage.tools) {
                     const lastTextIndex = processedMessage.text.length - 1;
                     if (lastTextIndex >= 0) {
-                        processedMessage.text[lastTextIndex].value = parseTool({ name: tool.toolName, data: tool.data }) + processedMessage.text[lastTextIndex].value;
+                        processedMessage.text[lastTextIndex].value = parseTool(tool) + processedMessage.text[lastTextIndex].value;
                     }
                 }
             }

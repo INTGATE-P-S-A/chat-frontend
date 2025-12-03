@@ -126,6 +126,6 @@ export function updateToolsEntry({
   
   return {
     ...chatEntry,
-    tools: [...existingTools, { name: tool.name, data: tool.data }],
+    tools: [...existingTools, tool],
   };
 }

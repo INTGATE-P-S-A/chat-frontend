@@ -144,6 +144,210 @@ export const styles = css`
         display: none;
       }
     }
+
+    /* Bootstrap table styles for parsed content */
+    .table-responsive {
+      margin: 1rem 0;
+      border: 1px solid #dee2e6;
+      border-radius: 0.375rem;
+      overflow-x: auto;
+      
+      .table {
+        margin-bottom: 0;
+        background-color: white;
+        border-collapse: collapse;
+        width: 100%;
+        
+        th, td {
+          padding: 0.75rem;
+          vertical-align: top;
+          border-top: 1px solid #dee2e6;
+          border-bottom: 1px solid #dee2e6;
+        }
+        
+        thead th {
+          vertical-align: bottom;
+          border-bottom: 2px solid #dee2e6;
+          background-color: #f8f9fa;
+          font-weight: 600;
+          border-top: 0;
+        }
+        
+        tbody + tbody {
+          border-top: 2px solid #dee2e6;
+        }
+        
+        &.table-striped tbody tr:nth-of-type(odd) {
+          background-color: rgba(0, 0, 0, 0.05);
+        }
+        
+        &.table-hover tbody tr:hover {
+          background-color: rgba(0, 0, 0, 0.075);
+        }
+        
+        &.table-bordered {
+          border: 1px solid #dee2e6;
+          
+          th, td {
+            border: 1px solid #dee2e6;
+          }
+          
+          thead th, thead td {
+            border-bottom-width: 2px;
+          }
+        }
+        
+        &.table-sm th, &.table-sm td {
+          padding: 0.3rem;
+        }
+        
+        .thead-dark th {
+          color: #fff;
+          background-color: #343a40;
+          border-color: #454d55;
+        }
+        
+        .thead-light th {
+          color: #495057;
+          background-color: #e9ecef;
+          border-color: #dee2e6;
+        }
+        
+        .badge {
+          display: inline-block;
+          padding: 0.25em 0.4em;
+          font-size: 75%;
+          font-weight: 700;
+          line-height: 1;
+          text-align: center;
+          white-space: nowrap;
+          vertical-align: baseline;
+          border-radius: 0.375rem;
+          
+          &.badge-success {
+            color: #fff;
+            background-color: #198754;
+          }
+          
+          &.badge-danger {
+            color: #fff;
+            background-color: #dc3545;
+          }
+          
+          &.badge-warning {
+            color: #000;
+            background-color: #ffc107;
+          }
+          
+          &.badge-info {
+            color: #fff;
+            background-color: #0dcaf0;
+          }
+          
+          &.badge-primary {
+            color: #fff;
+            background-color: #0d6efd;
+          }
+          
+          &.badge-secondary {
+            color: #fff;
+            background-color: #6c757d;
+          }
+        }
+        
+        .btn {
+          display: inline-block;
+          padding: 0.375rem 0.75rem;
+          margin-bottom: 0;
+          font-size: 1rem;
+          font-weight: 400;
+          line-height: 1.5;
+          text-align: center;
+          text-decoration: none;
+          vertical-align: middle;
+          cursor: pointer;
+          border: 1px solid transparent;
+          border-radius: 0.375rem;
+          transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+          
+          &.btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+            border-radius: 0.25rem;
+          }
+          
+          &.btn-primary {
+            color: #fff;
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+            
+            &:hover {
+              background-color: #0b5ed7;
+              border-color: #0a58ca;
+            }
+          }
+          
+          &.btn-danger {
+            color: #fff;
+            background-color: #dc3545;
+            border-color: #dc3545;
+            
+            &:hover {
+              background-color: #bb2d3b;
+              border-color: #b02a37;
+            }
+          }
+          
+          &.btn-success {
+            color: #fff;
+            background-color: #198754;
+            border-color: #198754;
+            
+            &:hover {
+              background-color: #157347;
+              border-color: #146c43;
+            }
+          }
+          
+          &.btn-warning {
+            color: #000;
+            background-color: #ffc107;
+            border-color: #ffc107;
+            
+            &:hover {
+              background-color: #ffca2c;
+              border-color: #ffc720;
+            }
+          }
+          
+          &.btn-info {
+            color: #000;
+            background-color: #0dcaf0;
+            border-color: #0dcaf0;
+            
+            &:hover {
+              background-color: #31d2f2;
+              border-color: #25cff2;
+            }
+          }
+          
+          &.btn-secondary {
+            color: #fff;
+            background-color: #6c757d;
+            border-color: #6c757d;
+            
+            &:hover {
+              background-color: #5c636a;
+              border-color: #565e64;
+            }
+          }
+          
+          & + .btn {
+            margin-left: 0.5rem;
+          }
+        }
+      }
+    }
   }
 
   .search-ref {

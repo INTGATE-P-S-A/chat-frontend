@@ -24,6 +24,7 @@
   "license": "MIT",
   "dependencies": {
     "dompurify": "^3.0.6",
+    "html-escaper": "^3.0.3",
     "lit": "^2.8.0",
     "marked": "^9.1.5",
     "socket.io-client": "^4.8.1"
@@ -32,6 +33,7 @@
     "@playwright/test": "^1.43.0",
     "@types/dom-speech-recognition": "^0.0.4",
     "@types/dompurify": "^3.0.3",
+    "@types/html-escaper": "^3.0.4",
     "@types/node": "^20.12.5",
     "install": "^0.13.0",
     "npm": "^11.5.1",

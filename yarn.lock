@@ -462,6 +462,11 @@
   dependencies:
     dompurify "*"
 
+"@types/html-escaper@^3.0.4":
+  version "3.0.4"
+  resolved "https://registry.yarnpkg.com/@types/html-escaper/-/html-escaper-3.0.4.tgz#95f6a5264c09ca26f548d267d88512b12052d1d1"
+  integrity sha512-UKSaMPMXXKnq1jDj74seVikfdq5pWvoXcIgOUbwYzHuAEGiv8/juom1i/MsWBF8boFSI0uHQCSZauzr5OYnnJA==
+
 "@types/node@^20.12.5":
   version "20.19.9"
   resolved "https://registry.yarnpkg.com/@types/node/-/node-20.19.9.tgz#ca9a58193fec361cc6e859d88b52261853f1f0d3"
@@ -832,6 +837,11 @@ hosted-git-info@^8.0.0, hosted-git-info@^8.1.0:
   integrity sha512-Rw/B2DNQaPBICNXEm8balFz9a6WpZrkCGpcWFpy7nCj+NyhSdqXipmfvtmWt9xGfp0wZnBxB+iVpLmQMYt47Tw==
   dependencies:
     lru-cache "^10.0.1"
+
+html-escaper@^3.0.3:
+  version "3.0.3"
+  resolved "https://registry.yarnpkg.com/html-escaper/-/html-escaper-3.0.3.tgz#4d336674652beb1dcbc29ef6b6ba7f6be6fdfed6"
+  integrity sha512-RuMffC89BOWQoY0WKGpIhn5gX3iI54O6nRA0yC124NYVtzjmFWBIiFd8M0x+ZdX0P9R4lADg1mgP8C7PxGOWuQ==
 
 http-cache-semantics@^4.1.1:
   version "4.2.0"
