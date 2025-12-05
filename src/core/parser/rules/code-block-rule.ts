@@ -389,7 +389,7 @@ export class CodeBlockRule extends BufferingRule {
       replacement: (match: string, fullCodeBlock: string, language: string, content: string): string => {
         const normalizedLanguage = language ? this.normalizeLanguage(language) : 'plaintext';
         const codeId = voucher.generate({ count: 1, length: 8 })[0].toLowerCase();
-        const replacement = `<code-viewer componentId="${codeId}" language="${normalizedLanguage}">${content}</code-viewer>`;
+        const replacement = `<code-viewer fullTextRendered="true" componentId="${codeId}" language="${normalizedLanguage}">${content}</code-viewer>`;
         return match.replace(fullCodeBlock, replacement);
       }
     };

@@ -293,8 +293,8 @@ export class ChatThreadComponent extends LitElement {
 
   private handleCloseOtherCodeViewers(event: Event): void {
     const customEvent = event as CustomEvent;
-    const excludeId = customEvent.detail.excludeId;
-    
+    const excludeId = customEvent.detail.excludeId;    
+
     // Find all code-viewer components in the shadow DOM and close them (except the excluded one)
     const codeViewers = this.shadowRoot?.querySelectorAll('code-viewer');
     codeViewers?.forEach(viewer => {

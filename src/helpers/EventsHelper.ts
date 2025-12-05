@@ -29,8 +29,8 @@ export class EventsHelper {
 
         this.addEventListener('code:stream:ended', (event) => {
             const theEvent: CustomEvent<{ componentId: string }> = event as CustomEvent<{ chunk: string, componentId: string, language: string }>;
-
-            if (this.showCode && this.showCode.id === theEvent.detail.componentId) {
+                                
+            if (this.showCode ) {
                 this.showCode = { ...this.showCode, preview: this.showCode.language === 'html', ended: true };
             }
         });

@@ -11,7 +11,7 @@ export const parseTools = (tools: { name: string, data: Record<string, any> }[])
     if (!tools || tools.length === 0) {
         return '';
     }
-    console.log({tools});
+    
     const jsonData = JSON.stringify(tools);
     const escapedData = escape(jsonData);
     return `<rws-tools data='${escapedData}'></rws-tools>`;

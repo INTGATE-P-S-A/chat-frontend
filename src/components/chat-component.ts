@@ -249,8 +249,7 @@ export class ChatComponent extends LitElement {
 
     this.creditBalanceSignal = (document.querySelector('default-layout') as HTMLElement & { getCreditBalanceSignal: () => IExternalBalanceSignal | null }).getCreditBalanceSignal();
     
-    this.creditBalanceSignal?.value$.subscribe(async (value: number | null) => {
-      console.log({value});
+    this.creditBalanceSignal?.value$.subscribe(async (value: number | null) => {    
       this.currentBalance = value || 0;
 
       if(this.currentUser){
@@ -568,8 +567,6 @@ export class ChatComponent extends LitElement {
     event.preventDefault();
     this.collapseAside(event);
 
-    console.log('1111');
-
     // Check if user has credits before allowing chat submission
     if (this.currentBalance <= 0) {
       // Emit popup event using the existing appEvents system
@@ -582,12 +579,11 @@ export class ChatComponent extends LitElement {
         bubbles: true,
         composed: true
       });
-      this.dispatchEvent(noCreditsEvent);
-      console.log('no credits');
+      this.dispatchEvent(noCreditsEvent);      
 
       return; // Block chat execution
     }
-    console.log('2222');
+    
     // Minimize AI assist window when submitting input
     if (this.aiAssist && typeof (this.aiAssist as any).toggleMinimize === 'function') {
       // Check if it's currently expanded (not minimized) before minimizing
@@ -602,9 +598,7 @@ export class ChatComponent extends LitElement {
       (this.aiAssist as any).clearPromptWritingTimeout();
     }
 
-    await SubmitHelper.handleSubmit.bind(this)(requestOptions, chatHttpOptions);
-
-    console.log({event});
+    await SubmitHelper.handleSubmit.bind(this)(requestOptions, chatHttpOptions);    
 
     // Update assist context after user message is sent (but don't trigger analysis yet)
     setTimeout(() => {
@@ -696,7 +690,7 @@ export class ChatComponent extends LitElement {
         code.ended = true;
         code.preview = this.showCode.preview;
       }
-      this.showCode = { ...this.showCode, ...code };
+      this.showCode = { ...this.showCode, ...code };      
     } else {
       this.showCode = code;
     }
@@ -947,10 +941,7 @@ export class ChatComponent extends LitElement {
     const { selectedIds } = customEvent.detail;
     
     // Update the selectedKnowledge array with knowledge IDs (not project IDs)
-    this.selectedKnowledge = selectedIds || [];
-    
-    // Here you can emit or use the knowledge IDs for chat functionality
-    console.log('Updated selected knowledge IDs:', this.selectedKnowledge);
+    this.selectedKnowledge = selectedIds || [];        
   }
 
   handleKnowledgePickerChange(event: CustomEvent) {
@@ -973,9 +964,7 @@ export class ChatComponent extends LitElement {
       bubbles: true,
       composed: true
     });
-    this.dispatchEvent(knowledgeChangeEvent);
-    
-    console.log('Knowledge picker selection changed:', this.selectedKnowledge);
+    this.dispatchEvent(knowledgeChangeEvent);    
   }
 
   override render() {

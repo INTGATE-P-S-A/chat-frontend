@@ -217,7 +217,7 @@ export async function parseStreamedMessages({
     const wasBufferingCodeViewer = bufferState.buffering && bufferState.currentRule === 'code-block';
 
     const { processedChunk, bufferState: updatedBufferState } = processChunkWithBuffering(finalChunkValue, bufferState, (bufferInfo, chunk) => {
-      if (bufferInfo.buffering && bufferInfo.currentRule === 'code-block' && coderId) {    
+      if (bufferInfo.buffering && bufferInfo.currentRule === 'code-block' && coderId) {              
         getCodeViewer(host, coderId)?.updateRenderer(chunk);
       } else if (bufferInfo.currentRule === 'code-block' && coderId) {        
         getCodeViewer(host, coderId)?.updateRenderer(chunk);
@@ -239,10 +239,11 @@ export async function parseStreamedMessages({
       } catch (e) {
         // Error stopping code generation
       }
-    }
-
-    if (codeViewerJustCompleted) {
-      startedCoding = false;    
+      
+      // Reset variables for next code block
+      startedCoding = false;
+      coderId = null;
+      codeViewerCreated = false;
     }
 
     const isStreamingToCodeViewer = updatedBufferState.buffering &&
@@ -250,7 +251,7 @@ export async function parseStreamedMessages({
       startedCoding;
 
     if (processedChunk !== null && !isStreamingToCodeViewer) {
-      if (processedChunk.includes('<code-viewer') && !startedCoding && !codeViewerCreated) {
+      if (processedChunk.includes('<code-viewer') && !startedCoding) {
         startedCoding = true;
         codeViewerCreated = true; 
 
@@ -274,10 +275,6 @@ export async function parseStreamedMessages({
       }
 
       updatedEntry = updateTextEntry({ chunkValue: processedChunk, textBlockIndex, chatEntry: updatedEntry });
-    }
-
-    if (codeViewerJustCompleted) {
-      startedCoding = false;
     }
 
     Object.assign(bufferState, updatedBufferState);
