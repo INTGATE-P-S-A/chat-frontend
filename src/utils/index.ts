@@ -80,9 +80,20 @@ export function getTimestamp() {
 
 export function chatEntryToString(entry: ChatThreadEntry) {  
   const message = entry.text
-    .map((textEntry) => textEntry.value + '\n\n' + textEntry.followingSteps?.map((s, i) => `${i + 1}.` + s).join('\n'))
+    .map((textEntry) => {
+      let result = textEntry.value;
+      if (textEntry.followingSteps && textEntry.followingSteps.length > 0) {
+        result += '\n\n' + textEntry.followingSteps.map((s, i) => `${i + 1}.` + s).join('\n');
+      }
+      return result;
+    })
     .join('\n\n')
-    .replaceAll(/<sup[^>]*>(.*?)<\/sup>/g, ''); // remove the <sup> tags from the message
+    .replaceAll(/<br\s*\/?>/gi, '\n') // convert <br/> tags to newlines
+    .replace(/<code-viewer[^>]*>([\s\S]*?)<\/code-viewer>/gi, (match, content) => {
+      // Preserve code-viewer content but strip HTML from it
+      return content.replace(/<[^>]*>/g, '');
+    })
+    .replaceAll(/<[^>]*>/g, ''); // remove all remaining HTML tags
 
   return message;
 }
