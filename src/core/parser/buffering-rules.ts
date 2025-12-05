@@ -86,7 +86,7 @@ export class BufferingRuleManager {
     // Special handling for code-block rule - process it separately to handle text before ```
     const codeBlockRule = this.getRule('code-block');
     if (codeBlockRule && !bufferState.buffering) {
-      const codeBlockDetected = codeBlockRule.detect(chunk, bufferState);
+      const codeBlockDetected = codeBlockRule.detect(chunk, bufferState);      
       
       if (codeBlockDetected === true) {
         // Code block detected - split chunk at ``` and process text before separately

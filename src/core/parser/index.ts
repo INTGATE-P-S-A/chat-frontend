@@ -217,11 +217,11 @@ export async function parseStreamedMessages({
     const wasBufferingCodeViewer = bufferState.buffering && bufferState.currentRule === 'code-block';
 
     const { processedChunk, bufferState: updatedBufferState } = processChunkWithBuffering(finalChunkValue, bufferState, (bufferInfo, chunk) => {
-      if (bufferInfo.buffering && bufferInfo.currentRule === 'code-block' && coderId) {
+      if (bufferInfo.buffering && bufferInfo.currentRule === 'code-block' && coderId) {    
         getCodeViewer(host, coderId)?.updateRenderer(chunk);
-      } else if (bufferInfo.currentRule === 'code-block' && coderId) {
+      } else if (bufferInfo.currentRule === 'code-block' && coderId) {        
         getCodeViewer(host, coderId)?.updateRenderer(chunk);
-      } else if (wasBufferingCodeViewer && coderId) {
+      } else if (wasBufferingCodeViewer && coderId) {        
         getCodeViewer(host, coderId)?.updateRenderer(chunk);
       }
     });
@@ -258,7 +258,8 @@ export async function parseStreamedMessages({
         if (componentIdMatch) {
           coderId = componentIdMatch[1];
 
-          setTimeout(() => {
+          // Use requestAnimationFrame instead of setTimeout for faster execution
+          requestAnimationFrame(() => {
             try {
               const hoster = (host as any);
               const codeViewer: { startCodeGeneration: () => void } = hoster.renderRoot?.querySelector('chat-thread-component').renderRoot?.querySelector('code-viewer[componentId="' + coderId + '"]');
@@ -268,7 +269,7 @@ export async function parseStreamedMessages({
             } catch (e) {
               // Error starting code generation
             }
-          }, 100); 
+          }); 
         }
       }
 
