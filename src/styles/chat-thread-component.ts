@@ -151,6 +151,10 @@ export const styles = css`
       border: 1px solid #dee2e6;
       border-radius: 0.375rem;
       overflow-x: auto;
+
+      br {
+        display: none;
+      }
       
       .table {
         margin-bottom: 0;
@@ -163,6 +167,10 @@ export const styles = css`
           vertical-align: top;
           border-top: 1px solid #dee2e6;
           border-bottom: 1px solid #dee2e6;
+
+          br {
+            display: block;
+          }
         }
         
         thead th {
