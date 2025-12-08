@@ -684,4 +684,38 @@ export const styles = css`
       top: 35px;
     }
   }
+
+  p.from-rag{
+      border-top: 3px solid #F00;
+      position: relative;
+      padding-top: 25px;
+
+      &::after{
+        background-color: #FFF;
+        border-radius: 5px;
+        content: 'RAG';
+        position: absolute;
+        top: -15px;
+        right: 10px;
+        padding: 3px;
+        border: 1px solid #F00;
+    }      
+  }
+
+  p.from-ai-network{
+    border-top: 3px solid #0F0;
+    position: relative;
+    padding-top: 25px;
+
+    &::after{
+      background-color: #FFF;
+      border-radius: 5px;
+      content: 'AI';
+      position: absolute;
+      top: -15px;
+      right: 10px;
+      padding: 3px;
+      border: 1px solid #0F0;
+    }
+  }
 `;
