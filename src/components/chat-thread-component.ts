@@ -4,7 +4,7 @@ import { customElement, property, query, state } from 'lit/decorators.js';
 import { styles } from '../styles/chat-thread-component.js';
 
 import { globalConfig } from '../config/global-config.js';
-import { addIconSheet, chatEntryToString } from '../utils/index.js';
+import { addIconSheet, chatEntryToString, chatEntryToHtmlString } from '../utils/index.js';
 
 import './citation-list.js';
 import './chat-action-button.js';
@@ -271,10 +271,47 @@ export class ChatThreadComponent extends LitElement {
   selectedCitation: Citation | undefined = undefined;
 
   // Copy response to clipboard
-  copyResponseToClipboard(entry: ChatThreadEntry): void {
-    const response = chatEntryToString(entry);    
-    navigator.clipboard.writeText(response);
-    this.isResponseCopied = true;
+  async copyResponseToClipboard(entry: ChatThreadEntry): Promise<void> {
+    const textResponse = chatEntryToString(entry);
+    const htmlResponse = chatEntryToHtmlString(entry);
+    
+    try {
+      // Create a proper HTML document fragment for better compatibility
+      const fullHtmlContent = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; line-height: 1.6; }
+h1, h2, h3, h4, h5, h6 { margin-top: 0; margin-bottom: 0.5em; }
+p { margin: 0.5em 0; }
+strong { font-weight: bold; }
+em { font-style: italic; }
+blockquote { margin: 1em 0; padding-left: 1em; border-left: 3px solid #ccc; }
+pre { background: #f4f4f4; padding: 1em; border-radius: 4px; }
+code { background: #f4f4f4; padding: 0.2em 0.4em; border-radius: 3px; }
+a { color: #0066cc; text-decoration: underline; }
+</style>
+</head>
+<body>
+${htmlResponse}
+</body>
+</html>`;
+
+      // Use the modern Clipboard API to write both text and HTML formats
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'text/plain': new Blob([textResponse], { type: 'text/plain' }),
+          'text/html': new Blob([fullHtmlContent], { type: 'text/html' })
+        })
+      ]);
+      this.isResponseCopied = true;
+    } catch (err) {
+      // Fallback to simple text copy if the enhanced clipboard API fails
+      console.warn('Enhanced clipboard copy failed, falling back to text only:', err);
+      await navigator.clipboard.writeText(textResponse);
+      this.isResponseCopied = true;
+    }
   }
 
   actionButtonClicked(actionButton: ChatActionButton, entry: ChatThreadEntry, event: Event) {

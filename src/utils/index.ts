@@ -98,6 +98,45 @@ export function chatEntryToString(entry: ChatThreadEntry) {
   return message;
 }
 
+export function chatEntryToHtmlString(entry: ChatThreadEntry) {
+  const message = entry.text
+    .map((textEntry) => {
+      let result = textEntry.value;
+      if (textEntry.followingSteps && textEntry.followingSteps.length > 0) {
+        result += '<br><br>' + textEntry.followingSteps.map((s, i) => `${i + 1}. ${s}`).join('<br>');
+      }
+      return result;
+    })
+    .join('<br><br>')
+    // Remove specific RWS-component tags while preserving standard HTML formatting
+    .replace(/<rws-tools[^>]*>[\s\S]*?<\/rws-tools>/gi, '') // Remove RWS tools
+    .replace(/<share-window[^>]*>[\s\S]*?<\/share-window>/gi, '') // Remove share windows  
+    .replace(/<loading-indicator[^>]*>[\s\S]*?<\/loading-indicator>/gi, '') // Remove loading indicators
+    .replace(/<citation-list[^>]*>[\s\S]*?<\/citation-list>/gi, '') // Remove citation lists
+    .replace(/<document-previewer[^>]*>[\s\S]*?<\/document-previewer>/gi, '') // Remove document previewers
+    .replace(/<teaser-list-component[^>]*>[\s\S]*?<\/teaser-list-component>/gi, '') // Remove teaser lists
+    .replace(/<tab-component[^>]*>[\s\S]*?<\/tab-component>/gi, '') // Remove tab components
+    .replace(/<reasoning-viewer[^>]*>[\s\S]*?<\/reasoning-viewer>/gi, '') // Remove reasoning viewers
+    .replace(/<progress-bar[^>]*>[\s\S]*?<\/progress-bar>/gi, '') // Remove progress bars
+    .replace(/<voice-input-button[^>]*>[\s\S]*?<\/voice-input-button>/gi, '') // Remove voice input buttons
+    .replace(/<chat-action-button[^>]*>[\s\S]*?<\/chat-action-button>/gi, '') // Remove action buttons
+    .replace(/<chat-thread-component[^>]*>[\s\S]*?<\/chat-thread-component>/gi, '') // Remove chat thread components
+    .replace(/<chat-component[^>]*>[\s\S]*?<\/chat-component>/gi, '') // Remove chat components
+    .replace(/<chat-stage[^>]*>[\s\S]*?<\/chat-stage>/gi, '') // Remove chat stage components
+    .replace(/<link-icon[^>]*>[\s\S]*?<\/link-icon>/gi, '') // Remove link icons
+    .replace(/<code-viewer[^>]*>([\s\S]*?)<\/code-viewer>/gi, (match, content) => {
+      // Convert code-viewer to simple <pre><code> tags, preserving inner formatting
+      return `<pre><code>${content}</code></pre>`;
+    })
+    // Remove file-tag related elements
+    .replace(/<file-tag[^>]*>[\s\S]*?<\/file-tag>/gi, '')
+    .replace(/<file-[a-z-]+[^>]*>[\s\S]*?<\/file-[a-z-]+>/gi, '') // Remove any file-* components
+    // Remove self-closing RWS components 
+    .replace(/<(rws-tools|share-window|loading-indicator|citation-list|document-previewer|teaser-list-component|tab-component|reasoning-viewer|progress-bar|voice-input-button|chat-action-button|link-icon|file-tag|file-[a-z-]+)[^>]*\/>/gi, '');
+
+  return message;
+}
+
 // Creates a new chat message error
 export class ChatResponseError extends Error {
   code?: number;
