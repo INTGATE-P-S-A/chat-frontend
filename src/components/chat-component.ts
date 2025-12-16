@@ -101,7 +101,15 @@ export class ChatComponent extends LitElement {
   dataDeepSearch: boolean = false;
 
   @query('#question-input')
-  questionInput!: HTMLTextAreaElement;
+  questionInput!: HTMLElement & {
+    setValue: (value: string) => void;
+    getValue: () => string;
+    setInputValue: (value: string, append?: boolean) => void;
+    focus: () => void;
+    blur: () => void;
+    autoResize: () => void;
+    getHtmlValue?: () => string;
+  };
 
   @query('#ai-assist-component')
   aiAssist?: IRWSAiAssistComponent;
@@ -352,6 +360,9 @@ export class ChatComponent extends LitElement {
     // Listen for knowledge picker selection changes
     this.addEventListener('knowledge:selection:changed', this.handleKnowledgeSelectionChanged.bind(this) as EventListener);
 
+    // Set up mirror-textarea signal listeners
+    this.setupMirrorTextareaListeners();
+
     const ev = new CustomEvent('chat-component-connected', {
       detail: true,
       bubbles: true,
@@ -407,6 +418,9 @@ export class ChatComponent extends LitElement {
     this.removeEventListener('keyboard:web-search-toggle', this.handleWebSearchToggle.bind(this) as EventListener);
     this.removeEventListener('keyboard:advanced-prompts-toggle', this.handleAdvancedPromptsToggle.bind(this) as EventListener);
     this.removeEventListener('knowledge:selection:changed', this.handleKnowledgeSelectionChanged.bind(this) as EventListener);
+
+    // Clean up mirror-textarea listeners
+    this.cleanupMirrorTextareaListeners();
 
     // Clean up keyboard shortcuts
     KeyboardShortcutsHelper.stopListening();
@@ -501,25 +515,31 @@ export class ChatComponent extends LitElement {
   }
 
   setQuestionInputValue(value: string): void {
-    this.questionInput.value = DOMPurify.sanitize(value || '');
-    this.currentQuestion = this.questionInput.value;
-    this.autoResizeTextarea();
+    const sanitizedValue = DOMPurify.sanitize(value || '');
+    if (this.questionInput && typeof this.questionInput.setValue === 'function') {
+      this.questionInput.setValue(sanitizedValue);
+    }
+    this.currentQuestion = sanitizedValue;
   }
 
   public setInputValue(value: string, append: boolean = false): void {
-    if (append) {
-      const currentValue = this.questionInput.value || '';
-      const newValue = currentValue + value;
-      this.setQuestionInputValue(newValue);
-    } else {
-      this.setQuestionInputValue(value);
+    if (this.questionInput && typeof this.questionInput.setInputValue === 'function') {
+      this.questionInput.setInputValue(value, append);
     }
-
+    if (append) {
+      this.currentQuestion += value;
+    } else {
+      this.currentQuestion = value;
+    }
     this.resetInputCheck();
   }
 
   resetInputCheck() {
-    this.isResetInput = !!this.questionInput.value;
+    let hasValue = false;
+    if (this.questionInput && typeof this.questionInput.getValue === 'function') {
+      hasValue = !!this.questionInput.getValue();
+    }
+    this.isResetInput = hasValue;
   }
 
   handleVoiceInput(event: CustomEvent): void {
@@ -608,10 +628,11 @@ export class ChatComponent extends LitElement {
 
   resetInputField(event: Event): void {
     event.preventDefault();
-    this.questionInput.value = '';
+    if (this.questionInput && typeof this.questionInput.setValue === 'function') {
+      this.questionInput.setValue('');
+    }
     this.currentQuestion = '';
     this.isResetInput = false;
-    this.autoResizeTextarea();
   }
 
   startLiveChat(event: Event): void {
@@ -626,11 +647,18 @@ export class ChatComponent extends LitElement {
     }
   }
 
-  handleOnInputChange(e: KeyboardEvent | Event): void {
+  handleOnInputChange(e: KeyboardEvent | Event | any): void {
+    // Update current question from signal or event
+    if (e.value !== undefined) {
+      this.currentQuestion = e.value;
+    } else if (e.target && (e.target as HTMLInputElement).value !== undefined) {
+      this.currentQuestion = (e.target as HTMLInputElement).value;
+    }
+    
     this.resetInputCheck();
-    this.autoResizeTextarea();
 
-    if (e instanceof KeyboardEvent && e.key === 'Enter' && !e.shiftKey && this.questionInput.value.trim().length > 0) {
+    // Handle Enter key from signal or keyboard event
+    if (e.key === 'Enter' && !e.shiftKey && this.currentQuestion.trim().length > 0) {
       // Block Enter submission if enter submit is blocked (e.g., autocomplete is open)
       if (this.enterSubmitBlocked) {
         return; // Don't submit, let the blocking component handle the Enter key
@@ -844,7 +872,9 @@ export class ChatComponent extends LitElement {
 
         // Trigger input event to update any reactive properties and reset input check
         this.questionInput.dispatchEvent(new Event('input', { bubbles: true }));
-        this.autoResizeTextarea();
+        if (this.questionInput && typeof this.questionInput.autoResize === 'function') {
+          this.questionInput.autoResize();
+        }
         this.resetInputCheck(); // Ensure reset button appears
         
         // NO AUTO-SUBMIT - let user review and submit manually
@@ -965,6 +995,81 @@ export class ChatComponent extends LitElement {
       composed: true
     });
     this.dispatchEvent(knowledgeChangeEvent);    
+  }
+
+  private mirrorTextareaSignalSubscriptions: any[] = [];
+
+  private setupMirrorTextareaListeners() {
+    // Get access to SignalService - check if it's available in the RWS ecosystem
+    const signalService = (window as any).rwsSignalService || 
+                         (document.querySelector('default-layout') as any)?.getSignalService?.() ||
+                         (document.querySelector('mirror-textarea') as any)?.signalService;
+    
+    if (signalService) {
+      // Listen for input changes
+      const inputSignal = signalService.getSignal('mirror-textarea:input');
+      const inputSub = inputSignal.value$.subscribe((data: any) => {
+        if (data && data.target) {
+          this.handleOnInputChange(data);
+        }
+      });
+      this.mirrorTextareaSignalSubscriptions.push(inputSub);
+      
+      // Listen for Enter key events
+      const keySignal = signalService.getSignal('mirror-textarea:keyup');
+      const keySub = keySignal.value$.subscribe((data: any) => {
+        if (data && data.key === 'Enter' && !data.shiftKey) {
+          this.handleOnInputChange(data);
+        }
+      });
+      this.mirrorTextareaSignalSubscriptions.push(keySub);
+      
+      // Listen for focus events
+      const focusSignal = signalService.getSignal('mirror-textarea:focus');
+      const focusSub = focusSignal.value$.subscribe((data: any) => {
+        // Handle focus if needed
+      });
+      this.mirrorTextareaSignalSubscriptions.push(focusSub);
+      
+      // Listen for blur events
+      const blurSignal = signalService.getSignal('mirror-textarea:blur');
+      const blurSub = blurSignal.value$.subscribe((data: any) => {
+        // Handle blur if needed
+      });
+      this.mirrorTextareaSignalSubscriptions.push(blurSub);
+    } else {
+      // Fallback: Listen for custom events from mirror-textarea
+      this.addEventListener('mirror-textarea-input', this.handleMirrorTextareaInput.bind(this));
+      this.addEventListener('mirror-textarea-keyup', this.handleMirrorTextareaKeyup.bind(this));
+    }
+  }
+
+  private cleanupMirrorTextareaListeners() {
+    // Unsubscribe from all signal subscriptions
+    this.mirrorTextareaSignalSubscriptions.forEach(sub => {
+      if (sub && typeof sub.unsubscribe === 'function') {
+        sub.unsubscribe();
+      }
+    });
+    this.mirrorTextareaSignalSubscriptions = [];
+    
+    // Remove fallback event listeners
+    this.removeEventListener('mirror-textarea-input', this.handleMirrorTextareaInput.bind(this));
+    this.removeEventListener('mirror-textarea-keyup', this.handleMirrorTextareaKeyup.bind(this));
+  }
+
+  private handleMirrorTextareaInput(event: CustomEvent) {
+    const data = event.detail;
+    if (data) {
+      this.handleOnInputChange(data);
+    }
+  }
+
+  private handleMirrorTextareaKeyup(event: CustomEvent) {
+    const data = event.detail;
+    if (data && data.key === 'Enter' && !data.shiftKey) {
+      this.handleOnInputChange(data);
+    }
   }
 
   override render() {
