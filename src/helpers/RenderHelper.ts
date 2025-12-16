@@ -97,20 +97,22 @@ export class RenderHelper {
               <div class="chatbox__input-container">
                 <div class="input_container_wrapper">
                   ${RenderHelper.renderAutocomplete.bind(this)(globalConfig)}
-                  <textarea
-                    class="chatbox__input"
-                    data-testid="question-input"
-                    id="question-input"
-                    placeholder="${globalConfig.CHAT_INPUT_PLACEHOLDER}"
-                    aria-labelledby="chatbox-label"
-                    name="chatbox"
-                    type="text"
-                    ?disabled="${this.isDisabled}"
-                    autocomplete="off"
-                    @keyup="${this.handleOnInputChange}"
-                    @input="${this.handleOnInputChange}"
-                    @paste="${this.handlePasteEvent.bind(this)}"                    
-                  ></textarea>
+                  <mirror-textarea>
+                    <textarea
+                      class="chatbox__input"
+                      data-testid="question-input"
+                      id="question-input"
+                      placeholder="${globalConfig.CHAT_INPUT_PLACEHOLDER}"
+                      aria-labelledby="chatbox-label"
+                      name="chatbox"
+                      type="text"
+                      ?disabled="${this.isDisabled}"
+                      autocomplete="off"
+                      @keyup="${this.handleOnInputChange}"
+                      @input="${this.handleOnInputChange}"
+                      @paste="${this.handlePasteEvent.bind(this)}"                    
+                    ></textarea>
+                  </mirror-textarea>
                   ${RenderHelper.renderFilePrompt.bind(this)(globalConfig)}                  
                   ${this.chatController.isAwaitingResponse
           ? html`<loading-indicator label="${globalConfig.LOADING_INDICATOR_TEXT}"></loading-indicator>` : ''}                  
