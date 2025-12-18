@@ -12,10 +12,17 @@ export class SubmitHelper {
             composed: true
         }));
 
-        const question = DOMPurify.sanitize(this.questionInput.value);
+        // Get the question value from mirror-textarea component
+        const rawQuestion = typeof this.questionInput.getValue === 'function' 
+            ? this.questionInput.getValue() 
+            : this.currentQuestion || '';
+        const question = DOMPurify.sanitize(rawQuestion);
 
         // Clear the form and uploaded files immediately after clicking send
-        this.questionInput.value = '';
+        if (typeof this.questionInput.setValue === 'function') {
+            this.questionInput.setValue('');
+        }
+        this.currentQuestion = '';
         this.isResetInput = false;
         this.autoResizeTextarea();
         const filesToProcess = [...this.promptFiles]; // Store files to process

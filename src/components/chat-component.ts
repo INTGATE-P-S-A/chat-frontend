@@ -10,7 +10,7 @@ import {
   requestOptions,
 } from '../config/global-config.js';
 import { chatStyle } from '../styles/chat-component.js';
-import { chatEntryToString, newListWithEntryAtIndex, addIconSheet } from '../utils/index.js';
+import { newListWithEntryAtIndex, addIconSheet } from '../utils/index.js';
 
 import './link-icon.js';
 import './chat-stage.js';
@@ -229,11 +229,13 @@ export class ChatComponent extends LitElement {
 
 
   override firstUpdated() {
-    this.autocompleteTriggers.bindTextarea(this.questionInput);
+    // Note: Autocomplete and AI assist expect HTMLTextAreaElement, but mirror-textarea is a custom element
+    // For now, we'll skip binding to these components until they can handle custom elements
+    // this.autocompleteTriggers.bindTextarea(this.questionInput);
     
     // Only initialize AI assist if the feature is enabled for the user
     if (this.aiAssist && this.currentUser?.accountGrade?.promptAssist) {
-      this.aiAssist.bindInputSource(this.questionInput);
+      // this.aiAssist.bindInputSource(this.questionInput);
       this.aiAssistantSignal = this.aiAssist.getExternalSignal();
 
       this.aiAssistantSignal?.value$.subscribe(async (value: IAssistSignalPayload | null) => {
@@ -276,10 +278,11 @@ export class ChatComponent extends LitElement {
       }
     });
 
-    // Initialize textarea auto-resize
+    // Initialize textarea auto-resize and mirror-textarea listeners
     setTimeout(() => {
       this.autoResizeTextarea();
       this.updateAssistContext();
+      this.setupMirrorTextareaListeners();
     }, 100);
   }
 
@@ -518,14 +521,31 @@ export class ChatComponent extends LitElement {
     const sanitizedValue = DOMPurify.sanitize(value || '');
     if (this.questionInput && typeof this.questionInput.setValue === 'function') {
       this.questionInput.setValue(sanitizedValue);
+      // Trigger auto-resize after setting value
+      this.autoResizeTextarea();
     }
     this.currentQuestion = sanitizedValue;
   }
 
   public setInputValue(value: string, append: boolean = false): void {
-    if (this.questionInput && typeof this.questionInput.setInputValue === 'function') {
-      this.questionInput.setInputValue(value, append);
+    if (this.questionInput) {
+      if (typeof this.questionInput.setInputValue === 'function') {
+        // Use mirror-textarea's setInputValue method
+        this.questionInput.setInputValue(value, append);
+      } else if (typeof this.questionInput.setValue === 'function' && typeof this.questionInput.getValue === 'function') {
+        // Use mirror-textarea's setValue method
+        if (append) {
+          const currentValue = this.questionInput.getValue() || '';
+          this.questionInput.setValue(currentValue + value);
+        } else {
+          this.questionInput.setValue(value);
+        }
+      }
+      
+      // Trigger auto-resize after setting value
+      this.autoResizeTextarea();
     }
+    
     if (append) {
       this.currentQuestion += value;
     } else {
@@ -586,6 +606,11 @@ export class ChatComponent extends LitElement {
   async handleUserChatSubmit(event: Event): Promise<void> {
     event.preventDefault();
     this.collapseAside(event);
+
+    // Ensure currentQuestion is synced with the textarea value
+    if (this.questionInput && typeof this.questionInput.getValue === 'function') {
+      this.currentQuestion = this.questionInput.getValue();
+    }
 
     // Check if user has credits before allowing chat submission
     if (this.currentBalance <= 0) {
@@ -657,14 +682,18 @@ export class ChatComponent extends LitElement {
     
     this.resetInputCheck();
 
-    // Handle Enter key from signal or keyboard event
-    if (e.key === 'Enter' && !e.shiftKey && this.currentQuestion.trim().length > 0) {
+    // Only handle Enter key submission for direct keyboard events, not mirror-textarea events
+    // Mirror-textarea events are handled separately in handleMirrorTextareaKeyup
+    if (e.key === 'Enter' && !e.shiftKey && !e.shouldSubmit && this.currentQuestion.trim().length > 0) {
       // Block Enter submission if enter submit is blocked (e.g., autocomplete is open)
       if (this.enterSubmitBlocked) {
         return; // Don't submit, let the blocking component handle the Enter key
       }
       
-      this.handleUserChatSubmit(e);
+      // Only proceed if this is a real DOM event with preventDefault
+      if (typeof e.preventDefault === 'function') {
+        this.handleUserChatSubmit(e);
+      }
     }
   }
 
@@ -682,26 +711,24 @@ export class ChatComponent extends LitElement {
   autoResizeTextarea(): void {
     if (!this.questionInput) return;
 
-    // Reset height to auto to get the correct scrollHeight
-    this.questionInput.style.height = 'auto';
-    
-    // Get the computed styles to access min and max height from CSS
-    const computedStyle = getComputedStyle(this.questionInput);
-    const minHeight = parseInt(computedStyle.minHeight) || 40;
-    const maxHeight = parseInt(computedStyle.maxHeight) || 120;
-    
-    // Calculate the new height based on content
-    const scrollHeight = this.questionInput.scrollHeight - 10;
-    const newHeight = Math.min(Math.max(scrollHeight, minHeight), maxHeight);
-    
-    // Set the new height
-    this.questionInput.style.height = `${newHeight}px`;
-    
-    // If content exceeds max height, enable scrolling
-    if (scrollHeight > maxHeight) {
-      this.questionInput.style.overflowY = 'auto';
+    // Use mirror-textarea's built-in autoResize method
+    if (typeof this.questionInput.autoResize === 'function') {
+      this.questionInput.autoResize();
     } else {
-      this.questionInput.style.overflowY = 'hidden';
+      // Fallback for regular textarea (shouldn't be needed with mirror-textarea)
+      this.questionInput.style.height = 'auto';
+      const computedStyle = getComputedStyle(this.questionInput);
+      const minHeight = parseInt(computedStyle.minHeight) || 40;
+      const maxHeight = parseInt(computedStyle.maxHeight) || 120;
+      const scrollHeight = this.questionInput.scrollHeight - 10;
+      const newHeight = Math.min(Math.max(scrollHeight, minHeight), maxHeight);
+      this.questionInput.style.height = `${newHeight}px`;
+      
+      if (scrollHeight > maxHeight) {
+        this.questionInput.style.overflowY = 'auto';
+      } else {
+        this.questionInput.style.overflowY = 'hidden';
+      }
     }
   }
 
@@ -822,7 +849,7 @@ export class ChatComponent extends LitElement {
 
     // Insert the text into the input field without auto-submitting
     if (this.questionInput && text) {
-      this.questionInput.value = text;
+      this.questionInput.setValue(text);
       this.currentQuestion = text; // Update the reactive property
       this.questionInput.focus();
 
@@ -866,7 +893,7 @@ export class ChatComponent extends LitElement {
         
       } else {
         // For all text suggestions, use the no-auto-submit flow
-        this.questionInput.value = text;
+        this.questionInput.setValue(text);
         this.currentQuestion = text; // Update the reactive property
         this.questionInput.focus();
 
@@ -1000,47 +1027,41 @@ export class ChatComponent extends LitElement {
   private mirrorTextareaSignalSubscriptions: any[] = [];
 
   private setupMirrorTextareaListeners() {
-    // Get access to SignalService - check if it's available in the RWS ecosystem
-    const signalService = (window as any).rwsSignalService || 
-                         (document.querySelector('default-layout') as any)?.getSignalService?.() ||
-                         (document.querySelector('mirror-textarea') as any)?.signalService;
+    // Set up SignalService for mirror-textarea communication
+    if (typeof window !== 'undefined') {
+      // Create or get SignalService instance for mirror-textarea
+      if (!(window as any).signalService && typeof (window as any).SignalService !== 'undefined') {
+        (window as any).signalService = new (window as any).SignalService();
+      }
+    }
     
-    if (signalService) {
-      // Listen for input changes
-      const inputSignal = signalService.getSignal('mirror-textarea:input');
-      const inputSub = inputSignal.value$.subscribe((data: any) => {
-        if (data && data.target) {
-          this.handleOnInputChange(data);
-        }
-      });
-      this.mirrorTextareaSignalSubscriptions.push(inputSub);
+    // Always use event listeners as primary method for Lit component to RWS component communication
+    const questionInput = this.querySelector('#question-input') || this.questionInput;
+    
+    if (questionInput) {
+      // Listen for input changes from mirror-textarea
+      questionInput.addEventListener('mirror-textarea-input', this.handleMirrorTextareaInput.bind(this));
       
-      // Listen for Enter key events
-      const keySignal = signalService.getSignal('mirror-textarea:keyup');
-      const keySub = keySignal.value$.subscribe((data: any) => {
-        if (data && data.key === 'Enter' && !data.shiftKey) {
-          this.handleOnInputChange(data);
-        }
-      });
-      this.mirrorTextareaSignalSubscriptions.push(keySub);
+      // Listen for key events from mirror-textarea
+      questionInput.addEventListener('mirror-textarea-keyup', this.handleMirrorTextareaKeyup.bind(this));
       
       // Listen for focus events
-      const focusSignal = signalService.getSignal('mirror-textarea:focus');
-      const focusSub = focusSignal.value$.subscribe((data: any) => {
+      questionInput.addEventListener('mirror-textarea-focus', () => {
         // Handle focus if needed
       });
-      this.mirrorTextareaSignalSubscriptions.push(focusSub);
       
       // Listen for blur events
-      const blurSignal = signalService.getSignal('mirror-textarea:blur');
-      const blurSub = blurSignal.value$.subscribe((data: any) => {
+      questionInput.addEventListener('mirror-textarea-blur', () => {
         // Handle blur if needed
       });
-      this.mirrorTextareaSignalSubscriptions.push(blurSub);
-    } else {
-      // Fallback: Listen for custom events from mirror-textarea
-      this.addEventListener('mirror-textarea-input', this.handleMirrorTextareaInput.bind(this));
-      this.addEventListener('mirror-textarea-keyup', this.handleMirrorTextareaKeyup.bind(this));
+      
+      // Listen for paste events
+      questionInput.addEventListener('mirror-textarea-paste', (event: any) => {
+        const data = event.detail;
+        if (data && data.clipboardData) {
+          this.handlePasteEvent(data.clipboardData);
+        }
+      });
     }
   }
 
@@ -1053,22 +1074,61 @@ export class ChatComponent extends LitElement {
     });
     this.mirrorTextareaSignalSubscriptions = [];
     
-    // Remove fallback event listeners
-    this.removeEventListener('mirror-textarea-input', this.handleMirrorTextareaInput.bind(this));
-    this.removeEventListener('mirror-textarea-keyup', this.handleMirrorTextareaKeyup.bind(this));
+    // Remove event listeners from mirror-textarea
+    const questionInput = this.querySelector('#question-input') || this.questionInput;
+    
+    if (questionInput) {
+      questionInput.removeEventListener('mirror-textarea-input', this.handleMirrorTextareaInput.bind(this));
+      questionInput.removeEventListener('mirror-textarea-keyup', this.handleMirrorTextareaKeyup.bind(this));
+      // Note: We can't remove anonymous function listeners, but they'll be cleaned up when the element is removed
+    }
   }
 
-  private handleMirrorTextareaInput(event: CustomEvent) {
-    const data = event.detail;
+  private handleMirrorTextareaInput(event: Event) {
+    const customEvent = event as CustomEvent;
+    const data = customEvent.detail;
     if (data) {
       this.handleOnInputChange(data);
     }
   }
 
-  private handleMirrorTextareaKeyup(event: CustomEvent) {
-    const data = event.detail;
-    if (data && data.key === 'Enter' && !data.shiftKey) {
-      this.handleOnInputChange(data);
+  private handleMirrorTextareaKeyup(event: Event) {
+    const customEvent = event as CustomEvent;
+    const data = customEvent.detail;
+    if (data) {
+      // Handle Enter key for submission (without shift)
+      if (data.key === 'Enter' && !data.shiftKey && data.shouldSubmit) {
+        event.preventDefault();
+        
+        // Always get the latest value from the textarea component to ensure sync
+        if (this.questionInput && typeof this.questionInput.getValue === 'function') {
+          this.currentQuestion = this.questionInput.getValue();
+        } else if (data.value !== undefined) {
+          this.currentQuestion = data.value;
+        }
+        
+        // Don't call handleUserChatSubmit directly, instead use the form submission logic
+        if (this.currentQuestion.trim().length > 0 && !this.enterSubmitBlocked) {
+          // Create a proper event object for form submission that mimics button click behavior
+          const syntheticEvent = new Event('submit', {
+            bubbles: true,
+            cancelable: true
+          });
+          
+          // Override the target to be the form instead of questionInput for consistency
+          Object.defineProperty(syntheticEvent, 'target', {
+            value: this.querySelector('#chat-form'),
+            writable: false
+          });
+          
+          this.handleUserChatSubmit(syntheticEvent);
+        }
+      } else {
+        // Handle other key events for input changes (but don't call submit logic)
+        if (data.key !== 'Enter') {
+          this.handleOnInputChange(data);
+        }
+      }
     }
   }
 
