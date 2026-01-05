@@ -69,7 +69,7 @@ export class RenderHelper {
                 </div>`
         : ''}
         
-          ${false ? html`<voice-chat voice="${this.chatSettings.voice}" model="${this.overrides.selectedModel ? `${this.overrides.selectedModel.model.value}` : ''}" avatar="${this.overrides.avatar ? `${this.overrides.avatar}` : ''}"></voice-chat>` : ''}
+          ${this.liveChatOn ? html`<voice-chat voice="${this.chatSettings.voice}" model="${this.overrides.selectedModel ? `${this.overrides.selectedModel.model.value}` : ''}" avatar="${this.overrides.avatar ? `${this.overrides.avatar}` : ''}"></voice-chat>` : ''}
         
           ${this.showControls ? html`<form
             id="chat-form"
@@ -127,7 +127,7 @@ export class RenderHelper {
                   </button>` : ''}
                   ${RenderHelper.renderChatOrCancelButton.bind(this)(globalConfig)}
                   ${this.isResetInput ? '' : html`<rws-tooltip side="left" disabled="true" text="${globalConfig.TOOLTIPS.PROMPT_WITH_MICROPHONE}"><voice-input-button @on-voice-input="${this.handleVoiceInput}" class="chatbox__button btn-outline-secondary voice-button" ?disabled="${true}" /></rws-tooltip>`}
-                  ${false ? html`<button
+                  ${html`<button
                     title="${globalConfig.LIVE_CHAT_BUTTON_LABEL_TEXT}"
                     class="chatbox__button btn-outline-secondary live-chat"
                     type="reset"
@@ -135,7 +135,7 @@ export class RenderHelper {
                     @click="${this.startLiveChat}"
                   >
                     <i class="simple-icon-speech"></i>
-                  </button>` : ''}
+                  </button>`}
                 </div>
               </div>
               
