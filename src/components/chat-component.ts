@@ -283,7 +283,7 @@ export class ChatComponent extends LitElement {
       StylesHelper.setStyleColors(this.style, this.customStyles);
     }
 
-    if (changedProperties.has('initialMessages') && this.initialMessages.length > 0 && this.chatThread.length === 0) {
+    if (changedProperties.has('initialMessages') && this.initialMessages.length > 0) {
       this.chatThread = InitMsgHelper.fillInitMessages(this.initialMessages);
 
       this.isChatStarted = true;

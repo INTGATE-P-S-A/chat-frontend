@@ -520,9 +520,10 @@ export const chatStyle = css`
 
   }
   
-  .input-group-append .chatbox__button.voice-button {
+  .input-group-append .chatbox__button.live-chat {
     border-top-right-radius: 0.375rem;
     border-bottom-right-radius: 0.375rem;
+    border-left: none;
   }
   
   .input-group-append .chatbox__button:not(:last-child) {
