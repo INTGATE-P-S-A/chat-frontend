@@ -283,14 +283,22 @@ export class ChatComponent extends LitElement {
       StylesHelper.setStyleColors(this.style, this.customStyles);
     }
 
-    if (changedProperties.has('initialMessages') && this.initialMessages.length > 0) {
-      this.chatThread = InitMsgHelper.fillInitMessages(this.initialMessages);
+    if (changedProperties.has('initialMessages')) {
+      if (this.initialMessages.length > 0) {
+        this.chatThread = InitMsgHelper.fillInitMessages(this.initialMessages);
 
-      this.isChatStarted = true;
-      this.isDefaultPromptsEnabled = false;
+        this.isChatStarted = true;
+        this.isDefaultPromptsEnabled = false;
 
-      // Update assist context when initial messages are loaded
-      this.updateAssistContext();
+        // Update assist context when initial messages are loaded
+        this.updateAssistContext();
+        
+        // Force a re-render to ensure chat-thread-component gets updated
+        this.requestUpdate();
+      } else {
+        // Handle case where messages were cleared
+        this.chatThread = [];
+      }
     }
 
     if (changedProperties.has('useWebSocket') || changedProperties.has('websocketEvents')) {
