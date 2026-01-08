@@ -126,7 +126,7 @@ export class RenderHelper {
                     <i class="simple-icon-ban"></i>
                   </button>` : ''}
                   ${RenderHelper.renderChatOrCancelButton.bind(this)(globalConfig)}
-                  ${this.isResetInput ? '' : html`<rws-tooltip side="left" disabled="true" text="${globalConfig.TOOLTIPS.PROMPT_WITH_MICROPHONE}"><voice-input-button @on-voice-input="${this.handleVoiceInput}" class="chatbox__button btn-outline-secondary voice-button" ?disabled="${true}" /></rws-tooltip>`}
+                  ${this.isResetInput ? '' : html`<rws-tooltip side="left" text="${globalConfig.TOOLTIPS.PROMPT_WITH_MICROPHONE}"><voice-input-button @on-voice-input="${this.handleVoiceInput}" class="chatbox__button btn-outline-secondary voice-button" /></rws-tooltip>`}
                   ${html`<button
                     title="${globalConfig.LIVE_CHAT_BUTTON_LABEL_TEXT}"
                     class="chatbox__button btn-outline-secondary live-chat"
@@ -303,13 +303,13 @@ export class RenderHelper {
           id: 'speak',
           label: globalConfig.SPEAK_BUTTON_LABEL_TEXT,
           svgIcon: megaphoneSvg,
-          isDisabled: true,
+          // isDisabled: true,
         },
         {
           id: 'download-speech',
           label: globalConfig.DOWNLOAD_SPEECH_BUTTON_LABEL_TEXT,
           svgIcon: downloadSvg,
-          isDisabled: true,
+          // isDisabled: true,
         },
       ] as any}"
       .isDisabled="${this.isDisabled}"

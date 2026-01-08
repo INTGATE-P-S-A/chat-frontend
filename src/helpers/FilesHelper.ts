@@ -118,7 +118,9 @@ export class FilesHelper {
                 file.type === 'application/vnd.ms-excel' ||
                 file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
                 file.type.includes('powerpoint') ||
-                file.type.includes('presentation');
+                file.type.includes('presentation') ||
+                file.type === 'audio/mp3' ||
+                file.type === 'audio/mpeg';
         });
 
         if (supportedFiles.length > 0) {
@@ -275,7 +277,7 @@ export class FilesHelper {
         // Create a file input element
         const fileInput = document.createElement('input');
         fileInput.type = 'file';
-        fileInput.accept = 'image/*,.pdf,.doc,.docx,.txt,.md,.zip,.tar,.tar.gz,.bz2,.xls,.xlsx,.ppt,.pptx';
+        fileInput.accept = 'image/*,.pdf,.doc,.docx,.txt,.md,.zip,.tar,.tar.gz,.bz2,.xls,.xlsx,.ppt,.pptx,.mp3';
         fileInput.multiple = true;
 
         // Handle file selection
