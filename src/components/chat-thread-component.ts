@@ -163,8 +163,12 @@ export class ChatThreadComponent extends LitElement {
         this.isUserScrolledUp = false;
       }
       
-      // Only auto-scroll if user hasn't manually scrolled up
-      if (!this.isUserScrolledUp) {
+      // Always scroll to bottom when new messages are added (especially for voice chat injection)
+      if (hasNewMessage) {
+        this.isUserScrolledUp = false;
+        // Use setTimeout to ensure DOM has updated before scrolling
+        setTimeout(() => this.scrollToBottom(true), 10);
+      } else if (!this.isUserScrolledUp) {
         this.scrollToBottom();
       }
     }
@@ -185,9 +189,14 @@ export class ChatThreadComponent extends LitElement {
       this.scrollToBottom();
     }
     
-    // Also scroll when chat thread changes during processing
-    if (changedProperties.has('chatThread') && this.isProcessingResponse && !this.isUserScrolledUp) {
-      setTimeout(() => this.scrollToBottom(), 5);
+    // Also scroll when chat thread changes during processing or when new messages are added
+    if (changedProperties.has('chatThread')) {
+      if (this.isProcessingResponse && !this.isUserScrolledUp) {
+        setTimeout(() => this.scrollToBottom(), 5);
+      } else {
+        // Ensure we scroll to bottom after DOM updates for new messages
+        setTimeout(() => this.scrollToBottom(true), 20);
+      }
     }
   }
 
