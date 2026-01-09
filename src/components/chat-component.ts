@@ -119,7 +119,7 @@ export class ChatComponent extends LitElement {
   isDisabled = false;
 
   @state()
-  isTalking = false;
+  isTalking: 0 | 1 | 2 = 0;
 
   @state()
   upperLoader = false;
@@ -779,13 +779,8 @@ export class ChatComponent extends LitElement {
     return KeyboardShortcutsHelper.getShortcuts();
   }
 
-  toggleTalk(value?: boolean) {
-    if (value !== undefined) {
-      this.isTalking = value;
-      return;
-    }
-
-    this.isTalking = !this.isTalking;
+  toggleTalk(value: 0 | 1 | 2) {    
+    this.isTalking = value;
   }
 
   toggleThreadLoading(value?: boolean) {

@@ -58,8 +58,8 @@ export class ChatThreadComponent extends LitElement {
   @query('#chat-list-footer')
   chatFooter!: HTMLElement;
 
-  @property({ type: Boolean })
-  private isTalking = false;
+  @property({ type: Number })
+  private isTalking: 0 | 1 | 2 = 0;
 
   @property({ type: Boolean })
   private upperLoader = false;

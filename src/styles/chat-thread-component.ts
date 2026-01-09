@@ -590,7 +590,20 @@ export const styles = css`
   }
 
   .chat-topic .talking-indicator {
-    animation: pulse-opacity 1.5s ease-in-out infinite;
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    margin-left: 15px;
+    border-radius: 15px;
+    border: 1px solid var(--alt_blu);
+    color: var(--alt_blu);
+    background-color: #FFF;
+    padding: 5px;
+    
+
+    &.talking {
+      animation: pulse-opacity 1.5s ease-in-out infinite;
+    }    
   }
 
   @keyframes pulse-opacity {
@@ -718,4 +731,6 @@ export const styles = css`
       border: 1px solid #0F0;
     }
   }
+
+  
 `;

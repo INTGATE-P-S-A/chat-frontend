@@ -10,7 +10,7 @@ import iconQuestion from '../svg/bubblequestion-icon.svg?raw';
 import { parseTools } from '../core/parser/toolsParser.js';
 
 export class RenderThreadHelper {
-  static renderMainThread(this: ChatThreadComponent, currentConfig: any, isTalking: boolean = false, upperLoader: boolean = false) {
+  static renderMainThread(this: ChatThreadComponent, currentConfig: any, isTalking: 0 | 1 | 2 = 0, upperLoader: boolean = false) {
     return html`
     <div id="chat__thread-container">
       <div class="chat-topic">
@@ -18,7 +18,10 @@ export class RenderThreadHelper {
           ${this.conversationTitle}
         </h5>
         ${this.conversationUid ? html`<share-window convoUid="${this.conversationUid}"></share-window>` : ''}
-        ${ isTalking ? html`<div class="talking-indicator"><i class="simple-icon-earphones-alt" /></div>` : '' }
+        ${ isTalking > 0 ? html`<div class="talking-indicator${isTalking === 2 ? ' talking' : '' }">
+          <i class="simple-icon-earphones-alt" />
+          ${isTalking === 1 ? html`<app-loader block="true" indicatorWidth="2px" width="15px" height="15px"></app-loader>` : ''}
+        </div>` : '' }
         ${ upperLoader ? html`<loading-indicator></loading-indicator>` : '' }
         <button 
             type="button"
