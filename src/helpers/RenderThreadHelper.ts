@@ -22,7 +22,7 @@ export class RenderThreadHelper {
           <i class="simple-icon-earphones-alt" />
           ${isTalking === 1 ? html`<app-loader block="true" indicatorWidth="2px" width="15px" height="15px"></app-loader>` : ''}
         </div>` : '' }
-        ${ upperLoader ? html`<loading-indicator></loading-indicator>` : '' }
+        ${ upperLoader ? html`<app-loader block="true" indicatorWidth="2px" width="15px" height="15px" style="margin-left: 15px;"></app-loader>` : '' }
         <button 
             type="button"
             class="fullscreen-toggle-btn ${this.isFullscreen ? 'simple-icon-close' : 'simple-icon-size-fullscreen'}"
