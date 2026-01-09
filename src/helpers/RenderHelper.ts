@@ -69,7 +69,14 @@ export class RenderHelper {
                 </div>`
         : ''}
         
-          ${this.liveChatOn ? html`<voice-chat model="${this.overrides.selectedModel ? `${this.overrides.selectedModel.model.value}` : ''}" avatar="${this.overrides.avatar ? `${this.overrides.avatar}` : ''}"></voice-chat>` : ''}
+          ${this.liveChatOn ? html`<voice-chat 
+            model="${this.overrides.selectedModel ? `${this.overrides.selectedModel.model.value}` : ''}" 
+            avatar="${this.overrides.avatar ? `${this.overrides.avatar}` : ''}"
+            conversationId="${this.convoId || ''}"
+            knowledgeIds="${JSON.stringify(this.selectedKnowledge || [])}"
+            writingStyleIds="${JSON.stringify(this.selectedStyles?.map(s => s.id) || [])}"
+            promptSlots="${this.promptSlots?.value ? JSON.stringify(this.promptSlots.value) : ''}"
+          ></voice-chat>` : ''}
         
           ${this.showControls ? html`<form
             id="chat-form"

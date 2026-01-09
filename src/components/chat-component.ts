@@ -624,6 +624,17 @@ export class ChatComponent extends LitElement {
 
   startLiveChat(event: Event): void {
     event.preventDefault();
+    
+    // Debug: Log current state before starting voice chat
+    console.log('🎤 [ChatComponent] Starting live chat with values:', {
+      convoId: this.convoId,
+      selectedKnowledge: this.selectedKnowledge,
+      selectedStyles: this.selectedStyles,
+      selectedModel: this.overrides.selectedModel,
+      avatar: this.overrides.avatar,
+      promptSlots: this.promptSlots?.value
+    });
+    
     this.showControls = false;
     this.liveChatOn = true;
   }
