@@ -303,13 +303,13 @@ export class RenderHelper {
           id: 'speak',
           label: globalConfig.SPEAK_BUTTON_LABEL_TEXT,
           svgIcon: megaphoneSvg,
-          // isDisabled: true,
+          isDisabled: this.chatController.isProcessingResponse,
         },
         {
           id: 'download-speech',
           label: globalConfig.DOWNLOAD_SPEECH_BUTTON_LABEL_TEXT,
           svgIcon: downloadSvg,
-          // isDisabled: true,
+          isDisabled: this.chatController.isProcessingResponse,
         },
       ] as any}"
       .isDisabled="${this.isDisabled}"
