@@ -249,7 +249,7 @@ export class ChatComponent extends LitElement {
 
     this.creditBalanceSignal = (document.querySelector('default-layout') as HTMLElement & { getCreditBalanceSignal: () => IExternalBalanceSignal | null }).getCreditBalanceSignal();
     
-    this.creditBalanceSignal?.value$.subscribe(async (value: number | null) => {    
+    this.creditBalanceSignal?.value$.subscribe(async (value: number | null) => {
       this.currentBalance = value || 0;
 
       if(this.currentUser){
@@ -645,11 +645,33 @@ export class ChatComponent extends LitElement {
     }
   }
 
+  handleOnKeyDown(e: KeyboardEvent): void {
+    if (e.key === 'Enter' && !e.shiftKey && this.questionInput.value.trim().length > 0) {
+      // If balance is 0, always prevent default to stop newlines
+      if (this.currentBalance <= 0) {
+        e.preventDefault();
+        return;
+      }
+      
+      // If autocomplete is open, prevent default
+      if (this.enterSubmitBlocked) {
+        e.preventDefault();
+        return;
+      }
+      
+      // Otherwise prevent default since we handle submission on keyup
+      e.preventDefault();
+    }
+  }
+
   handleOnInputChange(e: KeyboardEvent | Event): void {
     this.resetInputCheck();
     this.autoResizeTextarea();
 
     if (e instanceof KeyboardEvent && e.key === 'Enter' && !e.shiftKey && this.questionInput.value.trim().length > 0) {
+      // Always prevent default Enter behavior since we want Enter to submit, not add newlines
+      e.preventDefault();
+      
       // Block Enter submission if enter submit is blocked (e.g., autocomplete is open)
       if (this.enterSubmitBlocked) {
         return; // Don't submit, let the blocking component handle the Enter key

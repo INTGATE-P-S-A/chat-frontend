@@ -114,6 +114,7 @@ export class RenderHelper {
                     type="text"
                     ?disabled="${this.isDisabled}"
                     autocomplete="off"
+                    @keydown="${this.handleOnKeyDown}"
                     @keyup="${this.handleOnInputChange}"
                     @input="${this.handleOnInputChange}"
                     @paste="${this.handlePasteEvent.bind(this)}"                    
