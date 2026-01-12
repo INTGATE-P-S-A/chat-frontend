@@ -204,8 +204,24 @@ export class ChatComponent extends LitElement {
   @state()
   selectedProjects: { type: string; id: string; title: string }[]  = [];
 
+  private _selectedKnowledge: string[] = [];
+
   @state()
-  selectedKnowledge: string[] = [];
+  get selectedKnowledge(): string[] {
+    return this._selectedKnowledge;
+  }
+
+  set selectedKnowledge(value: string[]) {
+    const oldValue = this._selectedKnowledge;
+    this._selectedKnowledge = value;
+    console.log('🔍 [ChatComponent] selectedKnowledge setter called:', {
+      oldValue: oldValue,
+      newValue: value,
+      oldLength: oldValue.length,
+      newLength: value.length,
+      stack: new Error().stack
+    });
+  }
 
   @property({ type: Number, attribute: 'data-convo-id' })
   convoId: number | null = null;
@@ -277,6 +293,22 @@ export class ChatComponent extends LitElement {
 
   override updated(changedProperties: Map<string | number | symbol, unknown>) {
     super.updated(changedProperties);
+    
+    // Debug: Log if selectedKnowledge, liveChatOn, or showControls changed
+    if (changedProperties.has('selectedKnowledge') || changedProperties.has('liveChatOn') || changedProperties.has('showControls')) {
+      const oldKnowledge = changedProperties.get('selectedKnowledge');
+      const newKnowledge = this.selectedKnowledge;
+      
+      console.log('🔄 [ChatComponent] Key properties updated:');
+      console.log('  - selectedKnowledge old:', oldKnowledge);
+      console.log('  - selectedKnowledge new:', newKnowledge);
+      console.log('  - selectedKnowledge old length:', Array.isArray(oldKnowledge) ? oldKnowledge.length : 'N/A');
+      console.log('  - selectedKnowledge new length:', newKnowledge.length);
+      console.log('  - liveChatOn:', changedProperties.get('liveChatOn'), '->', this.liveChatOn);
+      console.log('  - showControls:', changedProperties.get('showControls'), '->', this.showControls);
+      console.log('  - allChangedProperties:', Array.from(changedProperties.keys()));
+    }
+    
     this.overrideConfig();
 
     if (changedProperties.has('customStyles')) {
@@ -635,8 +667,15 @@ export class ChatComponent extends LitElement {
       promptSlots: this.promptSlots?.value
     });
     
+    console.log('🎤 [ChatComponent] Setting showControls=false, liveChatOn=true');
     this.showControls = false;
     this.liveChatOn = true;
+    
+    console.log('🎤 [ChatComponent] After starting live chat:', {
+      showControls: this.showControls,
+      liveChatOn: this.liveChatOn,
+      selectedKnowledge: this.selectedKnowledge
+    });
   }
 
   showDefaultPrompts(event: Event): void {
@@ -976,15 +1015,32 @@ export class ChatComponent extends LitElement {
     const customEvent = event as CustomEvent<{ selectedIds: string[], selectedKnowledge: any[] }>;
     const { selectedIds } = customEvent.detail;
     
+    console.log('📃 [ChatComponent] handleKnowledgeSelectionChanged called:', {
+      oldKnowledge: this.selectedKnowledge,
+      newSelectedIds: selectedIds,
+      eventDetail: customEvent.detail
+    });
+    
     // Update the selectedKnowledge array with knowledge IDs (not project IDs)
-    this.selectedKnowledge = selectedIds || [];        
+    this.selectedKnowledge = selectedIds || [];
+    
+    console.log('📃 [ChatComponent] Updated selectedKnowledge in handleKnowledgeSelectionChanged:', this.selectedKnowledge);
   }
 
   handleKnowledgePickerChange(event: CustomEvent) {
     const { selectedIds, selectedKnowledge } = event.detail;
     
+    console.log('📚 [ChatComponent] handleKnowledgePickerChange called:', {
+      oldKnowledge: this.selectedKnowledge,
+      newSelectedIds: selectedIds,
+      newSelectedKnowledge: selectedKnowledge,
+      eventDetail: event.detail
+    });
+    
     // Update the selectedKnowledge array with knowledge IDs
     this.selectedKnowledge = selectedIds || [];
+    
+    console.log('📚 [ChatComponent] Updated selectedKnowledge in handleKnowledgePickerChange:', this.selectedKnowledge);
     
     // Emit custom event for the main chat page to handle knowledge updates
     const kdbPickEvent = new CustomEvent('kdbPick', {
@@ -1004,6 +1060,16 @@ export class ChatComponent extends LitElement {
   }
 
   override render() {
+    // Debug: Log render state for voice chat and knowledge
+    if (this.liveChatOn || this.selectedKnowledge.length > 0) {
+      console.log('🎨 [ChatComponent] Render called with:', {
+        liveChatOn: this.liveChatOn,
+        showControls: this.showControls,
+        selectedKnowledge: this.selectedKnowledge,
+        selectedKnowledgeLength: this.selectedKnowledge.length
+      });
+    }
+    
     return RenderHelper.mainRender.bind(this)(globalConfig, teaserListTexts);
   }
 }
