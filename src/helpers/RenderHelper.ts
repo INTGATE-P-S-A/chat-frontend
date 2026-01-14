@@ -154,7 +154,7 @@ export class RenderHelper {
           ? html`<div class="web-search__wrapper">                  
                   <simple-model-select
                     name="bot"                         
-                    value="${this.overrides.selectedModel ? this.overrides.selectedModel.model.value : (this.overrides.avatar ? this.overrides.avatar : null)}"
+                    value="${this.overrides.avatar ? this.overrides.avatar : (this.overrides.selectedModel ? this.overrides.selectedModel.model.value : (this.externalSelectedModel ? this.externalSelectedModel.model?.value : (this.externalSelectedAvatar ? this.externalSelectedAvatar.id : null)))}"
                     @model:selected="${HandlerHelper.handleModelSelected.bind(this)}">
                   </simple-model-select> 
                   ${this.currentUser?.accountGrade?.advancedPrompts ? html`<div class="web-search__container">
@@ -204,7 +204,7 @@ export class RenderHelper {
                 <div class="web-search__wrapper">
                   <simple-model-select
                     name="bot"                         
-                        value="${this.overrides.selectedModel ? this.overrides.selectedModel.model.value : (this.overrides.avatar ? this.overrides.avatar : null)}"
+                        value="${this.overrides.avatar ? this.overrides.avatar : (this.overrides.selectedModel ? this.overrides.selectedModel.model.value : (this.externalSelectedModel ? this.externalSelectedModel.model?.value : (this.externalSelectedAvatar ? this.externalSelectedAvatar.id : null)))}"
                         @model:selected="${HandlerHelper.handleModelSelected.bind(this)}">
                   </simple-model-select>  
                   <button 
