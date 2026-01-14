@@ -82,6 +82,7 @@ export class RenderHelper {
           ${this.showControls ? html`<form
             id="chat-form"
             class="form__container ${this.inputPosition === 'sticky' ? 'form__container-sticky' : ''}${this.isDragOver ? ' drag-over' : ''}"
+            @submit="${(e: Event) => { e.preventDefault(); }}"
             @dragover="${FilesHelper.onFormDragOver.bind(this)}"
             @dragleave="${FilesHelper.onFormDragLeave.bind(this)}"
             @drop="${FilesHelper.onDrop.bind(this)}"
