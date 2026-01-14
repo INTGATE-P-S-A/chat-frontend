@@ -152,7 +152,8 @@ export class RenderHelper {
 
             ${globalConfig.WEB_SEARCH_CHECKBOX_ENABLED
           ? html`<div class="web-search__wrapper">                  
-                  <simple-model-select                         
+                  <simple-model-select
+                    name="bot"                         
                     value="${this.overrides.selectedModel ? this.overrides.selectedModel.model.value : (this.overrides.avatar ? this.overrides.avatar : null)}"
                     @model:selected="${HandlerHelper.handleModelSelected.bind(this)}">
                   </simple-model-select> 
@@ -201,7 +202,8 @@ export class RenderHelper {
                 </div>`
           : html`
                 <div class="web-search__wrapper">
-                  <simple-model-select                         
+                  <simple-model-select
+                    name="bot"                         
                         value="${this.overrides.selectedModel ? this.overrides.selectedModel.model.value : (this.overrides.avatar ? this.overrides.avatar : null)}"
                         @model:selected="${HandlerHelper.handleModelSelected.bind(this)}">
                   </simple-model-select>  
