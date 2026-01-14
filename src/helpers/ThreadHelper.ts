@@ -20,7 +20,6 @@ export class ThreadHelper {
         this.updateAssistContext();
 
         ThreadHelper.resetThread.bind(this)(new Event('clear-chat'), true);
-
     }
 
     static resetThread(this: ChatComponent, event: Event, forced: boolean = false): void {

@@ -310,21 +310,24 @@ export class ChatComponent extends LitElement {
     }
 
     if (changedProperties.has('initialMessages')) {
+
       if (this.initialMessages.length > 0) {
-        this.chatThread = InitMsgHelper.fillInitMessages(this.initialMessages);
-
-        this.isChatStarted = true;
-        this.isDefaultPromptsEnabled = false;
-
-        // Update assist context when initial messages are loaded
-        this.updateAssistContext();
-        
-        // Force a re-render to ensure chat-thread-component gets updated
-        this.requestUpdate();
-      } else {
-        // Handle case where messages were cleared
-        this.chatThread = [];
+        // Only overwrite chatThread if there's no current conversation in progress
+        // This prevents old messages from overwriting a new conversation
+        if (this.chatThread.length === 0 || !this.isChatStarted) {
+          this.chatThread = InitMsgHelper.fillInitMessages(this.initialMessages);
+          this.isChatStarted = true;
+          this.isDefaultPromptsEnabled = false;
+          
+          // Update assist context when initial messages are loaded
+          this.updateAssistContext();
+          
+          // Force a re-render to ensure chat-thread-component gets updated
+          this.requestUpdate();
+        }
       }
+      // Removed the else block that was clearing chatThread when initialMessages was empty
+      // Empty initialMessages should not clear an active conversation
     }
 
     if (changedProperties.has('useWebSocket') || changedProperties.has('websocketEvents')) {
@@ -670,15 +673,7 @@ export class ChatComponent extends LitElement {
   startLiveChat(event: Event): void {
     event.preventDefault();
     
-    // Debug: Log current state before starting voice chat
-    console.log('🎤 [ChatComponent] Starting live chat with values:', {
-      convoId: this.convoId,
-      selectedKnowledge: this.selectedKnowledge,
-      selectedStyles: this.selectedStyles,
-      selectedModel: this.overrides.selectedModel,
-      avatar: this.overrides.avatar,
-      promptSlots: this.promptSlots?.value
-    });
+
     
     this.showControls = false;
     this.liveChatOn = true;
