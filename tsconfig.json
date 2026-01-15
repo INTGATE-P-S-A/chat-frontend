@@ -22,6 +22,8 @@
     "forceConsistentCasingInFileNames": true,
     "noImplicitOverride": true,
     "emitDeclarationOnly": true,
+    "skipLibCheck": true,
+    "types": ["node", "dom-speech-recognition", "dompurify", "html-escaper"],
     "plugins": [
       {
         "name": "ts-lit-plugin",
@@ -30,5 +32,10 @@
     ]
   },
   "include": ["src/**/*.ts"],
-  "exclude": []
+  "exclude": [
+    "node_modules",
+    "../chat-frontend",
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts"
+  ]
 }
