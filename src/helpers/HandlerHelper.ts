@@ -23,32 +23,12 @@ export class HandlerHelper {
     }
 
     static handleVoiceChatEnd(this: ChatComponent, event: CustomEvent): void {
-        console.log('🎤 [HandlerHelper] Voice chat end event triggered:', event);
-        console.log('🎤 [HandlerHelper] Context check - this is:', typeof this, this.constructor.name);
-        console.log('🎤 [HandlerHelper] Voice chat ended, current state before restore:', {
-            selectedKnowledge: this.selectedKnowledge,
-            selectedStyles: this.selectedStyles,
-            selectedProjects: this.selectedProjects,
-            showControls: this.showControls,
-            liveChatOn: this.liveChatOn
-        });
-        
         // Restore the controls and preserve all the selected states
-        console.log('🎤 [HandlerHelper] Setting showControls=true, liveChatOn=false');
         this.showControls = true;
         this.liveChatOn = false;
         
-        console.log('🎤 [HandlerHelper] After restoring controls:', {
-            selectedKnowledge: this.selectedKnowledge,
-            selectedStyles: this.selectedStyles,
-            selectedProjects: this.selectedProjects,
-            showControls: this.showControls,
-            liveChatOn: this.liveChatOn
-        });
-        
         // Force a re-render to ensure UI updates
         this.requestUpdate();
-        console.log('🎤 [HandlerHelper] Requested component update');
         
         // The knowledge, styles, and projects should already be preserved in their respective arrays
         // No need to reset them as they're maintained by the parent component
@@ -188,7 +168,7 @@ export class HandlerHelper {
                 modelSignal.setValue(selectedModel);
             }
         } catch (error) {
-            console.warn('Could not access parent signal service:', error);
+            // Could not access parent signal service
         }
     }
 }

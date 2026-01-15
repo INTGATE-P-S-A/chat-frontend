@@ -22,7 +22,6 @@ export class InitMsgHelper {
             // Process tools if they exist
             if (processedMessage.tools && processedMessage.tools.length > 0) {
                 // for (const tool of processedMessage.tools) {
-                //     console.log({tool});
                 //     const lastTextIndex = processedMessage.text.length - 1;
                 //     if (lastTextIndex >= 0) {
                 //         processedMessage.text[lastTextIndex].value = parseTool(tool) + processedMessage.text[lastTextIndex].value;

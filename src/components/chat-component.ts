@@ -302,7 +302,7 @@ export class ChatComponent extends LitElement {
     
     // Sync external model data from RWS component
     if (changedProperties.has('externalSelectedModel') || changedProperties.has('externalSelectedAvatar') || changedProperties.has('externalAiProvider')) {
-      this.syncExternalModelData();
+      // this.syncExternalModelData();
     }
 
     if (changedProperties.has('customStyles')) {
@@ -310,7 +310,6 @@ export class ChatComponent extends LitElement {
     }
 
     if (changedProperties.has('initialMessages')) {
-
       if (this.initialMessages.length > 0) {
         // Only overwrite chatThread if there's no current conversation in progress
         // This prevents old messages from overwriting a new conversation
@@ -373,7 +372,7 @@ export class ChatComponent extends LitElement {
     this.overrideConfig();
 
     // Sync external model data on first load
-    this.syncExternalModelData();
+    // this.syncExternalModelData();
 
     // Handle window resize to recalculate textarea height
     this.boundHandleResize = this.handleResize.bind(this);
