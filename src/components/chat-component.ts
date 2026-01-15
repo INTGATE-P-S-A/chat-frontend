@@ -298,12 +298,7 @@ export class ChatComponent extends LitElement {
 
   override updated(changedProperties: Map<string | number | symbol, unknown>) {
     super.updated(changedProperties);
-    this.overrideConfig();
-    
-    // Sync external model data from RWS component
-    if (changedProperties.has('externalSelectedModel') || changedProperties.has('externalSelectedAvatar') || changedProperties.has('externalAiProvider')) {
-      // this.syncExternalModelData();
-    }
+    this.overrideConfig();    
 
     if (changedProperties.has('customStyles')) {
       StylesHelper.setStyleColors(this.style, this.customStyles);
@@ -372,8 +367,6 @@ export class ChatComponent extends LitElement {
     this.overrideConfig();
 
     // Sync external model data on first load
-    // this.syncExternalModelData();
-
     // Handle window resize to recalculate textarea height
     this.boundHandleResize = this.handleResize.bind(this);
     window.addEventListener('resize', this.boundHandleResize);
@@ -423,22 +416,6 @@ export class ChatComponent extends LitElement {
   }
 
   private resizeTimeout?: number;
-  
-  /**
-   * Sync external model data from RWS component attributes
-   */
-  private syncExternalModelData(): void {
-    // If we have external model data, use it for the simple-model-select
-    if (this.externalSelectedModel || this.externalSelectedAvatar) {
-      // Update overrides to include external model data
-      this.overrides = {
-        ...this.overrides,
-        selectedModel: this.externalSelectedModel,
-        avatar: this.externalSelectedAvatar?.id || null,
-        aiProvider: this.externalAiProvider || 'openrouter'
-      };
-    }
-  }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
