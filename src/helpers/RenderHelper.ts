@@ -379,9 +379,8 @@ export class RenderHelper {
     </div>`;
   }
 
-  static aiAssistRender(this: ChatComponent) {
-    // Check if user has prompt assist feature enabled
-    if (!this.currentUser?.accountGrade?.promptAssist) {
+  static aiAssistRender(this: ChatComponent) {    
+    if (!this.currentUser?.accountGrade?.promptAssist || this.chatSettings.enableAIAssistant === false) {      
       return html``;
     }
     return html`<ai-assist id="ai-assist-component"></ai-assist>`;

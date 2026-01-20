@@ -204,6 +204,7 @@ declare interface IChatSettings {
   videoModel: string | null;
   voice: string | null;
   chatLearning: boolean;
+  enableAIAssistant: boolean;
 }
 
 declare interface IRWSAiAssistComponent extends HTMLElement {

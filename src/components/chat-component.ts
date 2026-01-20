@@ -41,7 +41,8 @@ const DEFAULT_CHAT_SETTINGS: IChatSettings = {
   imageModel: 'stableDiffusionXL',
   videoModel: null,
   voice: null,
-  chatLearning: false
+  chatLearning: false,
+  enableAIAssistant: true
 }
 
 @customElement('chat-component')
