@@ -241,33 +241,13 @@ export class ChatComponent extends LitElement {
 
   static override styles = [chatStyle];
 
+  private aiAssistInitialized = false;
+
 
   override firstUpdated() {
     this.autocompleteTriggers.bindTextarea(this.questionInput);
     
-    // Only initialize AI assist if the feature is enabled for the user
-    if (this.aiAssist && this.currentUser?.accountGrade?.promptAssist) {
-      this.aiAssist.bindInputSource(this.questionInput);
-      this.aiAssistantSignal = this.aiAssist.getExternalSignal();
-
-      this.aiAssistantSignal?.value$.subscribe(async (value: IAssistSignalPayload | null) => {
-        if (value?.command === 'pass_entry') {
-          this.activeAssist = value?.payload;
-        }
-      });
-
-      // Listen for webchat:submit event from ai-assist component
-      this.aiAssist.addEventListener('webchat:submit', (event: Event) => {
-        // Submit the form when ai-assist emits this event
-        this.handleUserChatSubmit(event);
-      });
-
-      // Listen for webchat:text-insert event from ai-assist component (no auto-submit)
-      this.aiAssist.addEventListener('webchat:text-insert', (event: Event) => {
-        // Handle text insertion without auto-submit
-        this.handleTextInsert(event as CustomEvent);
-      });
-    }
+    this.aiAssistCheck();
 
     this.creditBalanceSignal = (document.querySelector('default-layout') as HTMLElement & { getCreditBalanceSignal: () => IExternalBalanceSignal | null }).getCreditBalanceSignal();
     
@@ -303,6 +283,22 @@ export class ChatComponent extends LitElement {
 
     if (changedProperties.has('customStyles')) {
       StylesHelper.setStyleColors(this.style, this.customStyles);
+    }
+
+
+    if(!this.aiAssistInitialized && this.aiAssist){
+       this.aiAssistCheck();
+       this.aiAssistInitialized = true;
+    }
+
+    if (changedProperties.has('chatSettings')) {
+      const oldSettings = changedProperties.get('chatSettings') as IChatSettings;
+      const newSettings = this.chatSettings;
+      
+      // Check if AI Assistant was enabled (changed from disabled/undefined to enabled)
+      if (!oldSettings?.enableAIAssistant && newSettings?.enableAIAssistant) {
+        this.aiAssistCheck();
+      }
     }
 
     if (changedProperties.has('initialMessages')) {
@@ -393,6 +389,32 @@ export class ChatComponent extends LitElement {
     this.dispatchEvent(ev);
 
     this.currentUser = (document.querySelector('default-layout') as HTMLElement & { getCurrentUser: () => IRWSUser | null }).getCurrentUser();
+  }
+
+  private aiAssistCheck() {
+    console.log(this.aiAssist);
+    if (this.aiAssist && this.currentUser?.accountGrade?.promptAssist) {
+      this.aiAssist.bindInputSource(this.questionInput);
+      this.aiAssistantSignal = this.aiAssist.getExternalSignal();
+
+      this.aiAssistantSignal?.value$.subscribe(async (value: IAssistSignalPayload | null) => {
+        if (value?.command === 'pass_entry') {
+          this.activeAssist = value?.payload;
+        }
+      });
+
+      // Listen for webchat:submit event from ai-assist component
+      this.aiAssist.addEventListener('webchat:submit', (event: Event) => {
+        // Submit the form when ai-assist emits this event
+        this.handleUserChatSubmit(event);
+      });
+
+      // Listen for webchat:text-insert event from ai-assist component (no auto-submit)
+      this.aiAssist.addEventListener('webchat:text-insert', (event: Event) => {
+        // Handle text insertion without auto-submit
+        this.handleTextInsert(event as CustomEvent);
+      });
+    }
   }
 
   private boundHandleResize?: () => void;
