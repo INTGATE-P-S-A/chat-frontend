@@ -120,6 +120,8 @@ export class SubmitHelper {
                 chatSettings: this.chatSettings,
                 webSearchEnabled: this.webSearchEnabled,
                 deepSearchEnabled: this.deepSearchEnabled,
+                knowledge: this.selectedKnowledge,
+                fullKnowledgeIds: this.fullKnowledgeIds,
             };
 
             HandlerHelper.handleDiscussionUserTurn.bind(this)(messagesWithNewInput);

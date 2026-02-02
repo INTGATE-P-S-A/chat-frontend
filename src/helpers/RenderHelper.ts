@@ -74,6 +74,7 @@ export class RenderHelper {
             avatar="${this.overrides.avatar ? `${this.overrides.avatar}` : ''}"
             conversationId="${this.convoId || ''}"
             knowledgeIds="${JSON.stringify(this.selectedKnowledge || [])}"
+            fullKnowledgeIds="${JSON.stringify(this.fullKnowledgeIds || [])}"
             writingStyleIds="${JSON.stringify(this.selectedStyles?.map(s => s.id) || [])}"
             promptSlots="${this.promptSlots?.value ? JSON.stringify(this.promptSlots.value) : ''}"
             @voice-chat:conversation-end="${HandlerHelper.handleVoiceChatEnd.bind(this)}"
@@ -374,7 +375,7 @@ export class RenderHelper {
             <i class="simple-icon-close" @click="${(e: Event) => this.removeProject(e, project.id)}" title="Remove project"></i>
           </div>
         `)}
-        <div class="kdb-pick"><knowledge-picker absolute="true" selectedIds="${this.selectedKnowledge.join(',')}" @selectionChanged="${(e: CustomEvent) => this.handleKnowledgePickerChange(e)}"></knowledge-picker></div>          
+        <div class="kdb-pick"><knowledge-picker absolute="true" selectedIds="${this.selectedKnowledge.join(',')}" fullKnowledgeIds="${this.fullKnowledgeIds.join(',')}" @selectionChanged="${(e: CustomEvent) => this.handleKnowledgePickerChange(e)}"></knowledge-picker></div>          
         <div class="settings-toggler"><rws-tooltip side="left" text="${globalConfig.TOOLTIPS.CHAT_SETTINGS}"><button  type="button" @click="${this.handleSettingsExpandAside}"><i class="simple-icon-settings"></i></button></rws-tooltip></div>
     </div>`;
   }

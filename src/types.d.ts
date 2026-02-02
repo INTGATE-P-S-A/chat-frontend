@@ -107,6 +107,7 @@ declare interface RequestOverrides {
   avatar?: string;
   language?: string;
   knowledge?: (string | number)[];
+  fullKnowledgeIds?: (string | number)[];
   conversationId?: string;
   conversationUid?: string;
   conversationTitle?: string;

@@ -229,6 +229,9 @@ export class ChatComponent extends LitElement {
   @state()
   selectedKnowledge: string[] = [];
 
+  @state()
+  fullKnowledgeIds: string[] = [];
+
   @property({ type: Number, attribute: 'data-convo-id' })
   convoId: number | null = null;
 
@@ -1012,22 +1015,24 @@ export class ChatComponent extends LitElement {
   }
 
   private handleKnowledgeSelectionChanged(event: Event) {
-    const customEvent = event as CustomEvent<{ selectedIds: string[], selectedKnowledge: any[] }>;
-    const { selectedIds } = customEvent.detail;
+    const customEvent = event as CustomEvent<{ selectedIds: string[], fullKnowledgeIds?: string[], selectedKnowledge: any[] }>;
+    const { selectedIds, fullKnowledgeIds } = customEvent.detail;
     
     // Update the selectedKnowledge array with knowledge IDs (not project IDs)
-    this.selectedKnowledge = selectedIds || [];        
+    this.selectedKnowledge = selectedIds || [];
+    this.fullKnowledgeIds = fullKnowledgeIds || [];        
   }
 
   handleKnowledgePickerChange(event: CustomEvent) {
-    const { selectedIds, selectedKnowledge } = event.detail;
+    const { selectedIds, fullKnowledgeIds, selectedKnowledge } = event.detail;
     
     // Update the selectedKnowledge array with knowledge IDs
     this.selectedKnowledge = selectedIds || [];
+    this.fullKnowledgeIds = fullKnowledgeIds || [];
     
     // Emit custom event for the main chat page to handle knowledge updates
     const kdbPickEvent = new CustomEvent('kdbPick', {
-      detail: { selectedIds, selectedKnowledge },
+      detail: { selectedIds, fullKnowledgeIds, selectedKnowledge },
       bubbles: true,
       composed: true
     });
@@ -1035,7 +1040,7 @@ export class ChatComponent extends LitElement {
     
     // Emit custom event for other components that might need to know about knowledge selection
     const knowledgeChangeEvent = new CustomEvent('knowledge:selection:changed', {
-      detail: { selectedIds, selectedKnowledge },
+      detail: { selectedIds, fullKnowledgeIds, selectedKnowledge },
       bubbles: true,
       composed: true
     });
