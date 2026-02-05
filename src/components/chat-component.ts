@@ -42,7 +42,9 @@ const DEFAULT_CHAT_SETTINGS: IChatSettings = {
   videoModel: null,
   voice: null,
   chatLearning: false,
-  enableAIAssistant: true
+  enableAIAssistant: true,
+  temperature: 0.7,
+  maxTokens: null
 }
 
 @customElement('chat-component')
