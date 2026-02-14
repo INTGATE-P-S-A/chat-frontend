@@ -270,7 +270,7 @@ export class ChatController implements ReactiveController {
     });
   }
 
-  async processResponse(response: string | BotResponse | Response, isUserMessage: boolean = false, useStream: boolean = false, overrides?: RequestOverrides, files?: MessageFile[]) {
+  async processResponse(response: string | BotResponse | Response, isUserMessage: boolean = false, useStream: boolean = false, overrides?: RequestOverrides, files?: MessageFile[], hidden?: boolean) {
     const timestamp = getTimestamp();
     const citations: Citation[] = [];
     let followupQuestions: string[] = [];
@@ -319,7 +319,9 @@ export class ChatController implements ReactiveController {
           model: !isUserMessage && effectiveOverrides?.selectedModel ? effectiveOverrides.selectedModel.model.value : undefined,
           // Add files if this is a user message and files are provided (though streaming is typically for AI responses)
           ...(isUserMessage && messageFiles && messageFiles.length > 0 ? { files: messageFiles } : {}),
-        };
+          // Add hidden property if specified
+          ...(hidden !== undefined ? { hidden } : {}),
+        };        
 
         this.isProcessingResponse = true;
         this._abortController = new AbortController();
@@ -379,6 +381,8 @@ export class ChatController implements ReactiveController {
           model: !isUserMessage && effectiveOverrides?.selectedModel ? effectiveOverrides.selectedModel : undefined,
           // Add files if this is a user message and files are provided
           ...(isUserMessage && messageFiles && messageFiles.length > 0 ? { files: messageFiles } : {}),
+          // Add hidden property if specified
+          ...(hidden !== undefined ? { hidden } : {}),
         };
       }
     };
@@ -458,7 +462,7 @@ export class ChatController implements ReactiveController {
             
             // Combine content files (images) with non-image files from files array
             const allFiles = [...contentFiles, ...nonImageFiles];
-            await this.processResponse(messageText || '', true, false, requestOptions.overrides, allFiles);
+            await this.processResponse(messageText || '', true, false, requestOptions.overrides, allFiles, lastMessage.hidden);
           }
         }
 
@@ -476,7 +480,7 @@ export class ChatController implements ReactiveController {
               },
             ],
             followupQuestions: [],
-            citations: [],
+            citations: [],            
             timestamp: getTimestamp(),
             isUserMessage: false,
             thoughts: undefined,

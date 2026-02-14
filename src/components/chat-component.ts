@@ -82,22 +82,26 @@ export class ChatComponent extends LitElement {
   @property({ type: Boolean, attribute: 'data-hide-delete-button', converter: (value) => value === 'true' })
   hideDeleteButton: Boolean = false;
 
-  @property({ type: String, attribute: 'data-selected-model', converter: (value) => {
-    try {
-      return value ? JSON.parse(value) : null;
-    } catch {
-      return null;
+  @property({
+    type: String, attribute: 'data-selected-model', converter: (value) => {
+      try {
+        return value ? JSON.parse(value) : null;
+      } catch {
+        return null;
+      }
     }
-  }})
+  })
   externalSelectedModel: any = null;
 
-  @property({ type: String, attribute: 'data-selected-avatar', converter: (value) => {
-    try {
-      return value ? JSON.parse(value) : null;
-    } catch {
-      return null;
+  @property({
+    type: String, attribute: 'data-selected-avatar', converter: (value) => {
+      try {
+        return value ? JSON.parse(value) : null;
+      } catch {
+        return null;
+      }
     }
-  }})
+  })
   externalSelectedAvatar: any = null;
 
   @property({ type: String, attribute: 'data-ai-provider' })
@@ -124,6 +128,9 @@ export class ChatComponent extends LitElement {
   @property({ type: Boolean, attribute: 'data-deep-search', converter: (value) => value === 'true' })
   dataDeepSearch: boolean = false;
 
+  @property({ type: Boolean, attribute: 'compact', converter: (value) => value === 'true' })
+  compact: boolean = false;
+
   @query('#question-input')
   questionInput!: HTMLTextAreaElement;
 
@@ -147,6 +154,9 @@ export class ChatComponent extends LitElement {
 
   @state()
   upperLoader = false;
+
+  @state()
+  currentQuestionHidden = false;
 
   @state()
   isChatStarted = false;
@@ -223,10 +233,10 @@ export class ChatComponent extends LitElement {
   currentBalance: number = 0;
 
   @state()
-  selectedStyles: { type: string; id: string; title: string }[]  = [];
+  selectedStyles: { type: string; id: string; title: string }[] = [];
 
   @state()
-  selectedProjects: { type: string; id: string; title: string }[]  = [];
+  selectedProjects: { type: string; id: string; title: string }[] = [];
 
   @state()
   selectedKnowledge: string[] = [];
@@ -251,24 +261,24 @@ export class ChatComponent extends LitElement {
 
   override firstUpdated() {
     this.autocompleteTriggers.bindTextarea(this.questionInput);
-    
+
     this.aiAssistCheck();
 
     this.creditBalanceSignal = (document.querySelector('default-layout') as HTMLElement & { getCreditBalanceSignal: () => IExternalBalanceSignal | null }).getCreditBalanceSignal();
-    
+
     this.creditBalanceSignal?.value$.subscribe(async (value: number | null) => {
       this.currentBalance = value || 0;
 
-      if(this.currentUser){
+      if (this.currentUser) {
         this.currentUser.accountBalance.credits = this.currentBalance;
-      }      
+      }
     });
 
     this.autocompleteTriggers.addEventListener('autocomplete:trigger:selected', (event) => {
       const detail = (event as CustomEvent<{ type: string; id: string; title: string }>).detail;
-      if(detail.type === 'style'){
+      if (detail.type === 'style') {
         this.selectedStyles.push({ type: detail.type, id: detail.id, title: detail.title });
-      } else if(detail.type === 'project'){
+      } else if (detail.type === 'project') {
         this.selectedProjects.push({ type: detail.type, id: detail.id, title: detail.title });
         // Notify knowledge picker about the selected project
         this.notifyKnowledgePickerOfProjectSelection(detail.id, detail.title);
@@ -284,22 +294,22 @@ export class ChatComponent extends LitElement {
 
   override updated(changedProperties: Map<string | number | symbol, unknown>) {
     super.updated(changedProperties);
-    this.overrideConfig();    
+    this.overrideConfig();
 
     if (changedProperties.has('customStyles')) {
       StylesHelper.setStyleColors(this.style, this.customStyles);
     }
 
 
-    if(!this.aiAssistInitialized && this.aiAssist){
-       this.aiAssistCheck();
-       this.aiAssistInitialized = true;
+    if (!this.aiAssistInitialized && this.aiAssist) {
+      this.aiAssistCheck();
+      this.aiAssistInitialized = true;
     }
 
     if (changedProperties.has('chatSettings')) {
       const oldSettings = changedProperties.get('chatSettings') as IChatSettings;
       const newSettings = this.chatSettings;
-      
+
       // Check if AI Assistant was enabled (changed from disabled/undefined to enabled)
       if (!oldSettings?.enableAIAssistant && newSettings?.enableAIAssistant) {
         this.aiAssistCheck();
@@ -314,10 +324,10 @@ export class ChatComponent extends LitElement {
           this.chatThread = InitMsgHelper.fillInitMessages(this.initialMessages);
           this.isChatStarted = true;
           this.isDefaultPromptsEnabled = false;
-          
+
           // Update assist context when initial messages are loaded
           this.updateAssistContext();
-          
+
           // Force a re-render to ensure chat-thread-component gets updated
           this.requestUpdate();
         }
@@ -333,6 +343,13 @@ export class ChatComponent extends LitElement {
     // Auto-resize textarea when component layout changes
     if (changedProperties.has('isFullscreen') || changedProperties.has('isAsideOpen')) {
       setTimeout(() => this.autoResizeTextarea(), 100);
+    }
+
+    if (changedProperties.has('compact')) {
+      if (this.compact) {
+        this.chatSettings = DEFAULT_CHAT_SETTINGS;
+      }
+
     }
   }
 
@@ -435,12 +452,12 @@ export class ChatComponent extends LitElement {
   }
 
   handleSlotChanges(e: Event) {
-      const theEvent = e as CustomEvent<IPromptSlotsContent>;
+    const theEvent = e as CustomEvent<IPromptSlotsContent>;
 
-      this.overrides = {
-          ...this.overrides,
-          promptSlots: theEvent.detail,
-      };
+    this.overrides = {
+      ...this.overrides,
+      promptSlots: theEvent.detail,
+    };
   }
 
   private resizeTimeout?: number;
@@ -520,10 +537,10 @@ export class ChatComponent extends LitElement {
   handleWebSearchToggle(event: Event) {
     const customEvent = event as CustomEvent;
     const { enabled } = customEvent.detail;
-    
+
     // Provide user feedback about the toggle
     this.dispatchEvent(new CustomEvent('show-notification', {
-      detail: { 
+      detail: {
         message: `Web Search ${enabled ? 'enabled' : 'disabled'}`,
         type: 'info'
       },
@@ -535,10 +552,10 @@ export class ChatComponent extends LitElement {
   handleAdvancedPromptsToggle(event: Event) {
     const customEvent = event as CustomEvent;
     const { enabled } = customEvent.detail;
-    
+
     // Provide user feedback about the toggle
     this.dispatchEvent(new CustomEvent('show-notification', {
-      detail: { 
+      detail: {
         message: `Advanced Prompts ${enabled ? 'enabled' : 'disabled'}`,
         type: 'info'
       },
@@ -566,16 +583,27 @@ export class ChatComponent extends LitElement {
     this.autoResizeTextarea();
   }
 
-  public setInputValue(value: string, append: boolean = false): void {
-    if (append) {
-      const currentValue = this.questionInput.value || '';
-      const newValue = currentValue + value;
-      this.setQuestionInputValue(newValue);
+  public setInputValue(value: string, append: boolean = false, send: boolean = false, hidden: boolean = false): void {
+    if (hidden) {
+      this.currentQuestion = value;
+      this.questionInput.value = value; // Also set textarea value for hidden messages
+      this.currentQuestionHidden = true;    
     } else {
-      this.setQuestionInputValue(value);
+      if (append) {
+        const currentValue = this.questionInput.value || '';
+        const newValue = currentValue + value;
+        this.setQuestionInputValue(newValue);
+      } else {
+        this.setQuestionInputValue(value);
+      }
     }
 
     this.resetInputCheck();
+
+
+    if (send) {
+      this.handleUserChatSubmit(new Event('submit'));
+    }
   }
 
   resetInputCheck() {
@@ -625,6 +653,12 @@ export class ChatComponent extends LitElement {
 
   async handleUserChatSubmit(event: Event): Promise<void> {
     event.preventDefault();
+
+    if (!(this.overrides.avatar || this.overrides.selectedModel)) {
+      console.log('No avatar or model in chat overrides');
+      return;
+    }
+
     this.collapseAside(event);
 
     // Check if user has credits before allowing chat submission
@@ -639,11 +673,11 @@ export class ChatComponent extends LitElement {
         bubbles: true,
         composed: true
       });
-      this.dispatchEvent(noCreditsEvent);      
+      this.dispatchEvent(noCreditsEvent);
 
       return; // Block chat execution
     }
-    
+
     // Minimize AI assist window when submitting input
     if (this.aiAssist && typeof (this.aiAssist as any).toggleMinimize === 'function') {
       // Check if it's currently expanded (not minimized) before minimizing
@@ -658,11 +692,11 @@ export class ChatComponent extends LitElement {
       (this.aiAssist as any).clearPromptWritingTimeout();
     }
 
-    await SubmitHelper.handleSubmit.bind(this)(requestOptions, chatHttpOptions);    
+    await SubmitHelper.handleSubmit.bind(this)(requestOptions, chatHttpOptions);
 
     // Update assist context after user message is sent (but don't trigger analysis yet)
     setTimeout(() => {
-      this.updateAssistContext();      
+      this.updateAssistContext();
     }, 500);
   }
 
@@ -676,9 +710,9 @@ export class ChatComponent extends LitElement {
 
   startLiveChat(event: Event): void {
     event.preventDefault();
-    
 
-    
+
+
     this.showControls = false;
     this.liveChatOn = true;
   }
@@ -696,13 +730,13 @@ export class ChatComponent extends LitElement {
         e.preventDefault();
         return;
       }
-      
+
       // If autocomplete is open, prevent default
       if (this.enterSubmitBlocked) {
         e.preventDefault();
         return;
       }
-      
+
       // Otherwise prevent default since we handle submission on keyup
       e.preventDefault();
     }
@@ -715,12 +749,12 @@ export class ChatComponent extends LitElement {
     if (e instanceof KeyboardEvent && e.key === 'Enter' && !e.shiftKey && this.questionInput.value.trim().length > 0) {
       // Always prevent default Enter behavior since we want Enter to submit, not add newlines
       e.preventDefault();
-      
+
       // Block Enter submission if enter submit is blocked (e.g., autocomplete is open)
       if (this.enterSubmitBlocked) {
         return; // Don't submit, let the blocking component handle the Enter key
       }
-      
+
       this.handleUserChatSubmit(e);
     }
   }
@@ -728,7 +762,7 @@ export class ChatComponent extends LitElement {
   async handlePasteEvent(e: ClipboardEvent): Promise<void> {
     // First handle file pasting through FilesHelper
     await FilesHelper.onPaste.bind(this)(e);
-    
+
     // Then handle text auto-resize after a short delay to ensure paste content is processed
     setTimeout(() => {
       this.autoResizeTextarea();
@@ -741,19 +775,19 @@ export class ChatComponent extends LitElement {
 
     // Reset height to auto to get the correct scrollHeight
     this.questionInput.style.height = 'auto';
-    
+
     // Get the computed styles to access min and max height from CSS
     const computedStyle = getComputedStyle(this.questionInput);
     const minHeight = parseInt(computedStyle.minHeight) || 40;
     const maxHeight = parseInt(computedStyle.maxHeight) || 120;
-    
+
     // Calculate the new height based on content
     const scrollHeight = this.questionInput.scrollHeight - 10;
     const newHeight = Math.min(Math.max(scrollHeight, minHeight), maxHeight);
-    
+
     // Set the new height
     this.questionInput.style.height = `${newHeight}px`;
-    
+
     // If content exceeds max height, enable scrolling
     if (scrollHeight > maxHeight) {
       this.questionInput.style.overflowY = 'auto';
@@ -775,7 +809,7 @@ export class ChatComponent extends LitElement {
         code.ended = true;
         code.preview = this.showCode.preview;
       }
-      this.showCode = { ...this.showCode, ...code };      
+      this.showCode = { ...this.showCode, ...code };
     } else {
       this.showCode = code;
     }
@@ -811,7 +845,7 @@ export class ChatComponent extends LitElement {
       this.chatThread =
         index > -1
           ? newListWithEntryAtIndex(this.chatThread, index, processingEntry)
-          : [...this.chatThread, processingEntry];
+          : [...this.chatThread, processingEntry];   
 
       // Signal to AI assist that LLM is streaming (don't update context during streaming to avoid infinite loops)
       if (this.aiAssist && typeof (this.aiAssist as any).setLLMStreaming === 'function') {
@@ -856,7 +890,7 @@ export class ChatComponent extends LitElement {
     return KeyboardShortcutsHelper.getShortcuts();
   }
 
-  toggleTalk(value: 0 | 1 | 2) {    
+  toggleTalk(value: 0 | 1 | 2) {
     this.isTalking = value;
   }
 
@@ -882,7 +916,7 @@ export class ChatComponent extends LitElement {
       this.questionInput.dispatchEvent(new Event('input', { bubbles: true }));
       this.autoResizeTextarea();
       this.resetInputCheck(); // Ensure reset button appears
-      
+
       // Do NOT call SubmitHelper.handleSubmit - let user review and submit manually
     }
 
@@ -908,14 +942,14 @@ export class ChatComponent extends LitElement {
         this.aiAssistantSignal?.setValue({
           command: 'attach_file',
           payload: suggestion.kdb
-        });        
-        
-        this.dispatchEvent(new CustomEvent('selectionChanged', {          
+        });
+
+        this.dispatchEvent(new CustomEvent('selectionChanged', {
           detail: { selectedIds: suggestion.kdb ? [suggestion.kdb.kdbId.toString()] : [] },
           bubbles: true,
           composed: true
         }));
-        
+
       } else {
         // For all text suggestions, use the no-auto-submit flow
         this.questionInput.value = text;
@@ -926,7 +960,7 @@ export class ChatComponent extends LitElement {
         this.questionInput.dispatchEvent(new Event('input', { bubbles: true }));
         this.autoResizeTextarea();
         this.resetInputCheck(); // Ensure reset button appears
-        
+
         // NO AUTO-SUBMIT - let user review and submit manually
       }
     }
@@ -952,10 +986,10 @@ export class ChatComponent extends LitElement {
   removeStyle(event: Event, styleId: string) {
     event.preventDefault();
     event.stopPropagation();
-    
+
     // Remove the style from selectedStyles array
     this.selectedStyles = this.selectedStyles.filter(style => style.id !== styleId);
-    
+
     // Emit custom event to notify about style removal
     const removeStyleEvent = new CustomEvent('chat:remove:style', {
       detail: { styleId },
@@ -963,7 +997,7 @@ export class ChatComponent extends LitElement {
       composed: true
     });
     this.dispatchEvent(removeStyleEvent);
-    
+
     // Force a re-render to update the UI
     this.requestUpdate();
   }
@@ -971,13 +1005,13 @@ export class ChatComponent extends LitElement {
   removeProject(event: Event, projectId: string) {
     event.preventDefault();
     event.stopPropagation();
-    
+
     // Remove the project from selectedProjects array
     this.selectedProjects = this.selectedProjects.filter(project => project.id !== projectId);
-    
+
     // Notify knowledge picker about project removal
     this.notifyKnowledgePickerOfProjectRemoval(projectId);
-    
+
     // Emit custom event to notify about project removal
     const removeProjectEvent = new CustomEvent('chat:remove:project', {
       detail: { projectId },
@@ -985,7 +1019,7 @@ export class ChatComponent extends LitElement {
       composed: true
     });
     this.dispatchEvent(removeProjectEvent);
-    
+
     // Force a re-render to update the UI
     this.requestUpdate();
   }
@@ -1019,19 +1053,19 @@ export class ChatComponent extends LitElement {
   private handleKnowledgeSelectionChanged(event: Event) {
     const customEvent = event as CustomEvent<{ selectedIds: string[], fullKnowledgeIds?: string[], selectedKnowledge: any[] }>;
     const { selectedIds, fullKnowledgeIds } = customEvent.detail;
-    
+
     // Update the selectedKnowledge array with knowledge IDs (not project IDs)
     this.selectedKnowledge = selectedIds || [];
-    this.fullKnowledgeIds = fullKnowledgeIds || [];        
+    this.fullKnowledgeIds = fullKnowledgeIds || [];
   }
 
   handleKnowledgePickerChange(event: CustomEvent) {
     const { selectedIds, fullKnowledgeIds, selectedKnowledge } = event.detail;
-    
+
     // Update the selectedKnowledge array with knowledge IDs
     this.selectedKnowledge = selectedIds || [];
     this.fullKnowledgeIds = fullKnowledgeIds || [];
-    
+
     // Emit custom event for the main chat page to handle knowledge updates
     const kdbPickEvent = new CustomEvent('kdbPick', {
       detail: { selectedIds, fullKnowledgeIds, selectedKnowledge },
@@ -1039,14 +1073,14 @@ export class ChatComponent extends LitElement {
       composed: true
     });
     this.dispatchEvent(kdbPickEvent);
-    
+
     // Emit custom event for other components that might need to know about knowledge selection
     const knowledgeChangeEvent = new CustomEvent('knowledge:selection:changed', {
       detail: { selectedIds, fullKnowledgeIds, selectedKnowledge },
       bubbles: true,
       composed: true
     });
-    this.dispatchEvent(knowledgeChangeEvent);    
+    this.dispatchEvent(knowledgeChangeEvent);
   }
 
   override render() {

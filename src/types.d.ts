@@ -19,6 +19,7 @@ declare interface ChatThreadEntry {
   tools?: { name: string, data: Record<string, any> }[];
   followupQuestions?: string[];
   isUserMessage: boolean;
+  hidden?: boolean;
   timestamp: number;
   error?: {
     message: string;
@@ -117,6 +118,7 @@ declare interface RequestOverrides {
   writingStyle?: string[];
   chatSettings?: IChatSettings;
   promptSlots?: IPromptSlotsContent;
+  tutorialSection?: string | number;
 }
 
 declare type MessageRole = 'system' | 'user' | 'assistant' | 'function';
@@ -140,6 +142,7 @@ declare interface MessageFile {
 declare interface Message {
   role: MessageRole;
   content: string | MessageContent[];
+  hidden?: boolean;
   files?: MessageFile[];
 }
 

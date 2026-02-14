@@ -154,6 +154,11 @@ export async function parseStreamedMessages({
       try {
         updatedEntry = updateToolsEntry({ tool: chunk.tool, chatEntry: updatedEntry });
         onVisit(updatedEntry);
+        (host as any).dispatchEvent(new CustomEvent('chat:tool:detected', {
+          bubbles: true,
+          composed: true,
+          detail: { tool: chunk.tool }
+        }));
       } catch (e) {
         // Error parsing tool chunk
       }

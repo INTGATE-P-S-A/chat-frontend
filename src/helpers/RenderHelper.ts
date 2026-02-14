@@ -152,13 +152,13 @@ export class RenderHelper {
               
             </div>
 
-            ${globalConfig.WEB_SEARCH_CHECKBOX_ENABLED
+            ${globalConfig.WEB_SEARCH_CHECKBOX_ENABLED && !this.compact
           ? html`<div class="web-search__wrapper">                  
-                  <simple-model-select
+                  ${(!this.compact ? html`<simple-model-select
                     name="bot"                         
                     value="${this.overrides.selectedModel ? this.overrides.selectedModel.model.value : (this.overrides.avatar ? this.overrides.avatar : (this.externalSelectedModel ? this.externalSelectedModel.model?.value : (this.externalSelectedAvatar ? this.externalSelectedAvatar.id : null)))}"
                     @model:selected="${HandlerHelper.handleModelSelected.bind(this)}">
-                  </simple-model-select> 
+                  </simple-model-select> ` : '')}
                   ${this.currentUser?.accountGrade?.advancedPrompts ? html`<div class="web-search__container">
                     <input
                       type="checkbox"
@@ -202,21 +202,16 @@ export class RenderHelper {
               : ''}
                   ${RenderHelper.renderExtraInputFooterButtons.bind(this, globalConfig)()}
                 </div>`
-          : html`
+          : !this.compact ? (html`
                 <div class="web-search__wrapper">
                   <simple-model-select
                     name="bot"                         
                         value="${this.overrides.selectedModel ? this.overrides.selectedModel.model.value : (this.overrides.avatar ? this.overrides.avatar : null)}"
                         @model:selected="${HandlerHelper.handleModelSelected.bind(this)}">
                   </simple-model-select>  
-                  <button 
-                    class="fullscreen-toggle-btn ${this.isFullscreen ? 'simple-icon-close' : 'simple-icon-size-fullscreen'}"
-                    @click="${HandlerHelper.handleFullscreenToggle.bind(this)}"
-                    title="${this.isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}"
-                    ?disabled="${this.isDisabled}"
-                  ></button>
+               
                   ${RenderHelper.renderExtraInputFooterButtons.bind(this, globalConfig)()}
-                </div>`}
+                </div>`): ''}
 
             ${this.isDefaultPromptsEnabled
           ? ''
@@ -381,7 +376,7 @@ export class RenderHelper {
   }
 
   static aiAssistRender(this: ChatComponent) {    
-    if (!this.currentUser?.accountGrade?.promptAssist || this.chatSettings.enableAIAssistant === false) {      
+    if (!this.currentUser?.accountGrade?.promptAssist || this.chatSettings.enableAIAssistant === false || this.compact) {      
       return html``;
     }
     return html`<ai-assist id="ai-assist-component"></ai-assist>`;

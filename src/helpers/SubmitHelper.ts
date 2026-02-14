@@ -4,7 +4,7 @@ import { FilesHelper } from "./FilesHelper";
 import { HandlerHelper } from "./HandlerHelper";
 
 export class SubmitHelper {
-    static async handleSubmit(this: ChatComponent, requestOptions: any, chatHttpOptions: any): Promise<void> {        
+    static async handleSubmit(this: ChatComponent, requestOptions: any, chatHttpOptions: any): Promise<void> {
 
         // Close all existing code-viewers before sending new message
         this.dispatchEvent(new CustomEvent('chat:message:sending', {
@@ -12,7 +12,8 @@ export class SubmitHelper {
             composed: true
         }));
 
-        const question = DOMPurify.sanitize(this.questionInput.value);
+        // Get the current question directly from the textarea to ensure we have the latest value
+        const question = DOMPurify.sanitize(this.questionInput.value || '');        
 
         // Clear the form and uploaded files immediately after clicking send
         this.questionInput.value = '';
@@ -65,7 +66,7 @@ export class SubmitHelper {
             // Build the new user message with multimodal content if files are present
             let userMessage: Message;
             let contentArray: any[] = [];
-            
+
             if (filesToProcess.length > 0) {
                 // Add text content if we have a question
                 if (question.trim()) {
@@ -105,14 +106,23 @@ export class SubmitHelper {
                     content: question,
                     role: 'user'
                 };
+            }            
+
+            // Handle hidden messages
+            if (this.currentQuestionHidden) {
+                userMessage.hidden = true;
+                this.currentQuestionHidden = false; // Reset immediately after setting
+                console.log('Hidden message sent, currentQuestionHidden reset to false');
             }
 
 
-            if(this.promptSlots?.value){
+            if (this.promptSlots?.value) {
                 this.overrides.promptSlots = this.promptSlots.value;
             }
-            
+
             const messagesWithNewInput = [...currentMessages, userMessage];
+
+            console.log('Constructed user message:', userMessage, this.currentQuestionHidden);
 
             const requestOverrides = {
                 ...requestOptions.overrides,
@@ -125,6 +135,11 @@ export class SubmitHelper {
             };
 
             HandlerHelper.handleDiscussionUserTurn.bind(this)(messagesWithNewInput);
+
+            console.log('Submitting message with options:', {
+                requestOptions,
+                userMessage
+            });
 
             await this.chatController.generateAnswer(
                 {

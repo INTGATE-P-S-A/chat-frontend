@@ -33,7 +33,7 @@ export class RenderThreadHelper {
       </div>
       <ul class="chat__list" aria-live="assertive">
         ${this.chatThread.map(
-          (message, index) => RenderThreadHelper.renderMessage.bind(this)(message, index, currentConfig)
+          (message, index) => message.hidden ? '' : RenderThreadHelper.renderMessage.bind(this)(message, index, currentConfig)
         )}
         ${RenderThreadHelper.renderPendingReasoning.bind(this)()}
         </ul>
