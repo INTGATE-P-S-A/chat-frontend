@@ -426,6 +426,11 @@ export const styles = css`
     padding: 0;
     margin: 0;
   }
+
+  .chat__txt--entry file-card {
+    margin-bottom: 15px;   
+    display: block; 
+  }
   .chat__txt--info {
     font-size: 0.75rem;
     color: #6c757d;
