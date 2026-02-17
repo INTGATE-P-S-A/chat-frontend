@@ -211,6 +211,7 @@ declare interface IChatSettings {
   enableAIAssistant: boolean;
   temperature?: number;
   maxTokens?: number | null;
+  extendedContext?: boolean;
 }
 
 declare interface IRWSAiAssistComponent extends HTMLElement {
