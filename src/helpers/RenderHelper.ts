@@ -152,6 +152,8 @@ export class RenderHelper {
               
             </div>
 
+            ${ console.log({ cmp: this.compact}) }
+
             ${globalConfig.WEB_SEARCH_CHECKBOX_ENABLED && !this.compact
           ? html`<div class="web-search__wrapper">                  
                   ${(!this.compact ? html`<simple-model-select
