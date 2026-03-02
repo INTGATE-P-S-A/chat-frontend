@@ -44,7 +44,9 @@ const DEFAULT_CHAT_SETTINGS: IChatSettings = {
   chatLearning: false,
   enableAIAssistant: true,
   temperature: 0.7,
-  maxTokens: null
+  maxTokens: null,
+  extendedContext: false,
+  thinking: true
 }
 
 @customElement('chat-component')

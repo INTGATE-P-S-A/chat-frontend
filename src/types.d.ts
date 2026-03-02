@@ -212,6 +212,7 @@ declare interface IChatSettings {
   temperature?: number;
   maxTokens?: number | null;
   extendedContext?: boolean;
+  thinking?: boolean;
 }
 
 declare interface IRWSAiAssistComponent extends HTMLElement {
