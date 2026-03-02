@@ -122,7 +122,7 @@ export class LineBreakRule extends BufferingRule {
         }
         
         // Default: convert newline to <br/>
-        return '';
+        return '\n';
       });
       
       return this.createCompleteMatch(
@@ -230,7 +230,7 @@ export class LineBreakRule extends BufferingRule {
           return '\n';
         }
         
-        return '';
+        return '\n';
       }
     };
   }
