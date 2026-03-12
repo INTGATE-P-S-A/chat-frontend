@@ -54,7 +54,7 @@ export class CitationListComponent extends LitElement {
               <li class="items__listItem${index === this.highlightedCitation ? ' highlighted' : ''}">
                 <a
                   class="items__link"
-                  href="${citation.text}"
+                  href="${citation.url}"
                   target="_blank"
                   data-testid="citation"                  
                   >${index + 1}. ${citation.text}</a>
