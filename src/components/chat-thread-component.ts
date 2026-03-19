@@ -7,6 +7,7 @@ import { globalConfig } from '../config/global-config.js';
 import { addIconSheet, chatEntryToString, chatEntryToHtmlString } from '../utils/index.js';
 
 import './citation-list.js';
+import { CitationListComponent } from './citation-list.js';
 import './chat-action-button.js';
 import './loading-indicator.js';
 import './reasoning-viewer.js';
@@ -70,6 +71,7 @@ export class ChatThreadComponent extends LitElement {
   private scrollTimeout: any = null;
   private debounceScrollTimeout: any = null;
   private streamingScrollTimeout: any = null;
+  private isProgrammaticScroll = false;
 
   override async connectedCallback() {
     super.connectedCallback();
@@ -82,6 +84,7 @@ export class ChatThreadComponent extends LitElement {
     // Set up scroll listener after component is rendered
     this.updateComplete.then(() => {
       this.setupScrollListener();
+      this.setupCitationClickListener();
     });
 
     // Listen for code-viewer close others events
@@ -137,7 +140,11 @@ export class ChatThreadComponent extends LitElement {
     const isAtBottom = scrollContainer.scrollHeight - scrollContainer.scrollTop - scrollContainer.clientHeight < threshold;
     const distanceFromBottom = scrollContainer.scrollHeight - scrollContainer.scrollTop - scrollContainer.clientHeight;
     
-
+    // Ignore scroll events triggered by programmatic scrolling
+    if (this.isProgrammaticScroll) {
+      this.isProgrammaticScroll = false;
+      return;
+    }
     
     // Clear any pending scroll timeout
     if (this.scrollTimeout) {
@@ -146,17 +153,13 @@ export class ChatThreadComponent extends LitElement {
     
     // During streaming, immediately update scroll state
     if (this.isProcessingResponse) {
-      const previousState = this.isUserScrolledUp;
       this.isUserScrolledUp = !isAtBottom;
-    
       return;
     }
     
     // Set a timeout for non-streaming scenarios
     this.scrollTimeout = setTimeout(() => {
-      const previousState = this.isUserScrolledUp;
       this.isUserScrolledUp = !isAtBottom;
-    
     }, 100);
   }
 
@@ -247,11 +250,8 @@ export class ChatThreadComponent extends LitElement {
   private performActualScroll(): void {
     const scrollContainer = this.shadowRoot?.querySelector('#chat__thread-container ul.chat__list');
     if (scrollContainer) {
-      const beforeScrollTop = scrollContainer.scrollTop;
-      const scrollHeight = scrollContainer.scrollHeight;
+      this.isProgrammaticScroll = true;
       scrollContainer.scrollTop = scrollContainer.scrollHeight;
- 
-    } else {
     }
   }
 
@@ -314,6 +314,7 @@ export class ChatThreadComponent extends LitElement {
   public forceScrollToBottom(): void {
     const scrollContainer = this.shadowRoot?.querySelector('#chat__thread-container ul.chat__list');
     if (scrollContainer) {
+      this.isProgrammaticScroll = true;
       scrollContainer.scrollTop = scrollContainer.scrollHeight;
     }
   }
@@ -423,6 +424,37 @@ ${htmlResponse}
       if (viewerId !== excludeId && (viewer as any).isCodeVisible) {
         (viewer as any).hideCode();
       }
+    });
+  }
+
+  private setupCitationClickListener(): void {
+    const chatList = this.shadowRoot?.querySelector('#chat__thread-container ul.chat__list');
+    if (!chatList) return;
+
+    chatList.addEventListener('click', (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (!target.matches('sup.citation')) return;
+
+      const refNumber = parseInt(target.textContent || '', 10);
+      if (isNaN(refNumber)) return;
+
+      // Find the closest message <li>, then its citation-list
+      const messageLi = target.closest('li.chat__listItem');
+      if (!messageLi) return;
+
+      const citationList = messageLi.querySelector('citation-list') as CitationListComponent | null;
+      if (!citationList) return;
+
+      // Highlight the citation (0-based index)
+      citationList.highlight(refNumber - 1);
+
+      // Scroll the citation list into view
+      citationList.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+      // Clear highlight after the blink animation
+      setTimeout(() => {
+        citationList.highlight(-1);
+      }, 3000);
     });
   }
 

@@ -514,6 +514,11 @@ export const styles = css`
     border-radius: 3px;
     padding: calc(var(--d-small) / 5);
     margin-left: 3px;
+    cursor: pointer;
+  }
+  .citation:hover {
+    background-color: var(--c-accent-high);
+    color: var(--c-white);
   }
 
   .tool-entry {
