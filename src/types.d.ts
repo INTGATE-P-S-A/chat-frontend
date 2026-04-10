@@ -5,6 +5,10 @@ declare interface ChatHttpOptions {
   signal: AbortSignal;
   headers?: Record<string, string>;
 }
+
+declare interface Window {
+  rws_currentUser: IRWSUser | null;
+}
 declare interface ChatMessageText {
   value: string;
   followingSteps?: string[];
@@ -54,6 +58,7 @@ declare interface IRWSUser {
   accountBalance: {
     credits: number;
   };
+  role: string;
   accountGrade: {
     advancedPrompts: boolean;
     promptAssist: boolean;

@@ -58,6 +58,8 @@ export async function callHttpApi(
     requestMessages = [userMessage];
   }
 
+  console.log({mergedHeaders});
+
   return await fetch(`${url}/${type}`, {
     method: method,
     headers: mergedHeaders,

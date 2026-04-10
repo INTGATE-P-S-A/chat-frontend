@@ -47,6 +47,9 @@ export class ChatThreadComponent extends LitElement {
   @property({ type: Object })
   customConfig: Record<string, string> = {};
 
+  @property({ type: Object })
+  customHeaders: Record<string, string> = {};
+
   @state()
   isResponseCopied = false;
 
@@ -549,7 +552,23 @@ ${htmlResponse}
     }
   
     try {      
-      const response = await fetch(`/api/file/${fileId}`, { headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('jwt_token')}` } });
+
+      const headers = { 
+          'Accept': 'application/json',   
+          ...this.customHeaders        
+      } 
+
+      console.log('Current Config in detectTextFile:', currentConfig);
+
+        // if(currentConfig.API_KEY){
+        //   headers['x-api-key'] = currentConfig.API_KEY 
+        // }else{          
+        //   headers['Authorization'] = `Bearer ${localStorage.getItem('jwt_token')}` 
+        // }
+
+      const response = await fetch(`/api/file/${fileId}`, { 
+        headers
+      });
       
       if (!response.ok) {
         return null;

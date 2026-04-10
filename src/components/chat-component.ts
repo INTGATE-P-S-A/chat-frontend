@@ -3,6 +3,12 @@ import { LitElement } from 'lit';
 import DOMPurify from 'dompurify';
 import { customElement, property, query, state } from 'lit/decorators.js';
 
+declare global {
+  interface Window {
+    rws_currentUser: IRWSUser | null;
+  }
+}
+
 import {
   chatHttpOptions,
   globalConfig as mainConfig,
@@ -262,11 +268,14 @@ export class ChatComponent extends LitElement {
 
 
   override firstUpdated() {
-    this.autocompleteTriggers.bindTextarea(this.questionInput);
+    if(this.autocompleteTriggers){
+      this.autocompleteTriggers.bindTextarea(this.questionInput);
+    }    
 
     this.aiAssistCheck();
 
-    this.creditBalanceSignal = (document.querySelector('default-layout') as HTMLElement & { getCreditBalanceSignal: () => IExternalBalanceSignal | null }).getCreditBalanceSignal();
+    this.creditBalanceSignal = (document.querySelector('default-layout') as HTMLElement & { getCreditBalanceSignal: () => IExternalBalanceSignal | null })?.getCreditBalanceSignal();
+    console.log('act', this.creditBalanceSignal);
 
     this.creditBalanceSignal?.value$.subscribe(async (value: number | null) => {
       this.currentBalance = value || 0;
@@ -276,16 +285,18 @@ export class ChatComponent extends LitElement {
       }
     });
 
-    this.autocompleteTriggers.addEventListener('autocomplete:trigger:selected', (event) => {
-      const detail = (event as CustomEvent<{ type: string; id: string; title: string }>).detail;
-      if (detail.type === 'style') {
-        this.selectedStyles.push({ type: detail.type, id: detail.id, title: detail.title });
-      } else if (detail.type === 'project') {
-        this.selectedProjects.push({ type: detail.type, id: detail.id, title: detail.title });
-        // Notify knowledge picker about the selected project
-        this.notifyKnowledgePickerOfProjectSelection(detail.id, detail.title);
-      }
-    });
+    if(this.autocompleteTriggers){
+      this.autocompleteTriggers.addEventListener('autocomplete:trigger:selected', (event) => {
+        const detail = (event as CustomEvent<{ type: string; id: string; title: string }>).detail;
+        if (detail.type === 'style') {
+          this.selectedStyles.push({ type: detail.type, id: detail.id, title: detail.title });
+        } else if (detail.type === 'project') {
+          this.selectedProjects.push({ type: detail.type, id: detail.id, title: detail.title });
+          // Notify knowledge picker about the selected project
+          this.notifyKnowledgePickerOfProjectSelection(detail.id, detail.title);
+        }
+      });
+    }
 
     // Initialize textarea auto-resize
     setTimeout(() => {
@@ -412,7 +423,7 @@ export class ChatComponent extends LitElement {
     });
     this.dispatchEvent(ev);
 
-    this.currentUser = (document.querySelector('default-layout') as HTMLElement & { getCurrentUser: () => IRWSUser | null }).getCurrentUser();
+    this.currentUser = window.rws_currentUser || null;
   }
 
   private aiAssistCheck() {
@@ -602,6 +613,8 @@ export class ChatComponent extends LitElement {
 
     this.resetInputCheck();
 
+    console.log({send});
+
 
     if (send) {
       this.handleUserChatSubmit(new Event('submit'));
@@ -664,7 +677,7 @@ export class ChatComponent extends LitElement {
     this.collapseAside(event);
 
     // Check if user has credits before allowing chat submission
-    if (this.currentBalance <= 0) {
+    if (this.currentUser && this.currentBalance <= 0 && !['super_admin', 'enterprise'].includes(this.currentUser.role)) {
       // Emit popup event using the existing appEvents system
       const noCreditsEvent = new CustomEvent('appEvents.popupShow', {
         detail: {

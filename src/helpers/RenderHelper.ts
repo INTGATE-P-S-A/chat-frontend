@@ -90,7 +90,7 @@ export class RenderHelper {
           >
             ${this.currentUser?.accountGrade?.promptAssist ? RenderHelper.aiAssistRender.bind(this)() : ''}
             ${RenderHelper.filePreviewRender.bind(this)()}
-            ${this.showControls ? html`            ${this.showControls ? html`<div class="input-helper-text">
+            ${this.showControls && !this.compact ? html`            ${this.showControls ? html`<div class="input-helper-text">
               <div class="helper-explanation">
                 <div class="helper-ex-item"><kbd-key noclick="true" small="true">/</kbd-key>${globalConfig.AUTOCOMPLETE_STYLES_HELPER}</div>
                 <div class="helper-ex-item"><kbd-key noclick="true" small="true">#</kbd-key>${globalConfig.AUTOCOMPLETE_PROJECTS_HELPER}</div>
@@ -254,7 +254,7 @@ export class RenderHelper {
   }
 
   static renderAutocomplete(this: ChatComponent, globalConfig: any) {
-    return html`<autocomplete-triggers 
+    return this.compact ? '' : html`<autocomplete-triggers 
       id="prompt-autocomplete-component" 
       route="ai.triggerSearch"
       .selectedNotification="${{
@@ -297,6 +297,7 @@ export class RenderHelper {
       .conversationTitle="${this.overrides.conversationTitle}"
       .conversationUid="${this.overrides.conversationUid}"
       .customConfig="${this.customConfig}"
+      .customHeaders="${this.customHeaders}"
       .isTalking="${this.isTalking}"
       .upperLoader="${this.upperLoader}"
       .showInitialMessagesReasoningClosed="${true}"
