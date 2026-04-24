@@ -132,6 +132,7 @@ declare interface MessageContent {
   type: 'text' | 'image';
   text?: string;
   image?: string;
+  mimeType?: string;
 }
 
 declare interface MessageFile {

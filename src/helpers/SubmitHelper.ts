@@ -81,7 +81,8 @@ export class SubmitHelper {
                 for (const file of imageFiles) {
                     contentArray.push({
                         type: 'image',
-                        image: file.base64 // This should already be in data URI format
+                        image: file.base64,
+                        mimeType: file.mimeType
                     });
                 }
 
