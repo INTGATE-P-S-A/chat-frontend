@@ -538,26 +538,26 @@ export class ChatController implements ReactiveController {
   }
 
   async cancelRequest() {
+    // Save the request ID before aborting, since abort triggers clear() which nulls it
+    const requestId = this._currentRequestId;
+
     // First abort the local stream
     this._abortController.abort();
     
-    // If we have a request ID, dispatch an event to the parent RWS component
-    if (this._currentRequestId) {
-      const hostElement = this.host as any;
-      
-      // Dispatch event to RWS chat component
-      const cancelEvent = new CustomEvent('chat:cancel-request', {
-        detail: { requestId: this._currentRequestId },
-        bubbles: true,
-        composed: true
-      });
-      
-      if (hostElement.dispatchEvent) {
-        hostElement.dispatchEvent(cancelEvent);
-      }
-      
-      this._currentRequestId = null;
+    // Dispatch cancel event to the parent RWS component
+    const hostElement = this.host as any;
+    
+    const cancelEvent = new CustomEvent('chat:cancel-request', {
+      detail: { requestId },
+      bubbles: true,
+      composed: true
+    });
+    
+    if (hostElement.dispatchEvent) {
+      hostElement.dispatchEvent(cancelEvent);
     }
+    
+    this._currentRequestId = null;
     
     // Cancel WebSocket connection if active
     if (webSocketManager.socket && webSocketManager.isConnected) {
