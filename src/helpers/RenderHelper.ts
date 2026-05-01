@@ -166,7 +166,6 @@ export class RenderHelper {
                       id="adv-prompt-checkbox"
                       .checked="${this.advancedPromptingEnabled}"
                       @change="${HandlerHelper.handleAdvancedPromptingChange.bind(this)}"
-                      ?disabled="${this.isDisabled}"
                     />
                     <label class="web-search__label" for="adv-prompt-checkbox">
                       ${globalConfig.ADV_PROMPT_CHECKBOX_LABEL}
@@ -178,8 +177,7 @@ export class RenderHelper {
                       class="web-search__checkbox"
                       id="web-search-checkbox"
                       .checked="${this.webSearchEnabled}"
-                      @change="${HandlerHelper.handleWebSearchChange.bind(this)}"              
-                      ?disabled="${this.isDisabled}"
+                      @change="${HandlerHelper.handleWebSearchChange.bind(this)}"
                     />
                     <label class="web-search__label" for="web-search-checkbox">
                       ${globalConfig.WEB_SEARCH_CHECKBOX_LABEL}
@@ -193,7 +191,6 @@ export class RenderHelper {
                           id="deep-search-checkbox"
                           .checked="${this.deepSearchEnabled}"
                           @change="${HandlerHelper.handleDeepSearchChange.bind(this)}"
-                          ?disabled="${this.isDisabled}"
                         />
                         <label class="web-search__label" for="deep-search-checkbox">
                           ${globalConfig.DEEP_SEARCH_CHECKBOX_LABEL}
@@ -246,8 +243,7 @@ export class RenderHelper {
       class="chatbox__file_prompt"
       data-testid="submit-prompt-button"
       type="button"
-      @click="${FilesHelper.handleAddFile.bind(this)}"      
-      ?disabled="${this.isDisabled}"
+      @click="${FilesHelper.handleAddFile.bind(this)}"
     >
       <rws-tooltip side="left" text="${globalConfig.TOOLTIPS.ATTACH_FILE_TO_PROMPT}"><i class="simple-icon-paper-clip"></i></rws-tooltip>
     </button></div>`;
@@ -354,7 +350,9 @@ export class RenderHelper {
           <i class="simple-icon-close"></i>
         </button></rws-tooltip>`;
 
-    return this.chatController.isProcessingResponse ? cancelChatButton : submitChatButton;
+    return this.chatController.isProcessingResponse
+      ? html`${cancelChatButton}${submitChatButton}`
+      : submitChatButton;
   }
 
   static renderExtraInputFooterButtons(this: ChatComponent, globalConfig: any) {

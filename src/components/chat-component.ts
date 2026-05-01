@@ -674,6 +674,13 @@ export class ChatComponent extends LitElement {
       return;
     }
 
+    // If currently streaming, cancel the active request before sending new one
+    if (this.chatController.generatingAnswer || this.chatController.isProcessingResponse) {
+      this.chatController.cancelRequest();
+      // Wait briefly for cancellation to process
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
     this.collapseAside(event);
 
     // Check if user has credits before allowing chat submission
@@ -851,7 +858,8 @@ export class ChatComponent extends LitElement {
 
   override willUpdate(): void {
     const currentGeneratingAnswer = this.chatController.generatingAnswer;
-    this.isDisabled = currentGeneratingAnswer;
+    // Disable input only while awaiting response (before streaming starts)
+    this.isDisabled = this.chatController.isAwaitingResponse && !this.chatController.isProcessingResponse;
 
     if (this.chatController.processingMessage) {
       const processingEntry = this.chatController.processingMessage as ChatThreadEntry;
