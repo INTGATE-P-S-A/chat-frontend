@@ -13,7 +13,7 @@ export class LoadingIndicatorComponent extends LitElement {
 
   override render() {
     return html`
-      <p data-testid="loading-indicator" aria-label="${this.label}">
+      <p data-testid="loading-indicator" class="loading-spinner" aria-label="${this.label}">
         <span>${unsafeSVG(iconSpinner)}</span>
         <span>${this.label}</span>
       </p>

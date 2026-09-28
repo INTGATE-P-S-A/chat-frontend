@@ -32,9 +32,12 @@ export class RenderThreadHelper {
         ></button>
       </div>
       <ul class="chat__list" aria-live="assertive">
-        ${this.chatThread.map(
+      ${this.chatThread.length === 1 && this.chatThread[0] === undefined ? html`` : 
+        this.chatThread.map(
           (message, index) => message.hidden ? '' : RenderThreadHelper.renderMessage.bind(this)(message, index, currentConfig)
-        )}
+        )
+      }
+        
         ${RenderThreadHelper.renderPendingReasoning.bind(this)()}
         </ul>
       </div>
@@ -44,11 +47,15 @@ export class RenderThreadHelper {
     `;
   }
 
-  static renderMessage(this: ChatThreadComponent, message: ChatThreadEntry, index: number, currentConfig: any) {
+  static renderMessage(this: ChatThreadComponent, message: ChatThreadEntry, index: number, currentConfig: any, pureString: boolean = false) {
     const isLastMessage = index === this.chatThread.length - 1;
     const showLoadingIndicator = this.isProcessingResponse && isLastMessage && !message.isUserMessage;    
-    return html`
-      <li class="chat__listItem ${message.isUserMessage ? 'user-message' : 'ai-message'}">
+
+    if(this.showLoadingIndicator && !showLoadingIndicator){
+      this.showLoadingIndicator = false;
+    }
+
+    return html`<li class="chat__listItem ${message.isUserMessage ? 'user-message' : 'ai-message'}">
         ${!message.isUserMessage ? RenderThreadHelper.renderAiAvatar() : ''}
         
         <div class="message-content">
@@ -56,11 +63,11 @@ export class RenderThreadHelper {
             ${!message.isUserMessage ? RenderThreadHelper.renderReasoningViewer.bind(this)(index, currentConfig) : ''}
 ${message.tools && message.tools.length > 0 ? unsafeHTML(parseTools(message.tools)) : ''}
             ${RenderThreadHelper.renderFiles.bind(this)(message, currentConfig)}
-            ${message.text.map((textEntry) => RenderThreadHelper.renderTextEntry.bind(this)(textEntry, message.isUserMessage))}                      
+            ${message.text.map((textEntry) => RenderThreadHelper.renderTextEntry.bind(this)(textEntry, message.isUserMessage, showLoadingIndicator))}                      
             ${RenderThreadHelper.renderCitation.bind(this)(message, currentConfig)}
             ${RenderThreadHelper.renderFollowupQuestions.bind(this)(message)} 
             ${message.error ? RenderThreadHelper.renderError(message.error) : ''}
-            ${showLoadingIndicator ? html`<loading-indicator label=""></loading-indicator>` : ''}
+            ${this.showLoadingIndicator ? html`<loading-indicator label=""></loading-indicator>` : ''}
           </div>
           <div class="chat__txt--footer">
             <div class="chat__txt--info">                              
@@ -76,8 +83,7 @@ ${message.tools && message.tools.length > 0 ? unsafeHTML(parseTools(message.tool
         </div>
         
         ${message.isUserMessage ? RenderThreadHelper.renderUserAvatar() : ''}
-      </li>
-    `;
+      </li>`;
   }
 
   static renderAiAvatar() {
@@ -134,16 +140,25 @@ ${message.tools && message.tools.length > 0 ? unsafeHTML(parseTools(message.tool
     `;
   }
 
-  static renderTextEntry(this: ChatThreadComponent, textEntry: ChatMessageText, isUserMessage: boolean = false) {
-    // Don't render empty text entries
+  static renderTextEntry(this: ChatThreadComponent, textEntry: ChatMessageText, isUserMessage: boolean = false, isStreaming: boolean = false) {
+    console.log('[renderTextEntry]', { isStreaming, isTyping: this.isTyping, valueLength: textEntry.value?.length, isUserMessage });
+    // While the message is still empty, render a static container so the typer can own
+    // its children without Lit clearing the typed HTML on every parent re-render.
     if (!textEntry.value || textEntry.value.trim() === '') {
-      return '';
+      console.log('[renderTextEntry] returning empty typing container');
+      return html`<div class="chat_txt--entry-container"><p class="chat__txt--entry"></p></div>`;
     }
     
     // Convert newlines to <br/> tags for user messages
     let processedValue = textEntry.value;
     if (isUserMessage) {
       processedValue = textEntry.value.replace(/\n/g, '<br/>');
+    }
+    
+    // While actively typing the AI response, the typer owns the DOM. Render an
+    // empty container so Lit doesn't overwrite the typed HTML on every update.
+    if (isStreaming && this.isTyping && !isUserMessage) {
+      return html`<div class="chat_txt--entry-container"><p class="chat__txt--entry"></p></div>`;
     }
     
     const entries = [html`<p class="chat__txt--entry">${unsafeHTML(processedValue)}</p>`];

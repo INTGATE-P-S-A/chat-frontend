@@ -23,6 +23,7 @@ export class ThreadHelper {
     }
 
     static resetThread(this: ChatComponent, event: Event, forced: boolean = false): void {
+        console.log('[resetThread]', { forced });
         this.isChatStarted = false;
         this.chatThread = [];
         this.isDisabled = false;
@@ -64,6 +65,9 @@ export class ThreadHelper {
         }
 
         const messages: Message[] = this.chatThread.map((entry) => {
+            if(!entry){
+                return { hidden: true, role: 'system', content: '' };
+            }
             const message: Message = {
                 content: entry.isUserMessage ? chatEntryToString(entry) : (entry.rawContent || chatEntryToString(entry)),
                 role: entry.isUserMessage ? 'user' : 'assistant',

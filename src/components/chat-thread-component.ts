@@ -33,6 +33,9 @@ export class ChatThreadComponent extends LitElement {
   isProcessingResponse = false;
 
   @property({ type: Boolean })
+  isTyping = false;
+
+  @property({ type: Boolean })
   showInitialMessagesReasoningClosed = true;
 
   @property({ type: String })
@@ -75,6 +78,8 @@ export class ChatThreadComponent extends LitElement {
   private debounceScrollTimeout: any = null;
   private streamingScrollTimeout: any = null;
   private isProgrammaticScroll = false;
+
+  showLoadingIndicator = true;
 
   override async connectedCallback() {
     super.connectedCallback();
@@ -188,8 +193,8 @@ export class ChatThreadComponent extends LitElement {
     if (changedProperties.has('chatThread') && this.chatThread.length) {
       const oldChatThread = changedProperties.get('chatThread') as ChatThreadEntry[] || [];
       const hasNewMessage = this.chatThread.length > oldChatThread.length;
+      console.log('[thread willUpdate] chatThread changed', { oldLength: oldChatThread.length, newLength: this.chatThread.length, hasNewMessage, isProcessingResponse: this.isProcessingResponse, isTyping: this.isTyping });
       
-  
       
       // Only reset scroll state when a completely new message is added AND we're not actively streaming
       // Don't reset during streaming updates of existing messages or during active processing
@@ -327,6 +332,7 @@ export class ChatThreadComponent extends LitElement {
    * Should be called when starting a new conversation
    */
   public clearAllReasoning(): void {
+    console.log('[clearAllReasoning]');
     // Clear the main chat thread data
     this.chatThread = [];
     
@@ -337,6 +343,7 @@ export class ChatThreadComponent extends LitElement {
     this.isTalking = 0;
     this.upperLoader = false;
     this.isUserScrolledUp = false;
+    this.isTyping = false;
     
     // Clear any pending timeouts
     if (this.scrollTimeout) {

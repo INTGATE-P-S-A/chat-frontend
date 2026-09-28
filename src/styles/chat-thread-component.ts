@@ -51,6 +51,7 @@ export const styles = css`
     justify-content: flex-start;
   }
   .chat__txt {
+    display: block;
     animation: chatmessageanimation 0.5s ease-in-out;
     background-color: white;
     color: #333;
@@ -402,9 +403,9 @@ export const styles = css`
     font-size: 14px;
   }
   .chat__txt loading-indicator {
-    position: absolute;
-    bottom: 0;
-    right: 0;
+    // position: absolute;
+    // bottom: 0;
+    // right: 0;
   }
   .chat__txt.error {
     border: var(--border-base) solid var(--error-color);

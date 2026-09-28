@@ -39,6 +39,8 @@ import { ThreadHelper } from '../helpers/ThreadHelper.js';
 import { HandlerHelper } from '../helpers/HandlerHelper.js';
 import { FilesHelper } from '../helpers/FilesHelper.js';
 import { KeyboardShortcutsHelper } from '../helpers/KeyboardShortcutsHelper.js';
+import { bufferTyping, createCustomTyper, stripHtml, getSafeHtmlPrefix, CustomTyper } from '../utils/bufferTyping.js';
+import { ChatThreadComponent } from './chat-thread-component.js';
 
 let teaserListTexts = configTeaserListTexts;
 let globalConfig = mainConfig;
@@ -89,6 +91,9 @@ export class ChatComponent extends LitElement {
 
   @property({ type: Boolean, attribute: 'data-hide-delete-button', converter: (value) => value === 'true' })
   hideDeleteButton: Boolean = false;
+
+  @property({ type: Boolean, attribute: 'data-text-typing', converter: (value) => value === 'true' })
+  dynamicTextTyping: Boolean = false;
 
   @property({
     type: String, attribute: 'data-selected-model', converter: (value) => {
@@ -260,7 +265,57 @@ export class ChatComponent extends LitElement {
   aiAssistantSignal: IExternalAssistSignal | null = null;
   creditBalanceSignal: IExternalBalanceSignal | null = null;
 
+  private typingBuffer: string[] = [];
+  private customTyper: CustomTyper | null = null;
+  private typedTextLength: number = 0;
+  private lastTypingEntryId: string | null = null;
+  private typerTarget: HTMLElement | null = null;
+  private customTyperDoneCallback: (() => void) | null = null;
+  
   private previousGeneratingAnswer: boolean = false; // Track previous generatingAnswer state
+
+  private deepCloneChatThreadEntry(entry: ChatThreadEntry): ChatThreadEntry {
+    if (typeof (globalThis as any).structuredClone === 'function') {
+      try {
+        return (globalThis as any).structuredClone(entry);
+      } catch {
+        // fall through to JSON clone
+      }
+    }
+    return JSON.parse(JSON.stringify(entry));
+  }
+
+  private handleTyperDone(): void {
+    console.log('[handleTyperDone]', { hasCallback: !!this.customTyperDoneCallback });
+    if (this.customTyperDoneCallback) {
+      this.customTyperDoneCallback();
+    }
+    // Do not reset typing state here; stream end is handled by willUpdate/finalizeTyping.
+  }
+
+  private finalizeTyping(finalEntry: ChatThreadEntry): void {
+    console.log('[finalizeTyping]', { id: finalEntry.id, textLength: finalEntry.text?.[0]?.value?.length });
+    const threadsComponent = this.shadowRoot?.querySelector('chat-thread-component') as ChatThreadComponent;
+    if (threadsComponent) {
+      threadsComponent.isTyping = false;
+    }
+    // Clone the final entry so a later mutation of the controller's processingMessage
+    // does not wipe the persisted message in chatThread.
+    const finalEntryToStore = this.deepCloneChatThreadEntry(finalEntry);
+    const finalIndex = this.chatThread.findIndex((entry) => entry.id === finalEntryToStore.id);
+    this.chatThread =
+      finalIndex > -1
+        ? newListWithEntryAtIndex(this.chatThread, finalIndex, finalEntryToStore)
+        : [...this.chatThread, finalEntryToStore];
+    this.requestUpdate();
+    this.typingBuffer = [];
+    this.customTyper?.destroy();
+    this.customTyper = null;
+    this.typerTarget = null;
+    this.typedTextLength = 0;
+    this.lastTypingEntryId = null;
+    this.customTyperDoneCallback = null;
+  }
 
   static override styles = [chatStyle];
 
@@ -268,9 +323,9 @@ export class ChatComponent extends LitElement {
 
 
   override firstUpdated() {
-    if(this.autocompleteTriggers){
+    if (this.autocompleteTriggers) {
       this.autocompleteTriggers.bindTextarea(this.questionInput);
-    }    
+    }
 
     this.aiAssistCheck();
 
@@ -285,7 +340,7 @@ export class ChatComponent extends LitElement {
       }
     });
 
-    if(this.autocompleteTriggers){
+    if (this.autocompleteTriggers) {
       this.autocompleteTriggers.addEventListener('autocomplete:trigger:selected', (event) => {
         const detail = (event as CustomEvent<{ type: string; id: string; title: string }>).detail;
         if (detail.type === 'style') {
@@ -363,6 +418,50 @@ export class ChatComponent extends LitElement {
         this.chatSettings = DEFAULT_CHAT_SETTINGS;
       }
 
+    }
+
+    // Stream text with custom typer after Lit has rendered the DOM
+    if (this.dynamicTextTyping && this.chatController.processingMessage && this.chatController.generatingAnswer) {
+      const threadsComponent = this.shadowRoot?.querySelector('chat-thread-component') as ChatThreadComponent;
+      const messageArea = threadsComponent?.shadowRoot?.querySelector('.ai-message:last-child .chat__txt--entry') as HTMLElement;
+
+      console.log('[updated] typing block', { generatingAnswer: this.chatController.generatingAnswer, processingMessageExists: !!this.chatController.processingMessage, messageAreaFound: !!messageArea, typedTextLength: this.typedTextLength });
+
+      if (messageArea) {
+        const fullText = this.chatController.processingMessage.text[0]?.value || '';
+        const targetChanged = messageArea !== this.typerTarget;
+        const isNewTarget = targetChanged || !this.customTyper;
+
+        if (isNewTarget) {
+          // Reconnect to a new or recreated DOM element and restore text typed so far.
+          const alreadyTyped = getSafeHtmlPrefix(fullText, this.typedTextLength);
+          this.customTyper?.destroy();
+          messageArea.innerHTML = alreadyTyped;
+          this.customTyper = createCustomTyper(messageArea, {
+            startAfterChars: 0,
+            charIntervalMs: 25,
+            onDone: () => this.handleTyperDone(),
+            onFlush: (typedText) => {
+              this.typedTextLength = typedText.length;
+            }
+          });
+          this.customTyper.setTypedText(alreadyTyped);
+          this.typerTarget = messageArea;
+        } else if (this.customTyper && messageArea.textContent !== stripHtml(this.customTyper.getTypedText())) {
+          // Lit re-render or another effect cleared the element; re-sync from the typer.
+          messageArea.innerHTML = this.customTyper.getTypedText();
+        }
+
+        const delta = fullText.slice(this.typedTextLength);
+
+        if (delta) {
+          console.log('[updated] typing delta', { deltaLength: delta.length, fullTextLength: fullText.length });
+          bufferTyping(this.customTyper, delta);
+        }
+
+        // Keep scroll pinned to bottom while typing
+        threadsComponent?.ensureAutoScroll();
+      }
     }
   }
 
@@ -600,7 +699,7 @@ export class ChatComponent extends LitElement {
     if (hidden) {
       this.currentQuestion = value;
       this.questionInput.value = value; // Also set textarea value for hidden messages
-      this.currentQuestionHidden = true;    
+      this.currentQuestionHidden = true;
     } else {
       if (append) {
         const currentValue = this.questionInput.value || '';
@@ -613,7 +712,7 @@ export class ChatComponent extends LitElement {
 
     this.resetInputCheck();
 
-    console.log({send});
+    console.log({ send });
 
 
     if (send) {
@@ -644,6 +743,9 @@ export class ChatComponent extends LitElement {
   }
 
   getMessageContext(): Message[] {
+    if (this.chatThread.length === 1 && this.chatThread[0] === undefined) {
+      this.chatThread = [];
+    }
     return ThreadHelper.getMessageContext.bind(this)();
   }
 
@@ -863,12 +965,65 @@ export class ChatComponent extends LitElement {
 
     if (this.chatController.processingMessage) {
       const processingEntry = this.chatController.processingMessage as ChatThreadEntry;
+
+      if ((this.chatThread.length === 1 && this.chatThread[0] === undefined) || !processingEntry || !processingEntry.id) {
+        return;
+      }
+
       const index = this.chatThread.findIndex((entry) => entry.id === processingEntry.id);
 
-      this.chatThread =
-        index > -1
-          ? newListWithEntryAtIndex(this.chatThread, index, processingEntry)
-          : [...this.chatThread, processingEntry];   
+      const threadsComponent = this.shadowRoot?.querySelector('chat-thread-component') as ChatThreadComponent;
+
+      // Reset typer state when a new processing message starts
+      if (this.dynamicTextTyping && this.lastTypingEntryId !== processingEntry.id) {
+        console.log('[willUpdate] new processing message -> reset typer', { id: processingEntry.id, lastTypingEntryId: this.lastTypingEntryId });
+
+        // If the previous placeholder is still empty, replace it instead of stacking a new one.
+        const prevIndex = this.chatThread.findIndex((entry) => entry.id === this.lastTypingEntryId);
+        const prevEntry = prevIndex > -1 ? this.chatThread[prevIndex] : null;
+        const prevEmpty = !prevEntry || prevEntry.text.every((t) => !t.value);
+
+        this.lastTypingEntryId = processingEntry.id;
+        this.typedTextLength = 0;
+        this.customTyper = null;
+        this.typerTarget = null;
+
+        // Mark thread as typing so it renders an empty container for the typer
+        if (threadsComponent) {
+          threadsComponent.isTyping = true;
+        }
+
+        // Prevent loading-indicator re-renders from replacing the TypeIt target element
+        if (threadsComponent && threadsComponent.showLoadingIndicator) {
+          threadsComponent.showLoadingIndicator = false;
+          threadsComponent.requestUpdate();
+        }
+
+        const placeholder = this.deepCloneChatThreadEntry(processingEntry);
+        placeholder.text = placeholder.text.map((t) => ({ ...t, value: '' }));
+
+        if (prevIndex > -1 && prevEmpty) {
+          this.chatThread = newListWithEntryAtIndex(this.chatThread, prevIndex, placeholder);
+        } else {
+          this.chatThread = [...this.chatThread, placeholder];
+        }
+      }
+
+      if (index === -1 && !this.dynamicTextTyping) {
+        // Non-streaming fallback
+        this.chatThread = [processingEntry];
+      }
+
+      if (!this.dynamicTextTyping) {
+        /** 
+         * old chat update
+         * 
+         * */
+        this.chatThread =
+          index > -1
+            ? newListWithEntryAtIndex(this.chatThread, index, processingEntry)
+            : [...this.chatThread, processingEntry];               
+      }
 
       // Signal to AI assist that LLM is streaming (don't update context during streaming to avoid infinite loops)
       if (this.aiAssist && typeof (this.aiAssist as any).setLLMStreaming === 'function') {
@@ -879,9 +1034,24 @@ export class ChatComponent extends LitElement {
 
     // Check if generation just finished (transitioned from true to false)
     if (this.previousGeneratingAnswer && !currentGeneratingAnswer) {
+      console.log('[willUpdate] stream end detected', { dynamicTextTyping: this.dynamicTextTyping, customTyperExists: !!this.customTyper, customTyperDone: this.customTyper?.isDone(), processingMessageId: this.chatController.processingMessage?.id });
       // Signal end of streaming to AI assist
       if (this.aiAssist && typeof (this.aiAssist as any).setLLMStreaming === 'function') {
         (this.aiAssist as any).setLLMStreaming(false);
+      }
+
+      //DONE TYPING
+      if (this.dynamicTextTyping) {
+        // Capture the final entry now so later controller mutations don't erase it.
+        const finalEntry = this.deepCloneChatThreadEntry(this.chatController.processingMessage as ChatThreadEntry);
+        if (this.customTyper && !this.customTyper.isDone()) {
+          // Finish any remaining buffered text and finalize once the typer signals done.
+          console.log('[willUpdate] finishing typer and finalizing');
+          this.customTyperDoneCallback = () => this.finalizeTyping(finalEntry);
+          this.customTyper.finish();
+        } else {
+          this.finalizeTyping(finalEntry);
+        }
       }
 
       // Update context and trigger analysis after LLM response is complete
