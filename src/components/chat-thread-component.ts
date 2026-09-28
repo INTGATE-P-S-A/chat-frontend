@@ -193,7 +193,6 @@ export class ChatThreadComponent extends LitElement {
     if (changedProperties.has('chatThread') && this.chatThread.length) {
       const oldChatThread = changedProperties.get('chatThread') as ChatThreadEntry[] || [];
       const hasNewMessage = this.chatThread.length > oldChatThread.length;
-      console.log('[thread willUpdate] chatThread changed', { oldLength: oldChatThread.length, newLength: this.chatThread.length, hasNewMessage, isProcessingResponse: this.isProcessingResponse, isTyping: this.isTyping });
       
       
       // Only reset scroll state when a completely new message is added AND we're not actively streaming

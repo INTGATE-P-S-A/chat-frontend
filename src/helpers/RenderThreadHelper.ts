@@ -63,7 +63,7 @@ export class RenderThreadHelper {
             ${!message.isUserMessage ? RenderThreadHelper.renderReasoningViewer.bind(this)(index, currentConfig) : ''}
 ${message.tools && message.tools.length > 0 ? unsafeHTML(parseTools(message.tools)) : ''}
             ${RenderThreadHelper.renderFiles.bind(this)(message, currentConfig)}
-            ${message.text.map((textEntry) => RenderThreadHelper.renderTextEntry.bind(this)(textEntry, message.isUserMessage, showLoadingIndicator))}                      
+            ${message.text.map((textEntry) => RenderThreadHelper.renderTextEntry.bind(this)(textEntry, message.isUserMessage, showLoadingIndicator, message.id))}                      
             ${RenderThreadHelper.renderCitation.bind(this)(message, currentConfig)}
             ${RenderThreadHelper.renderFollowupQuestions.bind(this)(message)} 
             ${message.error ? RenderThreadHelper.renderError(message.error) : ''}
@@ -140,13 +140,12 @@ ${message.tools && message.tools.length > 0 ? unsafeHTML(parseTools(message.tool
     `;
   }
 
-  static renderTextEntry(this: ChatThreadComponent, textEntry: ChatMessageText, isUserMessage: boolean = false, isStreaming: boolean = false) {
-    console.log('[renderTextEntry]', { isStreaming, isTyping: this.isTyping, valueLength: textEntry.value?.length, isUserMessage });
+  static renderTextEntry(this: ChatThreadComponent, textEntry: ChatMessageText, isUserMessage: boolean = false, isStreaming: boolean = false, messageId?: string) {
+    const typingTargetId = `typing-target-${messageId || 'unknown'}`;
     // While the message is still empty, render a static container so the typer can own
     // its children without Lit clearing the typed HTML on every parent re-render.
     if (!textEntry.value || textEntry.value.trim() === '') {
-      console.log('[renderTextEntry] returning empty typing container');
-      return html`<div class="chat_txt--entry-container"><p class="chat__txt--entry"></p></div>`;
+      return html`<div class="chat_txt--entry-container"><p class="chat__txt--entry" id="${typingTargetId}"></p></div>`;
     }
     
     // Convert newlines to <br/> tags for user messages
@@ -158,7 +157,7 @@ ${message.tools && message.tools.length > 0 ? unsafeHTML(parseTools(message.tool
     // While actively typing the AI response, the typer owns the DOM. Render an
     // empty container so Lit doesn't overwrite the typed HTML on every update.
     if (isStreaming && this.isTyping && !isUserMessage) {
-      return html`<div class="chat_txt--entry-container"><p class="chat__txt--entry"></p></div>`;
+      return html`<div class="chat_txt--entry-container"><p class="chat__txt--entry" id="${typingTargetId}"></p></div>`;
     }
     
     const entries = [html`<p class="chat__txt--entry">${unsafeHTML(processedValue)}</p>`];

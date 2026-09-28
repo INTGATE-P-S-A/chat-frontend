@@ -1,6 +1,5 @@
 export interface CustomTyperConfig {
-    startAfterChars?: number; // start typing after this many chars have been buffered; 0 = immediately
-    charIntervalMs?: number;  // ms between each typed character
+    charIntervalMs?: number;  // unused, kept for compatibility
     onDone?: () => void;
     onFlush?: (typedText: string) => void;
 }
@@ -12,214 +11,174 @@ export interface CustomTyper {
     getTypedText(): string;
     getBuffer(): string;
     setTypedText(text: string): void;
+    setMessageArea(messageArea: HTMLElement): void;
     finish(): void;
 }
 
-function isPotentialTagStart(text: string, pos: number): boolean {
-    if (pos < 0 || pos >= text.length) {
-        return false;
-    }
-    const next = text[pos + 1];
-    if (next === undefined) {
-        return true;
-    }
-    return /[a-zA-Z\/!]/.test(next);
-}
+class BufferTyper implements CustomTyper {
+    private messageArea: HTMLElement;
+    private config: CustomTyperConfig;
+    private queue: string[] = [];
+    private displayed: string = '';
+    private rafId: number | null = null;
+    private started: boolean = false;
+    private done: boolean = true;
+    private onDoneCalled: boolean = false;
+    private destroyed: boolean = false;
 
-function isPotentialEntity(text: string, pos: number, end: number): boolean {
-    const semi = text.indexOf(';', pos);
-    if (semi !== -1 && semi < end) {
-        return false;
-    }
-    const slice = text.slice(pos + 1, end);
-    return slice.length === 0 || /^[a-zA-Z0-9#]+$/.test(slice);
-}
-
-function getSafeCutEnd(text: string, maxLen: number): number {
-    let end = Math.min(text.length, Math.max(0, maxLen));
-
-    const lastOpen = text.lastIndexOf('<', end - 1);
-    const lastClose = text.lastIndexOf('>', end - 1);
-    if (lastOpen > lastClose && isPotentialTagStart(text, lastOpen)) {
-        end = lastOpen;
+    constructor(messageArea: HTMLElement, config: CustomTyperConfig = {}) {
+        this.messageArea = messageArea;
+        this.config = config;
     }
 
-    const lastAmp = text.lastIndexOf('&', end - 1);
-    if (lastAmp !== -1 && isPotentialEntity(text, lastAmp, end)) {
-        end = lastAmp;
-    }
+    type(text: string): void {
+        if (!text || this.destroyed) {
+            return;
+        }
+        console.log('[bufferTyping] type', { text: JSON.stringify(text), started: this.started, queueLength: this.queue.length });
+        this.done = false;
+        this.onDoneCalled = false;
+        this.queue.push(text);
 
-    return end;
-}
-
-function getNextSafeFlushEnd(text: string, minChars: number): number {
-    const safeEnd = getSafeCutEnd(text, minChars);
-    if (safeEnd > 0) {
-        return safeEnd;
-    }
-
-    const lastOpen = text.lastIndexOf('<', minChars - 1);
-    const lastClose = text.lastIndexOf('>', minChars - 1);
-    if (lastOpen > lastClose && isPotentialTagStart(text, lastOpen)) {
-        const tagEnd = text.indexOf('>', lastOpen);
-        if (tagEnd !== -1) {
-            return tagEnd + 1;
+        if (!this.started) {
+            this.start();
+        } else if (!this.rafId) {
+            this.scheduleTick();
         }
     }
 
-    const lastAmp = text.lastIndexOf('&', minChars - 1);
-    if (lastAmp !== -1 && isPotentialEntity(text, lastAmp, minChars)) {
-        const semi = text.indexOf(';', lastAmp);
-        if (semi !== -1) {
-            return semi + 1;
+    private start(): void {
+        if (this.started) {
+            return;
+        }
+        this.started = true;
+        this.scheduleTick();
+    }
+
+    private scheduleTick(): void {
+        if (this.rafId) {
+            return;
+        }
+        this.rafId = requestAnimationFrame(() => this.tick());
+    }
+
+    private tick(): void {
+        this.rafId = null;
+
+        if (this.queue.length === 0) {
+            this.done = true;
+            this.invokeOnDone();
+            return;
+        }
+
+        this.flush();
+
+        if (this.queue.length > 0) {
+            this.scheduleTick();
+        } else {
+            this.done = true;
+            this.invokeOnDone();
         }
     }
 
-    return 0;
-}
+    private flush(): void {
+        if (this.queue.length === 0) {
+            this.done = true;
+            return;
+        }
 
-export function getSafeHtmlPrefix(html: string, maxLen?: number): string {
-    const end = getSafeCutEnd(html, maxLen ?? html.length);
-    return html.slice(0, end);
-}
+        // Drain one character from the front of the queue in strict order.
+        const chunk = this.queue[0];
+        const char = chunk[0];
+        this.queue[0] = chunk.slice(1);
+        if (this.queue[0].length === 0) {
+            this.queue.shift();
+        }
 
-export function stripHtml(html: string): string {
-    const tmp = document.createElement('div');
-    tmp.innerHTML = html;
-    return tmp.textContent || tmp.innerText || '';
+        this.displayed += char;
+        console.log('[bufferTyping] flush', { char: JSON.stringify(char), displayed: JSON.stringify(this.displayed.slice(-80)), queueLength: this.queue.length });
+        this.messageArea.innerHTML = this.displayed;
+        if (this.config.onFlush) {
+            this.config.onFlush(this.displayed);
+        }
+
+        this.done = this.queue.length === 0;
+    }
+
+    private invokeOnDone(): void {
+        if (!this.onDoneCalled && this.config.onDone) {
+            this.onDoneCalled = true;
+            this.config.onDone();
+        }
+    }
+
+    destroy(): void {
+        console.log('[bufferTyping] destroy');
+        if (this.rafId) {
+            cancelAnimationFrame(this.rafId);
+            this.rafId = null;
+        }
+        this.started = false;
+        this.queue = [];
+        this.displayed = '';
+        this.done = true;
+        this.onDoneCalled = false;
+        this.destroyed = true;
+    }
+
+    isDone(): boolean {
+        return this.done && this.queue.length === 0;
+    }
+
+    getTypedText(): string {
+        return this.displayed;
+    }
+
+    getBuffer(): string {
+        return this.queue.join('');
+    }
+
+    setTypedText(text: string): void {
+        this.displayed = text;
+        this.queue = [];
+        this.done = true;
+        this.messageArea.innerHTML = this.displayed;
+    }
+
+    setMessageArea(messageArea: HTMLElement): void {
+        this.messageArea = messageArea;
+        this.messageArea.innerHTML = this.displayed;
+    }
+
+    finish(): void {
+        console.log('[bufferTyping] finish');
+        if (this.rafId) {
+            cancelAnimationFrame(this.rafId);
+            this.rafId = null;
+        }
+        this.started = false;
+
+        if (this.queue.length > 0) {
+            const remaining = this.queue.join('');
+            this.displayed += remaining;
+            this.queue = [];
+            this.messageArea.innerHTML = this.displayed;
+            if (this.config.onFlush) {
+                this.config.onFlush(this.displayed);
+            }
+        }
+
+        this.done = true;
+        console.log('[bufferTyping] finish invoking onDone');
+        this.invokeOnDone();
+    }
 }
 
 export function createCustomTyper(
     messageArea: HTMLElement,
     config: CustomTyperConfig = {}
 ): CustomTyper {
-    const startAfterChars = config.startAfterChars ?? 0;
-    const charIntervalMs = Math.max(config.charIntervalMs ?? 25, 1);
-
-    // How many characters to write per animation frame to hit the target speed.
-    // At 60fps (~16.7ms/frame), charIntervalMs=25 => ~1 char every 1.5 frames.
-    const charsPerFrame = Math.max(1, Math.round(charIntervalMs / 16));
-    const framesPerFlush = Math.max(1, Math.round(16 / charIntervalMs)) || 1;
-
-    let buffer = '';
-    let displayed = '';
-    let rafId: number | null = null;
-    let started = false;
-    let done = true;
-    let frameCount = 0;
-
-    function flush(charsToWrite: number) {
-        if (buffer.length === 0) {
-            done = true;
-            return;
-        }
-
-        const flushEnd = getNextSafeFlushEnd(buffer, charsToWrite);
-        if (flushEnd <= 0) {
-            return;
-        }
-
-        const flushable = buffer.slice(0, flushEnd);
-        buffer = buffer.slice(flushEnd);
-        displayed += flushable;
-        messageArea.innerHTML = displayed;
-        if (config.onFlush) {
-            config.onFlush(displayed);
-        }
-        done = buffer.length === 0;
-    }
-
-    function tick() {
-        if (buffer.length === 0) {
-            rafId = null;
-            console.log('[bufferTyping] tick buffer empty, done:', done);
-            if (done && config.onDone) {
-                console.log('[bufferTyping] invoking onDone');
-                config.onDone();
-            }
-            return;
-        }
-
-        frameCount++;
-        if (frameCount % framesPerFlush === 0) {
-            flush(charsPerFrame);
-        }
-
-        rafId = requestAnimationFrame(tick);
-    }
-
-    function start() {
-        if (started) {
-            return;
-        }
-        started = true;
-        if (buffer.length > 0) {
-            rafId = requestAnimationFrame(tick);
-        }
-    }
-
-    return {
-        type(text: string) {
-            if (!text) {
-                return;
-            }
-            console.log('[bufferTyping] type', { textLength: text.length, started, bufferLength: buffer.length });
-            done = false;
-            buffer += text;
-            if (!started && buffer.length >= startAfterChars) {
-                start();
-            } else if (started && !rafId && buffer.length > 0) {
-                rafId = requestAnimationFrame(tick);
-            }
-        },
-        destroy() {
-            console.log('[bufferTyping] destroy');
-            if (rafId) {
-                cancelAnimationFrame(rafId);
-                rafId = null;
-            }
-            started = false;
-            buffer = '';
-            displayed = '';
-            done = true;
-        },
-        isDone() {
-            return done && buffer.length === 0;
-        },
-        getTypedText() {
-            return displayed;
-        },
-        getBuffer() {
-            return buffer;
-        },
-        setTypedText(text: string) {
-            displayed = text;
-            buffer = '';
-            done = true;
-            messageArea.innerHTML = displayed;
-        },
-        finish() {
-            console.log('[bufferTyping] finish');
-            if (rafId) {
-                cancelAnimationFrame(rafId);
-                rafId = null;
-            }
-            started = false;
-            if (buffer.length > 0) {
-                displayed += buffer;
-                buffer = '';
-                messageArea.innerHTML = displayed;
-                if (config.onFlush) {
-                    config.onFlush(displayed);
-                }
-            }
-            done = true;
-            if (config.onDone) {
-                console.log('[bufferTyping] finish invoking onDone');
-                config.onDone();
-            }
-        }
-    };
+    return new BufferTyper(messageArea, config);
 }
 
 export function bufferTyping(typer: CustomTyper | null, text: string): void {
