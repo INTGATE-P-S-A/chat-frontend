@@ -156,6 +156,7 @@ ${message.tools && message.tools.length > 0 ? unsafeHTML(parseTools(message.tool
     
     // While actively typing the AI response, the typer owns the DOM. Render an
     // empty container so Lit doesn't overwrite the typed HTML on every update.
+    // User messages must never use the typing target; they render immediately.
     if (isStreaming && this.isTyping && !isUserMessage) {
       return html`<div class="chat_txt--entry-container"><p class="chat__txt--entry" id="${typingTargetId}"></p></div>`;
     }

@@ -564,7 +564,6 @@ ${htmlResponse}
           ...this.customHeaders        
       } 
 
-      console.log('Current Config in detectTextFile:', currentConfig);
 
         // if(currentConfig.API_KEY){
         //   headers['x-api-key'] = currentConfig.API_KEY 
