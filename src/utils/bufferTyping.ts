@@ -36,7 +36,6 @@ class BufferTyper implements CustomTyper {
         if (!text || this.destroyed) {
             return;
         }
-        console.log('[bufferTyping] type', { text: JSON.stringify(text), started: this.started, queueLength: this.queue.length });
         this.done = false;
         this.onDoneCalled = false;
         this.queue.push(text);
@@ -117,7 +116,6 @@ class BufferTyper implements CustomTyper {
     }
 
     private collectTag(): void {
-        console.log('[bufferTyping] collectTag start', { htmlBuffer: JSON.stringify(this.htmlBuffer), queueLength: this.queue.length });
         // htmlBuffer starts with '<'. Drain chunks until we find the closing '>'.
         while (this.queue.length > 0 && this.htmlBuffer.indexOf('>') === -1) {
             this.htmlBuffer += this.queue.shift()!;
@@ -126,7 +124,6 @@ class BufferTyper implements CustomTyper {
         const closeIdx = this.htmlBuffer.indexOf('>');
         if (closeIdx === -1) {
             // Incomplete tag; keep it buffered and do not display.
-            console.log('[bufferTyping] collectTag waiting', { htmlBuffer: JSON.stringify(this.htmlBuffer) });
             this.done = false;
             return;
         }
@@ -134,7 +131,6 @@ class BufferTyper implements CustomTyper {
         // Flush the complete tag and put any trailing text back at the queue front.
         const tag = this.htmlBuffer.slice(0, closeIdx + 1);
         const remainder = this.htmlBuffer.slice(closeIdx + 1);
-        console.log('[bufferTyping] collectTag closed', { flushed: JSON.stringify(tag), remainder: JSON.stringify(remainder) });
         this.displayed += tag;
         this.htmlBuffer = '';
         if (remainder) {
@@ -146,7 +142,6 @@ class BufferTyper implements CustomTyper {
     }
 
     private updateDOM(): void {
-        console.log('[bufferTyping] flush', { displayed: JSON.stringify(this.displayed.slice(-120)), queueLength: this.queue.length, htmlBufferLength: this.htmlBuffer.length });
         this.messageArea.innerHTML = this.displayed;
         if (this.config.onFlush) {
             this.config.onFlush(this.displayed);
@@ -161,7 +156,6 @@ class BufferTyper implements CustomTyper {
     }
 
     destroy(): void {
-        console.log('[bufferTyping] destroy');
         if (this.rafId) {
             cancelAnimationFrame(this.rafId);
             this.rafId = null;
@@ -201,7 +195,6 @@ class BufferTyper implements CustomTyper {
     }
 
     finish(): void {
-        console.log('[bufferTyping] finish');
         if (this.rafId) {
             cancelAnimationFrame(this.rafId);
             this.rafId = null;
@@ -220,7 +213,6 @@ class BufferTyper implements CustomTyper {
         }
 
         this.done = true;
-        console.log('[bufferTyping] finish invoking onDone');
         this.invokeOnDone();
     }
 }
