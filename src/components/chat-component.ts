@@ -432,7 +432,10 @@ export class ChatComponent extends LitElement {
       if (messageArea) {
         const fullText = this.chatController.processingMessage.text[0]?.value || '';
 
+        console.log('[updated] typing state', { customTyperExists: !!this.customTyper, typerConnected: !!this.typerTarget?.isConnected, lastTypedFullTextLength: this.lastTypedFullText.length, fullTextLength: fullText.length });
+
         if (!this.customTyper) {
+          console.log('[updated] creating new typer');
           messageArea.innerHTML = '';
           this.customTyper = createCustomTyper(messageArea, {
             onDone: () => this.handleTyperDone(),
@@ -442,6 +445,7 @@ export class ChatComponent extends LitElement {
         } else if (!this.typerTarget?.isConnected) {
           // Lit recreated the element during streaming; re-attach the
           // existing typer to the new DOM node without resetting its state.
+          console.log('[updated] reattaching typer');
           this.customTyper.setMessageArea(messageArea);
           this.typerTarget = messageArea;
         }
@@ -975,6 +979,7 @@ export class ChatComponent extends LitElement {
       // finished stream could re-enter here after finalizeTyping and spawn
       // a duplicate empty message / second typing pass.
       if (this.dynamicTextTyping && currentGeneratingAnswer && processingEntry.id && this.lastTypingEntryId !== processingEntry.id) {
+        console.log('[willUpdate] new processing message -> reset typer', { id: processingEntry.id, lastTypingEntryId: this.lastTypingEntryId, customTyperExists: !!this.customTyper });
         // If the previous placeholder is still empty, replace it instead of stacking a new one.
         const prevIndex = this.chatThread.findIndex((entry) => entry.id === this.lastTypingEntryId);
         const prevEntry = prevIndex > -1 ? this.chatThread[prevIndex] : null;

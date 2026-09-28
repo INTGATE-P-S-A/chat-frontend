@@ -20,6 +20,7 @@ class BufferTyper implements CustomTyper {
     private config: CustomTyperConfig;
     private queue: string[] = [];
     private displayed: string = '';
+    private htmlBuffer: string = '';
     private rafId: number | null = null;
     private started: boolean = false;
     private done: boolean = true;
@@ -65,7 +66,7 @@ class BufferTyper implements CustomTyper {
     private tick(): void {
         this.rafId = null;
 
-        if (this.queue.length === 0) {
+        if (this.queue.length === 0 && this.htmlBuffer.length === 0) {
             this.done = true;
             this.invokeOnDone();
             return;
@@ -75,6 +76,9 @@ class BufferTyper implements CustomTyper {
 
         if (this.queue.length > 0) {
             this.scheduleTick();
+        } else if (this.htmlBuffer.length > 0) {
+            // Waiting for more chunks to close the open HTML tag.
+            this.done = false;
         } else {
             this.done = true;
             this.invokeOnDone();
@@ -82,6 +86,12 @@ class BufferTyper implements CustomTyper {
     }
 
     private flush(): void {
+        // Continue collecting a previously started HTML tag.
+        if (this.htmlBuffer.length > 0) {
+            this.collectTag();
+            return;
+        }
+
         if (this.queue.length === 0) {
             this.done = true;
             return;
@@ -95,14 +105,52 @@ class BufferTyper implements CustomTyper {
             this.queue.shift();
         }
 
-        this.displayed += char;
-        console.log('[bufferTyping] flush', { char: JSON.stringify(char), displayed: JSON.stringify(this.displayed.slice(-80)), queueLength: this.queue.length });
+        if (char === '<') {
+            this.htmlBuffer = char;
+            this.collectTag();
+        } else {
+            this.displayed += char;
+            this.updateDOM();
+        }
+
+        this.done = this.queue.length === 0 && this.htmlBuffer.length === 0;
+    }
+
+    private collectTag(): void {
+        console.log('[bufferTyping] collectTag start', { htmlBuffer: JSON.stringify(this.htmlBuffer), queueLength: this.queue.length });
+        // htmlBuffer starts with '<'. Drain chunks until we find the closing '>'.
+        while (this.queue.length > 0 && this.htmlBuffer.indexOf('>') === -1) {
+            this.htmlBuffer += this.queue.shift()!;
+        }
+
+        const closeIdx = this.htmlBuffer.indexOf('>');
+        if (closeIdx === -1) {
+            // Incomplete tag; keep it buffered and do not display.
+            console.log('[bufferTyping] collectTag waiting', { htmlBuffer: JSON.stringify(this.htmlBuffer) });
+            this.done = false;
+            return;
+        }
+
+        // Flush the complete tag and put any trailing text back at the queue front.
+        const tag = this.htmlBuffer.slice(0, closeIdx + 1);
+        const remainder = this.htmlBuffer.slice(closeIdx + 1);
+        console.log('[bufferTyping] collectTag closed', { flushed: JSON.stringify(tag), remainder: JSON.stringify(remainder) });
+        this.displayed += tag;
+        this.htmlBuffer = '';
+        if (remainder) {
+            this.queue.unshift(remainder);
+        }
+        this.updateDOM();
+
+        this.done = this.queue.length === 0 && this.htmlBuffer.length === 0;
+    }
+
+    private updateDOM(): void {
+        console.log('[bufferTyping] flush', { displayed: JSON.stringify(this.displayed.slice(-120)), queueLength: this.queue.length, htmlBufferLength: this.htmlBuffer.length });
         this.messageArea.innerHTML = this.displayed;
         if (this.config.onFlush) {
             this.config.onFlush(this.displayed);
         }
-
-        this.done = this.queue.length === 0;
     }
 
     private invokeOnDone(): void {
@@ -121,13 +169,14 @@ class BufferTyper implements CustomTyper {
         this.started = false;
         this.queue = [];
         this.displayed = '';
+        this.htmlBuffer = '';
         this.done = true;
         this.onDoneCalled = false;
         this.destroyed = true;
     }
 
     isDone(): boolean {
-        return this.done && this.queue.length === 0;
+        return this.done && this.queue.length === 0 && this.htmlBuffer.length === 0;
     }
 
     getTypedText(): string {
@@ -141,6 +190,7 @@ class BufferTyper implements CustomTyper {
     setTypedText(text: string): void {
         this.displayed = text;
         this.queue = [];
+        this.htmlBuffer = '';
         this.done = true;
         this.messageArea.innerHTML = this.displayed;
     }
@@ -158,10 +208,11 @@ class BufferTyper implements CustomTyper {
         }
         this.started = false;
 
-        if (this.queue.length > 0) {
-            const remaining = this.queue.join('');
+        if (this.queue.length > 0 || this.htmlBuffer.length > 0) {
+            const remaining = this.htmlBuffer + this.queue.join('');
             this.displayed += remaining;
             this.queue = [];
+            this.htmlBuffer = '';
             this.messageArea.innerHTML = this.displayed;
             if (this.config.onFlush) {
                 this.config.onFlush(this.displayed);
