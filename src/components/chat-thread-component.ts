@@ -4,7 +4,7 @@ import { customElement, property, query, state } from 'lit/decorators.js';
 import { styles } from '../styles/chat-thread-component.js';
 
 import { globalConfig } from '../config/global-config.js';
-import { addIconSheet, chatEntryToString, chatEntryToHtmlString } from '../utils/index.js';
+import { addIconSheet, chatEntryToString, chatEntryToHtmlString, injectCSS } from '../utils/index.js';
 
 import './citation-list.js';
 import { CitationListComponent } from './citation-list.js';
@@ -60,6 +60,9 @@ export class ChatThreadComponent extends LitElement {
   isReasoningClosed = false;
 
   @state()
+  injectCss: string[] = [];
+
+  @state()
   aiAssistantSignal: IExternalAssistSignal | null = null;
 
   @query('#chat-list-footer')
@@ -85,6 +88,10 @@ export class ChatThreadComponent extends LitElement {
     super.connectedCallback();
 
     await addIconSheet.bind(this)();     
+
+    for(const cssLink of this.injectCss){
+      await injectCSS.bind(this)(cssLink);
+    }
     
     // Override config if customConfig is provided
     this.overrideConfig();

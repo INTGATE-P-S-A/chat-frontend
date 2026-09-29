@@ -113,6 +113,7 @@ ${message.tools && message.tools.length > 0 ? unsafeHTML(parseTools(message.tool
                   .svgIcon="${actionButton.svgIcon}"
                   .isDisabled="${actionButton.isDisabled}"
                   .actionId="${actionButton.id}"
+                  .injectCss="${this.injectCss}"
                   @click="${(event) => this.actionButtonClicked(actionButton, entry, event)}"
                 ></chat-action-button>
               `,
@@ -122,6 +123,7 @@ ${message.tools && message.tools.length > 0 ? unsafeHTML(parseTools(message.tool
             .svgIcon="${this.isResponseCopied ? iconSuccess : iconCopyToClipboard}"
             .isDisabled="${this.isDisabled}"
             actionId="copy-to-clipboard"
+            .injectCss="${this.injectCss}"
             .tooltip="${this.isResponseCopied
               ? currentConfig.COPIED_SUCCESSFULLY_MESSAGE
               : currentConfig.COPY_RESPONSE_BUTTON_LABEL_TEXT}"
@@ -132,6 +134,7 @@ ${message.tools && message.tools.length > 0 ? unsafeHTML(parseTools(message.tool
             simpleIcon="book-open"            
             .isDisabled="${this.isDisabled}"
             actionId="add-to-kdb"
+            .injectCss="${this.injectCss}"
             .tooltip="${currentConfig.ADD_KDB_BUTTON_LABEL_TEXT}"
             @click="${() => this.addToKDB(entry)}"
           ></chat-action-button>
@@ -232,6 +235,7 @@ ${message.tools && message.tools.length > 0 ? unsafeHTML(parseTools(message.tool
             .label="${currentConfig.ADD_KDB_BUTTON_LABEL_TEXT}"
             simpleIcon="book-open"                        
             actionId="add-to-kdb"
+            .injectCss="${this.injectCss}"
             .altColor="${true}"
             .tooltip="${currentConfig.ADD_KDB_BUTTON_LABEL_TEXT}"
             @click="${() => this.addFileToKDB(file)}"

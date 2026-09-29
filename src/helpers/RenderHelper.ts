@@ -288,6 +288,7 @@ export class RenderHelper {
 
   static renderChatThread(this: ChatComponent, chatThread: ChatThreadEntry[], globalConfig: any) {
     return html`<chat-thread-component
+      .injectCss="${this.injectCss.split(',')}"
       .aiAssistantSignal="${this.aiAssistantSignal}"
       .chatThread="${chatThread}"
       .conversationTitle="${this.overrides.conversationTitle}"

@@ -3,7 +3,7 @@ import { customElement, property } from 'lit/decorators.js';
 
 import { styles } from '../styles/chat-action-button.js';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
-import { addIconSheet } from '../utils/index.js';
+import { addIconSheet, injectCSS } from '../utils/index.js';
 
 export interface ChatActionButton {
   label: string;
@@ -37,14 +37,21 @@ export class ChatActionButtonComponent extends LitElement {
   @property({ type: String })
   tooltip: string | undefined = undefined;
 
+  @property({ type: Array })
+  injectCss: string[] = [];
+
   override async connectedCallback() {
     super.connectedCallback();
     await addIconSheet.bind(this)();
+
+    for (const cssLink of this.injectCss) {
+      await injectCSS.bind(this)(cssLink);
+    }
   }
 
   override render() {
     return html`
-      <button title="${this.label}" class="${this.altColor ? 'alt-color' : ''}" data-testid="${this.actionId}" ?disabled="${this.isDisabled}">
+      <button title="${this.label}" class="action-button${this.altColor ? ' alt-color' : ''}" data-testid="${this.actionId}" ?disabled="${this.isDisabled}">
         <span>${this.tooltip ?? this.label}</span>
         ${this.svgIcon ? unsafeSVG(this.svgIcon) : html`<i class="simple-icon-${this.simpleIcon}"></i>`}
       </button>

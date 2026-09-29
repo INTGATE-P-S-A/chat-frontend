@@ -16,7 +16,7 @@ import {
   requestOptions,
 } from '../config/global-config.js';
 import { chatStyle } from '../styles/chat-component.js';
-import { chatEntryToString, newListWithEntryAtIndex, addIconSheet } from '../utils/index.js';
+import { chatEntryToString, newListWithEntryAtIndex, addIconSheet, injectCSS } from '../utils/index.js';
 
 import './link-icon.js';
 import './chat-stage.js';
@@ -67,6 +67,9 @@ export class ChatComponent extends LitElement {
 
   @property({ type: String, attribute: 'data-api-url' })
   apiUrl = chatHttpOptions.url;
+
+  @property({ type: String, attribute: 'data-inject-css' })
+  injectCss: string = '';
 
   @property({ type: String, attribute: 'data-custom-branding', converter: (value) => value?.toLowerCase() === 'true' })
   isCustomBranding: boolean = globalConfig.IS_CUSTOM_BRANDING;
@@ -499,6 +502,12 @@ export class ChatComponent extends LitElement {
     super.connectedCallback();
 
     await addIconSheet.bind(this)();
+
+    console.log(this.injectCss.split(','));
+
+    for(const cssLink of this.injectCss.split(',')){
+      await injectCSS.bind(this)(cssLink);
+    }
 
     this.chatController.setReasoningCallback((_reasoningId: string, step: string) => {
       this.chatController.addReasoningToProcessingMessage(step);
