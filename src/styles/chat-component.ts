@@ -506,14 +506,21 @@ export const chatStyle = css`
   }
   
   .input-group-append .chatbox__button {
-    position: relative;
-    z-index: 2;
-    margin-left: 0;
-    border-radius: 0;
-    min-height: 44px;
-    align-self: flex-end;
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
+    // position: relative;
+    // z-index: 2;
+    // margin-left: 0;
+    // border-radius: 0;
+    // min-height: 44px;
+    // align-self: flex-end;
+    // border-top-left-radius: 0;
+    // border-bottom-left-radius: 0;
+
+    width: 36px;
+    height: 36px;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    border-radius: 8px;
   }
   
   .input-group-append .chatbox__button:first-child {
@@ -527,7 +534,7 @@ export const chatStyle = css`
   }
   
   .input-group-append .chatbox__button:not(:last-child) {
-    border-right: 0;
+    // border-right: 0;
   }
   /* Button styles for different variants */
   .chatbox__button {

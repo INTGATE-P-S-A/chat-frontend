@@ -98,7 +98,11 @@ export class HandlerHelper {
 
         const speakEvent = new CustomEvent(download ? 'chat:download' : 'chat:speak', {
             detail: {
-                message: message.text.map((textEntry) => textEntry.value).join(' '),
+                message: (() => { 
+                    const p = document.createElement('p'); 
+                    p.innerHTML = message.text.map((textEntry) => textEntry.value).join(' '); 
+                    return p.textContent; 
+                })(),
             },
             bubbles: true,
             composed: true,
