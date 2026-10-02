@@ -151,7 +151,7 @@ export class ChatComponent extends LitElement {
   questionInput!: HTMLTextAreaElement;
 
   @query('#ai-assist-component')
-  aiAssist?: IRWSAiAssistComponent;
+  aiAssist?: IRWSAiAssistComponent; 
 
   @query('#prompt-autocomplete-component')
   autocompleteTriggers!: IRWSAutocompleteTriggerComponent;
@@ -179,6 +179,9 @@ export class ChatComponent extends LitElement {
 
   @state()
   isResetInput = false;
+
+  @state()
+  autoTalkEnabled = false;
 
   @state()
   webSearchEnabled = false;
@@ -267,6 +270,9 @@ export class ChatComponent extends LitElement {
 
   aiAssistantSignal: IExternalAssistSignal | null = null;
   creditBalanceSignal: IExternalBalanceSignal | null = null;
+
+  appChat?: IRWSAppChatComponent;
+  appChatSignal: IExternalAppChatSignal | null = null;
 
   private customTyper: CustomTyper | null = null;
   private lastTypingEntryId: string | null = null;
@@ -553,6 +559,27 @@ export class ChatComponent extends LitElement {
 
     // Listen for knowledge picker selection changes
     this.addEventListener('knowledge:selection:changed', this.handleKnowledgeSelectionChanged.bind(this) as EventListener);
+
+    if(localStorage.getItem('chat:autoTalkEnabled') === 'ON'){
+      this.autoTalkEnabled = true;
+    } else {
+      this.autoTalkEnabled = false;
+    }
+
+    
+    this.appChat = (this.shadowRoot?.host.parentElement?.getRootNode() as any)?.host as IRWSAppChatComponent;
+
+    this.appChatSignal = this.appChat?.getExternalSignal() || null;      
+
+    if(this.appChatSignal){
+      this.appChatSignal?.value$.subscribe((value) => {
+        if(value?.command === 'start-talk'){        
+          this.toggleTalk(2);
+        } else if(value?.command === 'stop-talk'){          
+          this.toggleTalk(0);
+        }
+      });
+    }
 
     const ev = new CustomEvent('chat-component-connected', {
       detail: true,
@@ -1312,6 +1339,16 @@ export class ChatComponent extends LitElement {
       composed: true
     });
     this.dispatchEvent(knowledgeChangeEvent);
+  }
+
+  handleAutoTalkClick(){
+    this.autoTalkEnabled = !this.autoTalkEnabled;
+    localStorage.setItem('chat:autoTalkEnabled', this.autoTalkEnabled ? 'ON' : 'OFF');
+    this.dispatchEvent(new CustomEvent('autotalk:toggle', {
+      detail: this.autoTalkEnabled,
+      bubbles: true,
+      composed: true
+    }));
   }
 
   override render() {

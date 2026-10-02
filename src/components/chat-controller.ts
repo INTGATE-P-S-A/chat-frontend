@@ -391,8 +391,16 @@ export class ChatController implements ReactiveController {
 
     if (isUserMessage || typeof response === 'string') {
       await updateChatWithMessageOrChunk(response, false);
-    } else if (useStream) {
+    } else if (useStream) {   
       await updateChatWithMessageOrChunk(response, true);
+
+      if((this.host as any).autoTalkEnabled){
+        (this.host as any).dispatchEvent(new CustomEvent('autotalk:stream-chunk', {
+          detail: { chunk: '', isFinal: true },
+          bubbles: true,
+          composed: true
+        }));        
+      }
     } else {
       // non-streamed response
       const generatedResponse = (response as BotResponse).choices[0].message;
@@ -509,6 +517,14 @@ export class ChatController implements ReactiveController {
             signal: this._abortController.signal,
           };
 
+          if((this.host as any).autoTalkEnabled){
+            (this.host as any).dispatchEvent(new CustomEvent('autotalk:start-session', {
+              detail: null,
+              bubbles: true,
+              composed: true
+            }));
+            (this.host as any).toggleTalk(1);
+          }
           const response = (await getAPIResponse(requestOptions, updatedHttpOptions)) as BotResponse;
           this.isAwaitingResponse = false;
 

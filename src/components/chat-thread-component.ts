@@ -77,10 +77,17 @@ export class ChatThreadComponent extends LitElement {
   @state()
   private isUserScrolledUp = false;
 
+  @state()
+  autoTalkEnabled = false;
+
   private scrollTimeout: any = null;
   private debounceScrollTimeout: any = null;
   private streamingScrollTimeout: any = null;
   private isProgrammaticScroll = false;
+
+  @state()
+  appChatSignal: IExternalAppChatSignal | null = null;
+
 
   showLoadingIndicator = true;
 
@@ -603,6 +610,10 @@ ${htmlResponse}
         file
       }
     });
+  }
+
+  handleStopTalking(){
+    this.appChatSignal?.setValue({ command: 'stop-talk' });
   }
 
   renderPendingReasoning() {

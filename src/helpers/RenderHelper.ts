@@ -104,6 +104,9 @@ export class RenderHelper {
             ${this.advancedPromptingEnabled && this.currentUser?.accountGrade?.advancedPrompts ? RenderHelper.slotPromptRender.bind(this)() : ''}
 
             <div class="chatbox__container">
+            <div class="chatbox__voice-switch">
+              <part-switch name="autotalk" .value="${this.autoTalkEnabled}" label="${globalConfig.AUTOTALK_LABEL}" @click="${this.handleAutoTalkClick.bind(this)}"></part-switch>
+            </div>
               <div class="chatbox__input-container">
                 <div class="input_container_wrapper">
                   ${RenderHelper.renderAutocomplete.bind(this)(globalConfig)}
@@ -290,6 +293,7 @@ export class RenderHelper {
     return html`<chat-thread-component
       .injectCss="${this.injectCss.split(',')}"
       .aiAssistantSignal="${this.aiAssistantSignal}"
+      .appChatSignal="${this.appChatSignal}"
       .chatThread="${chatThread}"
       .conversationTitle="${this.overrides.conversationTitle}"
       .conversationUid="${this.overrides.conversationUid}"
@@ -297,6 +301,7 @@ export class RenderHelper {
       .customHeaders="${this.customHeaders}"
       .isTalking="${this.isTalking}"
       .upperLoader="${this.upperLoader}"
+      .autoTalkEnabled="${this.autoTalkEnabled}"
       .showInitialMessagesReasoningClosed="${true}"
       .actionButtons="${[
         // {

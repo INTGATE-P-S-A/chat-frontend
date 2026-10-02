@@ -230,6 +230,10 @@ declare interface IRWSAiAssistComponent extends HTMLElement {
   setLLMStreaming(streaming: boolean): void;
 }
 
+declare interface IRWSAppChatComponent extends HTMLElement {
+  getExternalSignal(): IExternalAppChatSignal | null; 
+}
+
 declare interface IRWSAutocompleteTriggerComponent extends HTMLElement {
  bindTextarea(textarea: HTMLTextAreaElement | null): void;
 }
@@ -289,6 +293,17 @@ declare interface IAssistSignalPayload {
     payload?: any;
 }
 
+declare interface IAppChatSignalPayload {
+    command: 'start-talk' | 'stop-talk';
+}
+
+declare interface IExternalAppChatSignal {
+  getValue(): IAppChatSignalPayload | null;
+  setValue(value: IAppChatSignalPayload | null): void;
+  value$: {
+    subscribe(callback: (value: IAppChatSignalPayload | null) => void): void;
+  };
+}
 declare interface IExternalAssistSignal {
   getValue(): IAssistSignalPayload | null;
   setValue(value: IAssistSignalPayload | null): void;

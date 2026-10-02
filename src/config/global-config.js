@@ -79,7 +79,8 @@ const globalConfig = {
   },
   MODAL_TITLES: {
     CHAT_SETTINGS: 'Chat Settings',
-  }
+  },
+  AUTOTALK_LABEL: 'Auto Talk',
 };
 
 const teaserListTexts = {

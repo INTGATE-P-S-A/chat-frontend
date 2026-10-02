@@ -17,11 +17,7 @@ export class RenderThreadHelper {
         <h5 class="mr-3">
           ${this.conversationTitle}
         </h5>
-        ${this.conversationUid ? html`<share-window convoUid="${this.conversationUid}"></share-window>` : ''}
-        ${ isTalking > 0 ? html`<div class="talking-indicator${isTalking === 2 ? ' talking' : '' }">
-          <i class="simple-icon-earphones-alt" />
-          ${isTalking === 1 ? html`<app-loader block="true" indicatorWidth="2px" width="15px" height="15px"></app-loader>` : ''}
-        </div>` : '' }
+        ${this.conversationUid ? html`<share-window convoUid="${this.conversationUid}"></share-window>` : ''}        
         ${ upperLoader ? html`<app-loader block="true" indicatorWidth="2px" width="15px" height="15px" style="margin-left: 15px;"></app-loader>` : '' }
         <button 
             type="button"
@@ -34,7 +30,7 @@ export class RenderThreadHelper {
       <ul class="chat__list" aria-live="assertive">
       ${this.chatThread.length === 1 && this.chatThread[0] === undefined ? html`` : 
         this.chatThread.map(
-          (message, index) => message.hidden ? '' : RenderThreadHelper.renderMessage.bind(this)(message, index, currentConfig)
+          (message, index) => message.hidden ? '' : RenderThreadHelper.renderMessage.bind(this)(message, index, isTalking, currentConfig)
         )
       }
         
@@ -47,7 +43,7 @@ export class RenderThreadHelper {
     `;
   }
 
-  static renderMessage(this: ChatThreadComponent, message: ChatThreadEntry, index: number, currentConfig: any, pureString: boolean = false) {
+  static renderMessage(this: ChatThreadComponent, message: ChatThreadEntry, index: number, isTalking: number, currentConfig: any, pureString: boolean = false) {
     const isLastMessage = index === this.chatThread.length - 1;
     const showLoadingIndicator = this.isProcessingResponse && isLastMessage && !message.isUserMessage;    
 
@@ -74,7 +70,12 @@ ${message.tools && message.tools.length > 0 ? unsafeHTML(parseTools(message.tool
               <span class="timestamp">${RenderThreadHelper.formatTo24Hour(message.timestamp)}</span>
               ${RenderThreadHelper.renderUserInfo(message)}                       
               ${RenderThreadHelper.renderCostInfo(message)}
-              ${RenderThreadHelper.renderModelInfo(message)}     
+              ${RenderThreadHelper.renderModelInfo(message)}   
+              ${ isTalking > 0 ? html`<div class="talking-indicator${isTalking === 2 ? ' talking' : '' }">
+                <i class="talking-icon simple-icon-earphones-alt"></i>
+                ${isTalking === 2 ? html`<button class="stopTalking" @click="${this.handleStopTalking}"><i class="simple-icon-close"></i></button>` : ''}
+                ${isTalking === 1 ? html`<app-loader block="true" indicatorWidth="2px" width="15px" height="15px"></app-loader>` : ''}
+              </div>` : '' }  
             </div>
             <div class="chat__response-actions">                  
               ${message.isUserMessage ? '' : RenderThreadHelper.renderResponseActions.bind(this)(message, currentConfig)}                                              

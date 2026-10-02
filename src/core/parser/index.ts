@@ -62,6 +62,79 @@ export async function parseStreamedMessages({
   // HTML tag buffering state
   let htmlTagBufferState = createHtmlTagBufferState();
 
+  // Autotalk HTML tag stripping state
+  let autoTalkInTag = false;
+  let autoTalkSentenceBuffer = '';
+
+  const flushAutoTalkBuffer = (_isFinal = false): string | null => {
+    const remaining = autoTalkSentenceBuffer;
+    autoTalkSentenceBuffer = '';
+    autoTalkInTag = false;
+    return remaining || null;
+  };
+
+  const processAutoTalkChunk = (chunk: string): string | null => {
+    let text = chunk;
+
+    // If the previous chunk ended inside an HTML tag, drop everything up to
+    // the end of that tag ('>' or newline) in this chunk
+    if (autoTalkInTag) {
+      const gtIndex = text.indexOf('>');
+      const nlIndex = text.indexOf('\n');
+      let endIndex = -1;
+
+      if (gtIndex !== -1 && nlIndex !== -1) {
+        endIndex = Math.min(gtIndex, nlIndex);
+      } else {
+        endIndex = Math.max(gtIndex, nlIndex);
+      }
+
+      if (endIndex === -1) {
+        // Still inside the tag; nothing to emit yet
+        return null;
+      }
+
+      text = text.slice(endIndex + 1);
+      autoTalkInTag = false;
+    }
+
+    // Strip complete HTML tags
+    text = text.replace(/<[^>]*>/g, '');
+
+    // If a tag starts but doesn't finish in this chunk, drop the partial tag
+    // (or cut it at a newline) and skip its continuation in the next chunk
+    const ltIndex = text.lastIndexOf('<');
+    if (ltIndex !== -1 && text.indexOf('>', ltIndex) === -1) {
+      const nlIndex = text.indexOf('\n', ltIndex);
+      if (nlIndex !== -1) {
+        // Tag ends at the newline
+        text = text.slice(0, ltIndex) + text.slice(nlIndex + 1);
+      } else {
+        // Partial tag continues into the next chunk
+        text = text.slice(0, ltIndex);
+        autoTalkInTag = true;
+      }
+    }
+
+    if (!text) {
+      return null;
+    }
+
+    autoTalkSentenceBuffer += text;
+
+    // Emit only when we reach the end of a sentence (dot followed by
+    // whitespace or end of buffered text)
+    const sentenceEndMatch = autoTalkSentenceBuffer.match(/\.(\s|$)/);
+    if (sentenceEndMatch) {
+      const endIndex = sentenceEndMatch.index! + sentenceEndMatch[0].length;
+      const sentence = autoTalkSentenceBuffer.slice(0, endIndex);
+      autoTalkSentenceBuffer = autoTalkSentenceBuffer.slice(endIndex);
+      return sentence;
+    }
+
+    return null;
+  };
+
   let updatedEntry = {
     ...chatEntry,
   };
@@ -208,9 +281,20 @@ export async function parseStreamedMessages({
       continue;
     }    
 
-    rawContentAccumulator += chunkValue;
+    rawContentAccumulator += chunkValue;    
 
     streamedMessageRaw.push(chunkValue);
+
+    if((host as any).autoTalkEnabled){
+      const eventChunkValue = processAutoTalkChunk(chunkValue);
+      if (eventChunkValue !== null) {
+        (host as any).dispatchEvent(new CustomEvent('autotalk:stream-chunk', {
+          detail: { chunk: eventChunkValue, isFinal: false },
+          bubbles: true,
+          composed: true
+        }));       
+      }
+    }
     
     const { finalChunkValue, shouldSkip, bufferState: updatedHtmlBufferState } = processChunkWithHtmlTagBuffering(chunkValue, htmlTagBufferState);
     htmlTagBufferState = updatedHtmlBufferState;
@@ -295,6 +379,18 @@ export async function parseStreamedMessages({
     const { processedChunk } = processChunkWithBuffering(remainingContent, bufferState);
     if (processedChunk !== null) {
       updatedEntry = updateTextEntry({ chunkValue: processedChunk, textBlockIndex, chatEntry: updatedEntry });
+    }
+  }
+
+  // Flush any remaining autotalk buffered content
+  if ((host as any).autoTalkEnabled) {
+    const finalAutoTalkChunk = flushAutoTalkBuffer(true);
+    if (finalAutoTalkChunk !== null) {
+      (host as any).dispatchEvent(new CustomEvent('autotalk:stream-chunk', {
+        detail: { chunk: finalAutoTalkChunk, isFinal: true },
+        bubbles: true,
+        composed: true
+      }));
     }
   }
 

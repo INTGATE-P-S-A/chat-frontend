@@ -600,7 +600,7 @@ export const styles = css`
     margin-right: 1rem;
   }
 
-  .chat-topic .talking-indicator {
+  .talking-indicator {
     display: flex;
     flex-direction: row;
     gap: 10px;
@@ -610,9 +610,13 @@ export const styles = css`
     color: var(--alt_blu);
     background-color: #FFF;
     padding: 5px;
+
+    .talking-icon {
+      margin-top: 4px;
+    }
     
 
-    &.talking {
+    &.talking .talking-icon {
       animation: pulse-opacity 1.5s ease-in-out infinite;
     }    
   }
@@ -743,5 +747,19 @@ export const styles = css`
     }
   }
 
+  .stopTalking {
+    background-color: var(--danger);
+    cursor: pointer;
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;    
+    border: none;
+    box-shadow: none;
+    padding: 4px 2px;
+
+    i {
+      color: #FFF;
+    }
+  }
   
 `;
