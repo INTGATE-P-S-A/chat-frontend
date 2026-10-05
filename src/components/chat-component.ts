@@ -279,6 +279,7 @@ export class ChatComponent extends LitElement {
   private typerTarget: HTMLElement | null = null;
   private customTyperDoneCallback: (() => void) | null = null;
   private lastTypedFullText: string = '';
+  private autoTalkStartListener: EventListener | null = null;
   
   private previousGeneratingAnswer: boolean = false; // Track previous generatingAnswer state
 
@@ -319,6 +320,10 @@ export class ChatComponent extends LitElement {
         ? newListWithEntryAtIndex(this.chatThread, finalIndex, finalEntryToStore)
         : [...this.chatThread, finalEntryToStore];
     this.requestUpdate();
+    if (this.autoTalkStartListener) {
+      window.removeEventListener('conversation-agent:playback-started', this.autoTalkStartListener);
+      this.autoTalkStartListener = null;
+    }
     this.customTyper?.destroy();
     this.customTyper = null;
     this.typerTarget = null;
@@ -356,6 +361,10 @@ export class ChatComponent extends LitElement {
       }
     }
 
+    if (this.autoTalkStartListener) {
+      window.removeEventListener('conversation-agent:playback-started', this.autoTalkStartListener);
+      this.autoTalkStartListener = null;
+    }
     this.customTyper?.destroy();
     this.customTyper = null;
     this.typerTarget = null;
@@ -481,9 +490,19 @@ export class ChatComponent extends LitElement {
           messageArea.innerHTML = '';
           this.customTyper = createCustomTyper(messageArea, {
             onDone: () => this.handleTyperDone(),
+            typingTempoDelay: 50,
+            autoStart: !this.autoTalkEnabled,
           });
           this.typerTarget = messageArea;
           this.lastTypedFullText = '';
+
+          if (this.autoTalkEnabled) {
+            this.autoTalkStartListener = () => {
+              this.customTyper?.start();
+              this.autoTalkStartListener = null;
+            };
+            window.addEventListener('conversation-agent:playback-started', this.autoTalkStartListener, { once: true });
+          }
         } else if (!this.typerTarget?.isConnected) {
           // Lit recreated the element during streaming; re-attach the
           // existing typer to the new DOM node without resetting its state.

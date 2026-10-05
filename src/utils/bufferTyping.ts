@@ -1,11 +1,14 @@
 export interface CustomTyperConfig {
     charIntervalMs?: number;  // unused, kept for compatibility
+    typingTempoDelay?: number;     // ms per character; lower = faster, 0/unset = max speed
+    autoStart?: boolean;      // start typing immediately on type(); default true
     onDone?: () => void;
     onFlush?: (typedText: string) => void;
 }
 
 export interface CustomTyper {
     type(text: string): void;
+    start(): void;
     destroy(): void;
     isDone(): boolean;
     getTypedText(): string;
@@ -22,6 +25,7 @@ class BufferTyper implements CustomTyper {
     private displayed: string = '';
     private htmlBuffer: string = '';
     private rafId: number | null = null;
+    private timeoutId: ReturnType<typeof setTimeout> | null = null;
     private started: boolean = false;
     private done: boolean = true;
     private onDoneCalled: boolean = false;
@@ -41,13 +45,15 @@ class BufferTyper implements CustomTyper {
         this.queue.push(text);
 
         if (!this.started) {
-            this.start();
-        } else if (!this.rafId) {
+            if (this.config.autoStart !== false) {
+                this.start();
+            }
+        } else if (!this.rafId && !this.timeoutId) {
             this.scheduleTick();
         }
     }
 
-    private start(): void {
+    start(): void {
         if (this.started) {
             return;
         }
@@ -56,10 +62,18 @@ class BufferTyper implements CustomTyper {
     }
 
     private scheduleTick(): void {
-        if (this.rafId) {
+        if (this.rafId || this.timeoutId) {
             return;
         }
-        this.rafId = requestAnimationFrame(() => this.tick());
+
+        if (this.config.typingTempoDelay && this.config.typingTempoDelay > 0) {
+            this.timeoutId = setTimeout(() => {
+                this.timeoutId = null;
+                this.tick();
+            }, this.config.typingTempoDelay);
+        } else {
+            this.rafId = requestAnimationFrame(() => this.tick());
+        }
     }
 
     private tick(): void {
@@ -160,6 +174,10 @@ class BufferTyper implements CustomTyper {
             cancelAnimationFrame(this.rafId);
             this.rafId = null;
         }
+        if (this.timeoutId) {
+            clearTimeout(this.timeoutId);
+            this.timeoutId = null;
+        }
         this.started = false;
         this.queue = [];
         this.displayed = '';
@@ -198,6 +216,10 @@ class BufferTyper implements CustomTyper {
         if (this.rafId) {
             cancelAnimationFrame(this.rafId);
             this.rafId = null;
+        }
+        if (this.timeoutId) {
+            clearTimeout(this.timeoutId);
+            this.timeoutId = null;
         }
         this.started = false;
 
