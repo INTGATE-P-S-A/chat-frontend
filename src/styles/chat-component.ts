@@ -437,9 +437,9 @@ export const chatStyle = css`
     position: relative;
     display: flex;
     flex-wrap: wrap;
-    align-items: stretch;
+    align-items: center;
     width: 100%;
-   
+    gap: 5px;
     background: white;
   }
   
@@ -1030,5 +1030,9 @@ export const chatStyle = css`
     opacity: 1;
     background-color: rgba(255, 255, 255, 0.25);
     transform: scale(1.1);
+  }
+
+  .chatbox__voice-switch {
+    margin-bottom: 0.5rem;
   }
 `;

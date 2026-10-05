@@ -300,6 +300,7 @@ export class RenderHelper {
       .customConfig="${this.customConfig}"
       .customHeaders="${this.customHeaders}"
       .isTalking="${this.isTalking}"
+      .currentStreamingMessageId="${this.chatController.processingMessage?.id || null}"
       .upperLoader="${this.upperLoader}"
       .autoTalkEnabled="${this.autoTalkEnabled}"
       .showInitialMessagesReasoningClosed="${true}"

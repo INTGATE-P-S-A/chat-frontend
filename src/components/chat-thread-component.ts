@@ -68,6 +68,9 @@ export class ChatThreadComponent extends LitElement {
   @query('#chat-list-footer')
   chatFooter!: HTMLElement;
 
+  @property({ type: String })
+  currentStreamingMessageId: string | null = null;
+
   @property({ type: Number })
   private isTalking: 0 | 1 | 2 = 0;
 

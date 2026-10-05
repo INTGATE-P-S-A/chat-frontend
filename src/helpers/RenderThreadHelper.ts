@@ -47,6 +47,8 @@ export class RenderThreadHelper {
     const isLastMessage = index === this.chatThread.length - 1;
     const showLoadingIndicator = this.isProcessingResponse && isLastMessage && !message.isUserMessage;    
 
+    const isCurrentStreamingMessage = !message.isUserMessage && message.id === this.currentStreamingMessageId;
+
     if(this.showLoadingIndicator && !showLoadingIndicator){
       this.showLoadingIndicator = false;
     }
@@ -71,7 +73,7 @@ ${message.tools && message.tools.length > 0 ? unsafeHTML(parseTools(message.tool
               ${RenderThreadHelper.renderUserInfo(message)}                       
               ${RenderThreadHelper.renderCostInfo(message)}
               ${RenderThreadHelper.renderModelInfo(message)}   
-              ${ isTalking > 0 ? html`<div class="talking-indicator${isTalking === 2 ? ' talking' : '' }">
+              ${ isCurrentStreamingMessage && isTalking > 0 ? html`<div class="talking-indicator${isTalking === 2 ? ' talking' : '' }">
                 <i class="talking-icon simple-icon-earphones-alt"></i>
                 ${isTalking === 2 ? html`<button class="stopTalking" @click="${this.handleStopTalking}"><i class="simple-icon-close"></i></button>` : ''}
                 ${isTalking === 1 ? html`<app-loader block="true" indicatorWidth="2px" width="15px" height="15px"></app-loader>` : ''}
