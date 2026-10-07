@@ -803,6 +803,28 @@ export class ChatComponent extends LitElement {
     }
   }
 
+  /**
+   * Add a simulated AI message directly to the chat thread.
+   * Accepts HTML content which will be rendered in the message area.
+   */
+  public addSimulatedAIMessage(htmlContent: string, options: Partial<ChatThreadEntry> = {}): void {
+    const entry: ChatThreadEntry = {
+      id: crypto.randomUUID(),
+      text: [{ value: htmlContent, followingSteps: [] }],
+      followupQuestions: [],
+      citations: [],
+      timestamp: Date.now(),
+      isUserMessage: false,
+      rawContent: htmlContent,
+      ...options      
+    };
+
+    this.chatThread = [...this.chatThread, entry];
+    this.isChatStarted = true;
+    this.isDefaultPromptsEnabled = false;
+    this.requestUpdate();
+  }
+
   resetInputCheck() {
     this.isResetInput = !!this.questionInput.value;
   }
