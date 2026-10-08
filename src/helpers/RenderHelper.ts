@@ -8,8 +8,7 @@ import { FilesHelper } from "./FilesHelper";
 import { HandlerHelper } from "./HandlerHelper";
 
 export class RenderHelper {
-  static mainRender(this: ChatComponent, globalConfig: any, teaserListTexts: any) {
-    console.log('mini', this.mini);
+  static mainRender(this: ChatComponent, globalConfig: any, teaserListTexts: any) {    
     return html`
       <div id="overlay" class="overlay ${this.isAsideOpen ? 'active' : ''}"></div>
       <section id="chat__containerWrapper" class="chat__containerWrapper ${this.isFullscreen ? ' has-fullscreen' : ''}${this.isAsideOpen ? ' aside-open' : ''}${this.isDragOver ? ' drag-over' : ''}${this.mini ? ' is-mini' : ''}">
@@ -302,7 +301,7 @@ export class RenderHelper {
       .customConfig="${this.customConfig}"
       .customHeaders="${this.customHeaders}"
       .isTalking="${this.isTalking}"
-      .currentStreamingMessageId="${this.chatController.processingMessage?.id || null}"
+      .currentStreamingMessageId="${this.speakingMessageId || this.chatController.processingMessage?.id || null}"
       .upperLoader="${this.upperLoader}"
       .autoTalkEnabled="${this.autoTalkEnabled}"
       .showInitialMessagesReasoningClosed="${true}"

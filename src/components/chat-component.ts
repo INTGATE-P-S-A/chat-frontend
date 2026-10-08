@@ -171,6 +171,11 @@ export class ChatComponent extends LitElement {
   @state()
   isTalking: 0 | 1 | 2 = 0;
 
+  // Id of a non-streamed (simulated) message currently being read aloud.
+  // Used so the talking indicator can attach to it.
+  @state()
+  speakingMessageId: string | null = null;
+
   @state()
   upperLoader = false;
 
@@ -283,6 +288,7 @@ export class ChatComponent extends LitElement {
   private customTyperDoneCallback: (() => void) | null = null;
   private lastTypedFullText: string = '';
   private autoTalkStartListener: EventListener | null = null;
+  private simulatedTyperAwaitingPlayback = false;
   
   private previousGeneratingAnswer: boolean = false; // Track previous generatingAnswer state
 
@@ -813,6 +819,7 @@ export class ChatComponent extends LitElement {
   /**
    * Add a simulated AI message directly to the chat thread.
    * Accepts HTML content which will be rendered in the message area.
+   * If dynamicTextTyping is enabled, the message will be typed out using the custom typer.
    */
   public addSimulatedAIMessage(htmlContent: string, options: Partial<ChatThreadEntry> = {}): void {
     const entry: ChatThreadEntry = {
@@ -826,10 +833,120 @@ export class ChatComponent extends LitElement {
       ...options      
     };
 
-    this.chatThread = [...this.chatThread, entry];
+    // If dynamic typing is enabled, use the typer to animate the message
+    if (this.dynamicTextTyping) {
+      this.addSimulatedAIMessageWithTyping(entry);
+    } else {
+      this.chatThread = [...this.chatThread, entry];
+      this.isChatStarted = true;
+      this.isDefaultPromptsEnabled = false;
+      this.requestUpdate();
+    }
+  }
+
+  /**
+   * Add a simulated AI message with typing animation.
+   * Creates a placeholder entry and uses the custom typer to type out the content.
+   */
+  private addSimulatedAIMessageWithTyping(entry: ChatThreadEntry): void {
+    const fullText = entry.text[0]?.value || '';
+    
+    // Create placeholder entry with empty text for the typer target
+    const placeholderEntry = this.deepCloneChatThreadEntry(entry);
+    placeholderEntry.text = placeholderEntry.text.map((t) => ({ ...t, value: '' }));
+
+    // Add placeholder to chat thread
+    this.chatThread = [...this.chatThread, placeholderEntry];
     this.isChatStarted = true;
     this.isDefaultPromptsEnabled = false;
+    
+    // Force update to render the placeholder before starting typer
     this.requestUpdate();
+    
+    // After render, set up the typer on the new message element
+    this.updateComplete.then(() => {
+      const threadsComponent = this.shadowRoot?.querySelector('chat-thread-component') as ChatThreadComponent;
+      const messageArea = threadsComponent?.shadowRoot?.querySelector(`#typing-target-${placeholderEntry.id}`) as HTMLElement;
+
+      if (messageArea) {
+        // Mark thread as typing
+        if (threadsComponent) {
+          threadsComponent.isTyping = true;
+        }
+
+        const textForSpeech = this.autoTalkEnabled ? this.htmlToPlainText(fullText) : '';
+        const speakFirst = !!textForSpeech.trim();
+
+        // Create custom typer. With autotalk the typer waits for audio playback to start.
+        this.customTyper = createCustomTyper(messageArea, {
+          onDone: () => this.handleSimulatedMessageTyperDone(placeholderEntry, fullText),
+          typingTempoDelay: 50,
+          autoStart: !speakFirst,
+        });
+        this.typerTarget = messageArea;
+        this.lastTypingEntryId = placeholderEntry.id;
+        this.lastTypedFullText = '';
+
+        // Feed the full text to the typer
+        bufferTyping(this.customTyper, fullText);
+
+        if (speakFirst) {
+          console.log('[chat-component] autotalk: requesting speech before typing:', textForSpeech);
+          this.simulatedTyperAwaitingPlayback = true;
+          this.speakingMessageId = placeholderEntry.id;
+          this.isTalking = 1;
+
+          this.dispatchEvent(new CustomEvent('chat:speak', {
+            detail: { message: textForSpeech },
+            bubbles: true,
+            composed: true,
+          }));
+        }
+      } else {
+        // Fallback: if element not found, just add the full message
+        this.chatThread = [...this.chatThread.slice(0, -1), entry];
+        this.requestUpdate();
+      }
+    });
+  }
+
+  /**
+   * Callback when simulated message typing is complete.
+   * Replaces the placeholder with the full entry.
+   * If autoTalk is enabled, triggers the speak action.
+   */
+  private handleSimulatedMessageTyperDone(placeholderEntry: ChatThreadEntry, fullText: string): void {
+    const finalEntry = this.deepCloneChatThreadEntry(placeholderEntry);
+    finalEntry.text = finalEntry.text.map((t) => ({ ...t, value: fullText }));
+
+    const idx = this.chatThread.findIndex((e) => e.id === placeholderEntry.id);
+    if (idx > -1) {
+      this.chatThread = newListWithEntryAtIndex(this.chatThread, idx, finalEntry);
+    }
+
+    // Clean up typer state
+    const threadsComponent = this.shadowRoot?.querySelector('chat-thread-component') as ChatThreadComponent;
+    if (threadsComponent) {
+      threadsComponent.isTyping = false;
+    }
+
+    this.customTyper?.destroy();
+    this.customTyper = null;
+    this.typerTarget = null;
+    this.lastTypingEntryId = null;
+    this.lastTypedFullText = '';
+    this.customTyperDoneCallback = null;
+
+    this.requestUpdate();
+
+    this.simulatedTyperAwaitingPlayback = false;
+    console.log('[chat-component] simulated typing done. messageId:', placeholderEntry.id);
+  }
+
+  private htmlToPlainText(html: string): string {
+    const p = document.createElement('p');
+    p.innerHTML = html;
+    return p.textContent || '';
   }
 
   resetInputCheck() {
@@ -1197,7 +1314,19 @@ export class ChatComponent extends LitElement {
   }
 
   toggleTalk(value: 0 | 1 | 2) {
+    console.log('[chat-component] toggleTalk', value, 'speakingMessageId:', this.speakingMessageId);
     this.isTalking = value;
+
+    // Playback started (2) or ended/failed/stopped (0): release the waiting typer
+    if (value !== 1 && this.simulatedTyperAwaitingPlayback) {
+      this.simulatedTyperAwaitingPlayback = false;
+      console.log('[chat-component] starting typer, talk state:', value);
+      this.customTyper?.start();
+    }
+
+    if (value === 0) {
+      this.speakingMessageId = null;
+    }
   }
 
   toggleThreadLoading(value?: boolean) {
