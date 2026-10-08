@@ -57,6 +57,9 @@ export class ChatThreadComponent extends LitElement {
   isResponseCopied = false;
 
   @state()
+  mini = false;
+
+  @state()
   isReasoningClosed = false;
 
   @state()

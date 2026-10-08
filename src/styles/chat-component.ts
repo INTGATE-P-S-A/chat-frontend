@@ -1035,4 +1035,14 @@ export const chatStyle = css`
   .chatbox__voice-switch {
     margin-bottom: 0.5rem;
   }
+
+  #chat__containerWrapper .is-mini {
+    .chat__list{
+      padding-left: 0;
+      padding-right: 0;
+    }
+    .chat__listItem.ai-message {
+      
+    }
+  }
 `;

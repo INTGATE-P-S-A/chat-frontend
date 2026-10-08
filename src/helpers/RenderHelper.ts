@@ -9,9 +9,10 @@ import { HandlerHelper } from "./HandlerHelper";
 
 export class RenderHelper {
   static mainRender(this: ChatComponent, globalConfig: any, teaserListTexts: any) {
+    console.log('mini', this.mini);
     return html`
       <div id="overlay" class="overlay ${this.isAsideOpen ? 'active' : ''}"></div>
-      <section id="chat__containerWrapper" class="chat__containerWrapper ${this.isFullscreen ? ' has-fullscreen' : ''}${this.isAsideOpen ? ' aside-open' : ''}${this.isDragOver ? ' drag-over' : ''}">
+      <section id="chat__containerWrapper" class="chat__containerWrapper ${this.isFullscreen ? ' has-fullscreen' : ''}${this.isAsideOpen ? ' aside-open' : ''}${this.isDragOver ? ' drag-over' : ''}${this.mini ? ' is-mini' : ''}">
         ${this.isCustomBranding && !this.isChatStarted
         ? html` <chat-stage
               svgIcon="${iconLogo}"
@@ -36,7 +37,7 @@ export class RenderHelper {
                     .stage="${this.progressStage}">
                   </progress-bar>`
             : ''}
-                  ${this.isDefaultPromptsEnabled && this.isChatStarted
+                  ${!this.mini && this.isDefaultPromptsEnabled && this.isChatStarted
             ? html`<div style="padding: 1rem;">
                       <teaser-list-component
                         .heading="${this.interactionModel === 'chat'
@@ -55,7 +56,7 @@ export class RenderHelper {
        
          
            
-            ${this.isDefaultPromptsEnabled && !this.isChatStarted
+            ${!this.mini && this.isDefaultPromptsEnabled && !this.isChatStarted
         ? html`<div class="chat__container">        
                   <teaser-list-component
                     .heading="${this.interactionModel === 'chat'
@@ -104,9 +105,9 @@ export class RenderHelper {
             ${this.advancedPromptingEnabled && this.currentUser?.accountGrade?.advancedPrompts ? RenderHelper.slotPromptRender.bind(this)() : ''}
 
             <div class="chatbox__container">
-            <div class="chatbox__voice-switch">
+            ${!this.mini ? html`<div class="chatbox__voice-switch">
               <part-switch name="autotalk" .value="${this.autoTalkEnabled}" label="${globalConfig.AUTOTALK_LABEL}" @click="${this.handleAutoTalkClick.bind(this)}"></part-switch>
-            </div>
+            </div>` : ''}
               <div class="chatbox__input-container">
                 <div class="input_container_wrapper">
                   ${RenderHelper.renderAutocomplete.bind(this)(globalConfig)}
@@ -114,7 +115,7 @@ export class RenderHelper {
                     class="chatbox__input"
                     data-testid="question-input"
                     id="question-input"
-                    placeholder="${globalConfig.CHAT_INPUT_PLACEHOLDER}"
+                    placeholder="${!this.mini ? globalConfig.CHAT_INPUT_PLACEHOLDER : ''}"
                     aria-labelledby="chatbox-label"
                     name="chatbox"
                     type="text"
@@ -140,8 +141,8 @@ export class RenderHelper {
                     <i class="simple-icon-ban"></i>
                   </button>` : ''}
                   ${RenderHelper.renderChatOrCancelButton.bind(this)(globalConfig)}
-                  ${this.isResetInput ? '' : html`<rws-tooltip side="left" text="${globalConfig.TOOLTIPS.PROMPT_WITH_MICROPHONE}"><voice-input-button @on-voice-input="${this.handleVoiceInput}" class="chatbox__button btn-outline-secondary voice-button" /></rws-tooltip>`}
-                  ${html`<button
+                  ${this.isResetInput || this.mini ? '' : html`<rws-tooltip side="left" text="${globalConfig.TOOLTIPS.PROMPT_WITH_MICROPHONE}"><voice-input-button @on-voice-input="${this.handleVoiceInput}" class="chatbox__button btn-outline-secondary voice-button" /></rws-tooltip>`}
+                  ${!this.mini ? html`<button
                     title="${globalConfig.LIVE_CHAT_BUTTON_LABEL_TEXT}"
                     class="chatbox__button btn-outline-secondary live-chat"
                     type="reset"
@@ -149,7 +150,7 @@ export class RenderHelper {
                     @click="${this.startLiveChat}"
                   >
                     <i class="simple-icon-speech"></i>
-                  </button>`}
+                  </button>` : ''}
                 </div>
               </div>
               
@@ -294,6 +295,7 @@ export class RenderHelper {
       .injectCss="${this.injectCss.split(',')}"
       .aiAssistantSignal="${this.aiAssistantSignal}"
       .appChatSignal="${this.appChatSignal}"
+      .mini="${this.mini}"
       .chatThread="${chatThread}"
       .conversationTitle="${this.overrides.conversationTitle}"
       .conversationUid="${this.overrides.conversationUid}"

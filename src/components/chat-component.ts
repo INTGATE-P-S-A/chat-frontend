@@ -147,6 +147,9 @@ export class ChatComponent extends LitElement {
   @property({ type: Boolean, attribute: 'compact', converter: (value) => value === 'true' })
   compact: boolean = false;
 
+  @property({ type: Boolean, attribute: 'mini', converter: (value) => value === 'true' })
+  mini: boolean = false;
+
   @query('#question-input')
   questionInput!: HTMLTextAreaElement;
 
@@ -579,11 +582,15 @@ export class ChatComponent extends LitElement {
     // Listen for knowledge picker selection changes
     this.addEventListener('knowledge:selection:changed', this.handleKnowledgeSelectionChanged.bind(this) as EventListener);
 
-    if(localStorage.getItem('chat:autoTalkEnabled') === 'ON'){
-      this.autoTalkEnabled = true;
-    } else {
+    if(this.mini){
       this.autoTalkEnabled = false;
-    }
+    }else{
+      if(localStorage.getItem('chat:autoTalkEnabled') === 'ON'){
+        this.autoTalkEnabled = true;
+      } else {
+        this.autoTalkEnabled = false;
+      }
+    }    
 
     
     this.appChat = (this.shadowRoot?.host.parentElement?.getRootNode() as any)?.host as IRWSAppChatComponent;

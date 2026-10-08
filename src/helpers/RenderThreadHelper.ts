@@ -27,7 +27,7 @@ export class RenderThreadHelper {
             ?disabled="${this.isDisabled}"
         ></button>
       </div>
-      <ul class="chat__list" aria-live="assertive">
+      <ul class="chat__list${this.mini ? ' is-mini' : ''}" aria-live="assertive">
       ${this.chatThread.length === 1 && this.chatThread[0] === undefined ? html`` : 
         this.chatThread.map(
           (message, index) => message.hidden ? '' : RenderThreadHelper.renderMessage.bind(this)(message, index, isTalking, currentConfig)
@@ -330,7 +330,7 @@ ${message.tools && message.tools.length > 0 ? unsafeHTML(parseTools(message.tool
     // During active processing, use the global isReasoningClosed setting
     const shouldBeClosed = this.isProcessingResponse ? this.isReasoningClosed : this.showInitialMessagesReasoningClosed;
     
-    return html`
+    return this.mini ? (shouldBeClosed ?  '' : html`<app-loader block="true" width="50" height="50"></app-loader>`) : html`
       <reasoning-viewer
         component-id="${message.id}"
         label="${currentConfig.REASONING_LABEL}"

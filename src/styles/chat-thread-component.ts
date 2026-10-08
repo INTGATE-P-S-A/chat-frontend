@@ -761,5 +761,36 @@ export const styles = css`
       color: #FFF;
     }
   }
+
+  .chat__list.is-mini {
+
+    padding-left: 0;
+    padding-right: 0;
+
+    .chat__listItem.ai-message {
+
+        .message-avatar {
+          display: none;
+        }
+
+        .message-content {
+          width: 100%;
+          max-width: 100%;
+        }
+
+        rws-tools {
+          display: none;
+        }
+
+        reasoning-viewer {
+          display: none;     
+        }
+
+        .chat__txt--footer {
+          display: none;
+        }
+
+    }
+  }
   
 `;
