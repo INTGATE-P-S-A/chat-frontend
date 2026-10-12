@@ -19,13 +19,14 @@ export class RenderThreadHelper {
         </h5>
         ${this.conversationUid ? html`<share-window convoUid="${this.conversationUid}"></share-window>` : ''}        
         ${ upperLoader ? html`<app-loader block="true" indicatorWidth="2px" width="15px" height="15px" style="margin-left: 15px;"></app-loader>` : '' }
-        <button 
+        
+        ${this.fullscreenEnabled ? html`<button 
             type="button"
             class="fullscreen-toggle-btn ${this.isFullscreen ? 'simple-icon-close' : 'simple-icon-size-fullscreen'}"
             @click="${this.handleFullscreenToggle}"
             title="${this.isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}"
             ?disabled="${this.isDisabled}"
-        ></button>
+        ></button>` : ''}
       </div>
       <ul class="chat__list${this.mini ? ' is-mini' : ''}" aria-live="assertive">
       ${this.chatThread.length === 1 && this.chatThread[0] === undefined ? html`` : 

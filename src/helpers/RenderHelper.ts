@@ -11,7 +11,7 @@ export class RenderHelper {
   static mainRender(this: ChatComponent, globalConfig: any, teaserListTexts: any) {    
     return html`
       <div id="overlay" class="overlay ${this.isAsideOpen ? 'active' : ''}"></div>
-      <section id="chat__containerWrapper" class="chat__containerWrapper ${this.isFullscreen ? ' has-fullscreen' : ''}${this.isAsideOpen ? ' aside-open' : ''}${this.isDragOver ? ' drag-over' : ''}${this.mini ? ' is-mini' : ''}">
+      <section id="chat__containerWrapper" class="chat__containerWrapper ${this.isFullscreen && this.fullscreen ? ' has-fullscreen' : ''}${this.isAsideOpen ? ' aside-open' : ''}${this.isDragOver ? ' drag-over' : ''}${this.mini ? ' is-mini' : ''}">
         ${this.isCustomBranding && !this.isChatStarted
         ? html` <chat-stage
               svgIcon="${iconLogo}"
@@ -21,7 +21,7 @@ export class RenderHelper {
             </chat-stage>`
         : ''}
         
-        ${this.isFullscreen ? html`<div class="fullscreen-col"><conversation-list selectedconversationid="${this.convoId}" fullmode="true"></conversation-list></div>` : ''}            
+        ${this.isFullscreen && this.fullscreen ? html`<div class="fullscreen-col"><conversation-list selectedconversationid="${this.convoId}" fullmode="true"></conversation-list></div>` : ''}            
 
         <section class="chat__container" id="chat-container"> 
         
@@ -56,7 +56,7 @@ export class RenderHelper {
          
            
             ${!this.mini && this.isDefaultPromptsEnabled && !this.isChatStarted
-        ? html`<div class="chat__container">        
+        ? html`<div class="chat__container">         
                   <teaser-list-component
                     .heading="${this.interactionModel === 'chat'
             ? teaserListTexts.HEADING_CHAT
@@ -295,6 +295,7 @@ export class RenderHelper {
       .aiAssistantSignal="${this.aiAssistantSignal}"
       .appChatSignal="${this.appChatSignal}"
       .mini="${this.mini}"
+      .fullscreenEnabled=${this.fullscreen}
       .chatThread="${chatThread}"
       .conversationTitle="${this.overrides.conversationTitle}"
       .conversationUid="${this.overrides.conversationUid}"

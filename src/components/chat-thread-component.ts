@@ -60,6 +60,9 @@ export class ChatThreadComponent extends LitElement {
   mini = false;
 
   @state()
+  fullscreenEnabled = true;
+
+  @state()
   isReasoningClosed = false;
 
   @state()

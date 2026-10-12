@@ -135,6 +135,9 @@ export class ChatComponent extends LitElement {
   @property({ type: String })
   currentQuestion = '';
 
+  @property({ type: Boolean, attribute: 'fullscreen', converter: (value) => value === 'true' })
+  fullscreen: boolean = true;
+
   @property({ type: Boolean, attribute: 'data-web-search', converter: (value) => value === 'true' })
   dataWebSearch: boolean = false;
 
