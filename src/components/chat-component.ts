@@ -289,6 +289,7 @@ export class ChatComponent extends LitElement {
   private lastTypedFullText: string = '';
   private autoTalkStartListener: EventListener | null = null;
   private simulatedTyperAwaitingPlayback = false;
+  private simulatedEntryIds = new Set<string>();
   
   private previousGeneratingAnswer: boolean = false; // Track previous generatingAnswer state
 
@@ -346,6 +347,8 @@ export class ChatComponent extends LitElement {
    * Preserves any text that was already typed; removes empty placeholders.
    */
   private cleanupDynamicTypingOnCancel(): void {
+    this.finishSimulatedTyping();
+
     const threadsComponent = this.shadowRoot?.querySelector('chat-thread-component') as ChatThreadComponent | null;
     if (threadsComponent) {
       threadsComponent.isTyping = false;
@@ -534,6 +537,8 @@ export class ChatComponent extends LitElement {
 
   override async connectedCallback() {
     super.connectedCallback();
+
+    console.trace('CHAT COMPONENT CONNECTED');
 
     await addIconSheet.bind(this)();
 
@@ -849,11 +854,16 @@ export class ChatComponent extends LitElement {
    * Creates a placeholder entry and uses the custom typer to type out the content.
    */
   private addSimulatedAIMessageWithTyping(entry: ChatThreadEntry): void {
+    // Only one message may be typing at a time: print the previous one in full.
+    this.forceFinishActiveTyping();
+
     const fullText = entry.text[0]?.value || '';
     
     // Create placeholder entry with empty text for the typer target
     const placeholderEntry = this.deepCloneChatThreadEntry(entry);
     placeholderEntry.text = placeholderEntry.text.map((t) => ({ ...t, value: '' }));
+
+    this.simulatedEntryIds.add(placeholderEntry.id);
 
     // Add placeholder to chat thread
     this.chatThread = [...this.chatThread, placeholderEntry];
@@ -943,6 +953,47 @@ export class ChatComponent extends LitElement {
     console.log('[chat-component] simulated typing done. messageId:', placeholderEntry.id);
   }
 
+  /**
+   * Force-finish a currently typing message: the whole text is printed immediately
+   * and the typer completion handler persists the full entry in chatThread.
+   */
+  private forceFinishActiveTyping(): void {
+    if (!this.customTyper) {
+      return;
+    }
+
+    this.simulatedTyperAwaitingPlayback = false;
+    this.customTyper.finish();
+
+    // Safety net: if the done handler did not clean up (e.g. typer already done), do it here.
+    if (this.customTyper) {
+      const typedText = this.customTyper.getTypedText();
+      const idx = this.chatThread.findIndex((e) => e.id === this.lastTypingEntryId);
+      if (idx > -1 && typedText && this.chatThread[idx].text.every((t) => !t.value)) {
+        const updated = this.deepCloneChatThreadEntry(this.chatThread[idx]);
+        updated.text = updated.text.map((t) => ({ ...t, value: typedText }));
+        this.chatThread = newListWithEntryAtIndex(this.chatThread, idx, updated);
+      }
+      this.customTyper.destroy();
+      this.customTyper = null;
+      this.typerTarget = null;
+      this.lastTypingEntryId = null;
+      this.lastTypedFullText = '';
+      this.customTyperDoneCallback = null;
+      const threadsComponent = this.shadowRoot?.querySelector('chat-thread-component') as ChatThreadComponent | null;
+      if (threadsComponent) {
+        threadsComponent.isTyping = false;
+      }
+    }
+  }
+
+  /** Prints a still-typing simulated message in full so a real response can't overwrite it. */
+  private finishSimulatedTyping(): void {
+    if (this.lastTypingEntryId && this.simulatedEntryIds.has(this.lastTypingEntryId)) {
+      this.forceFinishActiveTyping();
+    }
+  }
+
   private htmlToPlainText(html: string): string {
     const p = document.createElement('p');
     p.innerHTML = html;
@@ -1015,6 +1066,10 @@ export class ChatComponent extends LitElement {
         this.cleanupDynamicTypingOnCancel();
       }
     }
+
+    // Persist a still-typing simulated AI message before the real response starts,
+    // otherwise its empty placeholder gets replaced by the new message.
+    this.forceFinishActiveTyping();
 
     this.collapseAside(event);
 
@@ -1208,6 +1263,8 @@ export class ChatComponent extends LitElement {
       }
 
       const index = this.chatThread.findIndex((entry) => entry.id === processingEntry.id);
+      // A finished message left in processingMessage must not be re-typed by the next request.
+      const alreadyPersisted = index > -1 && this.chatThread[index].text.some((t) => !!t.value);
 
       const threadsComponent = this.shadowRoot?.querySelector('chat-thread-component') as ChatThreadComponent;
 
@@ -1215,7 +1272,9 @@ export class ChatComponent extends LitElement {
       // Only create a placeholder while actively generating, otherwise a
       // finished stream could re-enter here after finalizeTyping and spawn
       // a duplicate empty message / second typing pass.
-      if (this.dynamicTextTyping && currentGeneratingAnswer && !processingEntry.isUserMessage && processingEntry.id && this.lastTypingEntryId !== processingEntry.id) {
+      if (this.dynamicTextTyping && currentGeneratingAnswer && !processingEntry.isUserMessage && processingEntry.id && this.lastTypingEntryId !== processingEntry.id && !alreadyPersisted) {
+        this.finishSimulatedTyping();
+
         // If the previous placeholder is still empty, replace it instead of stacking a new one.
         const prevIndex = this.chatThread.findIndex((entry) => entry.id === this.lastTypingEntryId);
         const prevEntry = prevIndex > -1 ? this.chatThread[prevIndex] : null;
