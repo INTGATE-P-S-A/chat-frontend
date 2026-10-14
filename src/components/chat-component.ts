@@ -1040,9 +1040,30 @@ export class ChatComponent extends LitElement {
   }
 
   private htmlToPlainText(html: string): string {
-    const p = document.createElement('p');
-    p.innerHTML = html;
-    return p.textContent || '';
+    const container = document.createElement('div');
+    container.innerHTML = html;
+
+    const walk = (node: Node): string => {
+      let text = '';
+      for (const child of Array.from(node.childNodes)) {
+        if (child.nodeType === Node.TEXT_NODE) {
+          text += child.textContent || '';
+        } else if (child.nodeType === Node.ELEMENT_NODE) {
+          const tag = (child as HTMLElement).tagName.toLowerCase();
+          if (/^h[1-6]$/.test(tag)) {
+            const headingText = child.textContent?.trim() || '';
+            if (headingText) {
+              text += `${headingText}<break time="600ms"/>`;
+            }
+          } else {
+            text += walk(child);
+          }
+        }
+      }
+      return text;
+    };
+
+    return walk(container);
   }
 
   resetInputCheck() {
