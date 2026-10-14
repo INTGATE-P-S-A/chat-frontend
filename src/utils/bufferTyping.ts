@@ -9,6 +9,8 @@ export interface CustomTyperConfig {
 export interface CustomTyper {
     type(text: string): void;
     start(): void;
+    pause(): void;
+    resume(): void;
     destroy(): void;
     isDone(): boolean;
     getTypedText(): string;
@@ -30,6 +32,7 @@ class BufferTyper implements CustomTyper {
     private done: boolean = true;
     private onDoneCalled: boolean = false;
     private destroyed: boolean = false;
+    private paused: boolean = false;
 
     constructor(messageArea: HTMLElement, config: CustomTyperConfig = {}) {
         this.messageArea = messageArea;
@@ -61,8 +64,34 @@ class BufferTyper implements CustomTyper {
         this.scheduleTick();
     }
 
+    pause(): void {
+        if (this.paused || this.destroyed) {
+            return;
+        }
+        this.paused = true;
+        if (this.rafId) {
+            cancelAnimationFrame(this.rafId);
+            this.rafId = null;
+        }
+        if (this.timeoutId) {
+            clearTimeout(this.timeoutId);
+            this.timeoutId = null;
+        }
+    }
+
+    resume(): void {
+        if (!this.paused) {
+            return;
+        }
+        this.paused = false;
+        // A typer still waiting for start() must stay idle.
+        if (this.started && !this.destroyed && (this.queue.length > 0 || this.htmlBuffer.length > 0)) {
+            this.scheduleTick();
+        }
+    }
+
     private scheduleTick(): void {
-        if (this.rafId || this.timeoutId) {
+        if (this.paused || this.rafId || this.timeoutId) {
             return;
         }
 
@@ -185,6 +214,7 @@ class BufferTyper implements CustomTyper {
         this.done = true;
         this.onDoneCalled = false;
         this.destroyed = true;
+        this.paused = false;
     }
 
     isDone(): boolean {
@@ -222,6 +252,7 @@ class BufferTyper implements CustomTyper {
             this.timeoutId = null;
         }
         this.started = false;
+        this.paused = false;
 
         if (this.queue.length > 0 || this.htmlBuffer.length > 0) {
             const remaining = this.htmlBuffer + this.queue.join('');

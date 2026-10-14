@@ -294,7 +294,12 @@ declare interface IAssistSignalPayload {
 }
 
 declare interface IAppChatSignalPayload {
-    command: 'start-talk' | 'stop-talk';
+    command: 'start-talk' | 'stop-talk' | 'pause-talk' | 'resume-talk' | 'start-write' | 'write-ended' | 'stop-all' | 'setup-chat';
+     params?: {
+        voice?: string;
+        volume?: number;
+        writingSpeed?: WritingSpeed;
+    }  
 }
 
 declare interface IExternalAppChatSignal {

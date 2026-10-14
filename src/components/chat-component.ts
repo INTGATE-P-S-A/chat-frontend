@@ -293,8 +293,30 @@ export class ChatComponent extends LitElement {
   private autoTalkStartListener: EventListener | null = null;
   private simulatedTyperAwaitingPlayback = false;
   private simulatedEntryIds = new Set<string>();
+  private typingTempoDelay: number = 50;
   
   private previousGeneratingAnswer: boolean = false; // Track previous generatingAnswer state
+  private isWritingSignaled = false;
+
+  private getTypingDelay(writingSpeed?: string): number {
+    switch (writingSpeed) {
+      case 'fast':
+        return 25;
+      case 'very-fast':
+        return 10;
+      case 'normal':
+      default:
+        return 50;
+    }
+  }
+
+  private emitWriting(writing: boolean): void {
+    if (this.isWritingSignaled === writing) {
+      return;
+    }
+    this.isWritingSignaled = writing;
+    this.appChatSignal?.setValue({ command: writing ? 'start-write' : 'write-ended' });
+  }
 
   private deepCloneChatThreadEntry(entry: ChatThreadEntry): ChatThreadEntry {
     if (typeof (globalThis as any).structuredClone === 'function') {
@@ -343,6 +365,7 @@ export class ChatComponent extends LitElement {
     this.lastTypingEntryId = null;
     this.customTyperDoneCallback = null;
     this.lastTypedFullText = '';
+    this.emitWriting(false);
   }
 
   /**
@@ -387,6 +410,7 @@ export class ChatComponent extends LitElement {
     this.customTyperDoneCallback = null;
     this.lastTypedFullText = '';
     this.previousGeneratingAnswer = false;
+    this.emitWriting(false);
   }
 
   static override styles = [chatStyle];
@@ -505,7 +529,7 @@ export class ChatComponent extends LitElement {
           messageArea.innerHTML = '';
           this.customTyper = createCustomTyper(messageArea, {
             onDone: () => this.handleTyperDone(),
-            typingTempoDelay: 50,
+            typingTempoDelay: this.typingTempoDelay,
             autoStart: !this.autoTalkEnabled,
           });
           this.typerTarget = messageArea;
@@ -528,6 +552,7 @@ export class ChatComponent extends LitElement {
         if (fullText.length > this.lastTypedFullText.length) {
           const delta = fullText.slice(this.lastTypedFullText.length);
           this.lastTypedFullText = fullText;
+          this.emitWriting(true);
           bufferTyping(this.customTyper, delta);
         } else if (fullText.length < this.lastTypedFullText.length) {
         }
@@ -617,6 +642,18 @@ export class ChatComponent extends LitElement {
           this.toggleTalk(2);
         } else if(value?.command === 'stop-talk'){          
           this.toggleTalk(0);
+        } else if(value?.command === 'stop-all'){          
+          this.customTyper?.finish();
+          this.emitWriting(false);
+          this.toggleTalk(0);
+        } else if(value?.command === 'pause-talk'){
+          this.customTyper?.pause();
+        } else if(value?.command === 'resume-talk'){
+          this.customTyper?.resume();
+        } else if(value?.command === 'setup-chat'){
+          const typingDelay = this.getTypingDelay(value?.params?.writingSpeed);
+          this.dynamicTextTyping = true;
+          this.typingTempoDelay = typingDelay;
         }
       });
     }
@@ -893,12 +930,13 @@ export class ChatComponent extends LitElement {
         // Create custom typer. With autotalk the typer waits for audio playback to start.
         this.customTyper = createCustomTyper(messageArea, {
           onDone: () => this.handleSimulatedMessageTyperDone(placeholderEntry, fullText),
-          typingTempoDelay: 50,
+          typingTempoDelay: this.typingTempoDelay,
           autoStart: !speakFirst,
         });
         this.typerTarget = messageArea;
         this.lastTypingEntryId = placeholderEntry.id;
         this.lastTypedFullText = '';
+        this.emitWriting(true);
 
         // Feed the full text to the typer
         bufferTyping(this.customTyper, fullText);
@@ -908,6 +946,8 @@ export class ChatComponent extends LitElement {
           this.simulatedTyperAwaitingPlayback = true;
           this.speakingMessageId = placeholderEntry.id;
           this.isTalking = 1;
+
+          console.log('[chat-component] autotalk: waiting for audio playback to start', textForSpeech);
 
           this.dispatchEvent(new CustomEvent('chat:speak', {
             detail: { message: textForSpeech },
@@ -953,6 +993,7 @@ export class ChatComponent extends LitElement {
     this.requestUpdate();
 
     this.simulatedTyperAwaitingPlayback = false;
+    this.emitWriting(false);
     console.log('[chat-component] simulated typing done. messageId:', placeholderEntry.id);
   }
 
@@ -983,6 +1024,7 @@ export class ChatComponent extends LitElement {
       this.lastTypingEntryId = null;
       this.lastTypedFullText = '';
       this.customTyperDoneCallback = null;
+      this.emitWriting(false);
       const threadsComponent = this.shadowRoot?.querySelector('chat-thread-component') as ChatThreadComponent | null;
       if (threadsComponent) {
         threadsComponent.isTyping = false;

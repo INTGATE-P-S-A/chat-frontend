@@ -288,6 +288,7 @@ export async function parseStreamedMessages({
     if((host as any).autoTalkEnabled){
       const eventChunkValue = processAutoTalkChunk(chunkValue);
       if (eventChunkValue !== null) {
+        console.log('AutoTalk chunk:', eventChunkValue);
         (host as any).dispatchEvent(new CustomEvent('autotalk:stream-chunk', {
           detail: { chunk: eventChunkValue, isFinal: false },
           bubbles: true,

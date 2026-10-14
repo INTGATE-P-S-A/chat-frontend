@@ -622,7 +622,10 @@ ${htmlResponse}
   }
 
   handleStopTalking(){
-    this.appChatSignal?.setValue({ command: 'stop-talk' });
+    this.dispatchEvent(new CustomEvent('chat:stop-talking', {
+      bubbles: true,
+      composed: true,
+    }));
   }
 
   renderPendingReasoning() {
