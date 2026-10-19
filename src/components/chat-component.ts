@@ -349,7 +349,19 @@ export class ChatComponent extends LitElement {
     // Clone the final entry so a later mutation of the controller's processingMessage
     // does not wipe the persisted message in chatThread.
     const finalEntryToStore = this.deepCloneChatThreadEntry(finalEntry);
-    const finalIndex = this.chatThread.findIndex((entry) => entry.id === finalEntryToStore.id);
+    let finalIndex = this.chatThread.findIndex((entry) => entry.id === finalEntryToStore.id);
+
+    // If the controller recreated the processing message during the stream, the final
+    // entry id may no longer match the placeholder we were typing into. Fall back to
+    // the last known placeholder so we don't leave an empty indicator message behind.
+    if (finalIndex === -1 && this.lastTypingEntryId) {
+      const placeholderIndex = this.chatThread.findIndex((entry) => entry.id === this.lastTypingEntryId);
+      const placeholderEntry = placeholderIndex > -1 ? this.chatThread[placeholderIndex] : null;
+      if (placeholderEntry && placeholderEntry.text.every((t) => !t.value)) {
+        finalIndex = placeholderIndex;
+      }
+    }
+
     this.chatThread =
       finalIndex > -1
         ? newListWithEntryAtIndex(this.chatThread, finalIndex, finalEntryToStore)
@@ -386,8 +398,8 @@ export class ChatComponent extends LitElement {
       const idx = this.chatThread.findIndex((entry) => entry?.id === this.lastTypingEntryId);
       if (idx > -1) {
         const entry = this.chatThread[idx];
-        if (this.customTyper && entry?.text?.every((t) => !t.value)) {
-          const typedText = this.customTyper.getTypedText();
+        if (entry?.text?.every((t) => !t.value)) {
+          const typedText = this.customTyper?.getTypedText() || '';
           if (typedText) {
             const updatedEntry = this.deepCloneChatThreadEntry(entry);
             updatedEntry.text = updatedEntry.text.map((t) => ({ ...t, value: typedText }));
@@ -742,6 +754,18 @@ export class ChatComponent extends LitElement {
     // Clean up keyboard shortcuts
     KeyboardShortcutsHelper.stopListening();
 
+    // Cancel any pending request and clear thread state so messages don't
+    // persist when the host view is removed (e.g. switching tutorials).
+    this.chatController.cancelRequest();
+    this.chatThread = [];
+    this.isChatStarted = false;
+    this.isDefaultPromptsEnabled = globalConfig.IS_DEFAULT_PROMPTS_ENABLED;
+    this.initialMessages = [];
+    this.currentQuestion = '';
+    if (this.questionInput) {
+      this.questionInput.value = '';
+    }
+
     this.showControls = false;
     this.liveChatOn = false;
   }
@@ -1002,33 +1026,40 @@ export class ChatComponent extends LitElement {
    * and the typer completion handler persists the full entry in chatThread.
    */
   private forceFinishActiveTyping(): void {
-    if (!this.customTyper) {
-      return;
+    this.simulatedTyperAwaitingPlayback = false;
+
+    if (this.customTyper) {
+      this.customTyper.finish();
     }
 
-    this.simulatedTyperAwaitingPlayback = false;
-    this.customTyper.finish();
-
     // Safety net: if the done handler did not clean up (e.g. typer already done), do it here.
-    if (this.customTyper) {
-      const typedText = this.customTyper.getTypedText();
+    if (this.lastTypingEntryId) {
+      const typedText = this.customTyper?.getTypedText() || '';
       const idx = this.chatThread.findIndex((e) => e.id === this.lastTypingEntryId);
-      if (idx > -1 && typedText && this.chatThread[idx].text.every((t) => !t.value)) {
-        const updated = this.deepCloneChatThreadEntry(this.chatThread[idx]);
-        updated.text = updated.text.map((t) => ({ ...t, value: typedText }));
-        this.chatThread = newListWithEntryAtIndex(this.chatThread, idx, updated);
+      if (idx > -1) {
+        const entry = this.chatThread[idx];
+        if (entry.text.every((t) => !t.value)) {
+          if (typedText) {
+            const updated = this.deepCloneChatThreadEntry(entry);
+            updated.text = updated.text.map((t) => ({ ...t, value: typedText }));
+            this.chatThread = newListWithEntryAtIndex(this.chatThread, idx, updated);
+          } else {
+            this.chatThread = [...this.chatThread.slice(0, idx), ...this.chatThread.slice(idx + 1)];
+          }
+        }
       }
-      this.customTyper.destroy();
-      this.customTyper = null;
-      this.typerTarget = null;
-      this.lastTypingEntryId = null;
-      this.lastTypedFullText = '';
-      this.customTyperDoneCallback = null;
-      this.emitWriting(false);
-      const threadsComponent = this.shadowRoot?.querySelector('chat-thread-component') as ChatThreadComponent | null;
-      if (threadsComponent) {
-        threadsComponent.isTyping = false;
-      }
+    }
+
+    this.customTyper?.destroy();
+    this.customTyper = null;
+    this.typerTarget = null;
+    this.lastTypingEntryId = null;
+    this.lastTypedFullText = '';
+    this.customTyperDoneCallback = null;
+    this.emitWriting(false);
+    const threadsComponent = this.shadowRoot?.querySelector('chat-thread-component') as ChatThreadComponent | null;
+    if (threadsComponent) {
+      threadsComponent.isTyping = false;
     }
   }
 
@@ -1136,6 +1167,12 @@ export class ChatComponent extends LitElement {
     // Persist a still-typing simulated AI message before the real response starts,
     // otherwise its empty placeholder gets replaced by the new message.
     this.forceFinishActiveTyping();
+
+    // Stop any currently playing audio, mirroring the thread stop-talking button.
+    this.dispatchEvent(new CustomEvent('chat:stop-talking', {
+      bubbles: true,
+      composed: true,
+    }));
 
     this.collapseAside(event);
 
