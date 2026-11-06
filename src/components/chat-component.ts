@@ -378,6 +378,11 @@ export class ChatComponent extends LitElement {
     this.customTyperDoneCallback = null;
     this.lastTypedFullText = '';
     this.emitWriting(false);
+    this.dispatchEvent(new CustomEvent('chat:ai_message_complete', {
+      detail: { simulated: false, entry: finalEntryToStore },
+      bubbles: true,
+      composed: true
+    }));
   }
 
   /**
@@ -862,6 +867,8 @@ export class ChatComponent extends LitElement {
   }
 
   public setInputValue(value: string, append: boolean = false, send: boolean = false, hidden: boolean = false): void {
+    console.log('[chat-component] setInputValue', { valueLength: value.length, append, send, hidden, currentQuestionHidden: this.currentQuestionHidden, value });
+
     if (hidden) {
       this.currentQuestion = value;
       this.questionInput.value = value; // Also set textarea value for hidden messages
@@ -878,9 +885,8 @@ export class ChatComponent extends LitElement {
 
     this.resetInputCheck();
 
-
-
     if (send) {
+      console.log('[chat-component] submitting hidden user message, value:', value);
       this.handleUserChatSubmit(new Event('submit'));
     }
   }
@@ -910,6 +916,11 @@ export class ChatComponent extends LitElement {
       this.isChatStarted = true;
       this.isDefaultPromptsEnabled = false;
       this.requestUpdate();
+      this.dispatchEvent(new CustomEvent('chat:ai_message_complete', {
+        detail: { simulated: true, entry },
+        bubbles: true,
+        composed: true
+      }));
     }
   }
 
@@ -1018,6 +1029,11 @@ export class ChatComponent extends LitElement {
 
     this.simulatedTyperAwaitingPlayback = false;
     this.emitWriting(false);
+    this.dispatchEvent(new CustomEvent('chat:ai_message_complete', {
+      detail: { simulated: true, entry: finalEntry },
+      bubbles: true,
+      composed: true
+    }));
     console.log('[chat-component] simulated typing done. messageId:', placeholderEntry.id);
   }
 
@@ -1057,6 +1073,12 @@ export class ChatComponent extends LitElement {
     this.lastTypedFullText = '';
     this.customTyperDoneCallback = null;
     this.emitWriting(false);
+    const wasSimulated = this.lastTypingEntryId ? this.simulatedEntryIds.has(this.lastTypingEntryId) : false;
+    this.dispatchEvent(new CustomEvent('chat:ai_message_complete', {
+      detail: { simulated: wasSimulated },
+      bubbles: true,
+      composed: true
+    }));
     const threadsComponent = this.shadowRoot?.querySelector('chat-thread-component') as ChatThreadComponent | null;
     if (threadsComponent) {
       threadsComponent.isTyping = false;
@@ -1147,6 +1169,14 @@ export class ChatComponent extends LitElement {
 
   async handleUserChatSubmit(event: Event): Promise<void> {
     event.preventDefault();
+    console.log('[chat-component] handleUserChatSubmit', {
+      currentQuestion: this.currentQuestion,
+      currentQuestionHidden: this.currentQuestionHidden,
+      chatThreadLength: this.chatThread.length,
+      generatingAnswer: this.chatController.generatingAnswer,
+      eventTarget: event.target?.constructor?.name,
+      eventType: event.type
+    });
 
     if (!(this.overrides.avatar || this.overrides.selectedModel)) {
       console.log('No avatar or model in chat overrides');
@@ -1208,6 +1238,10 @@ export class ChatComponent extends LitElement {
     }
 
     await SubmitHelper.handleSubmit.bind(this)(requestOptions, chatHttpOptions);
+
+    // Reset hidden flag so the next normal user message is visible.
+    console.log('[chat-component] resetting currentQuestionHidden after submit');
+    this.currentQuestionHidden = false;
 
     // Update assist context after user message is sent (but don't trigger analysis yet)
     setTimeout(() => {
@@ -1444,6 +1478,13 @@ export class ChatComponent extends LitElement {
         } else {
           this.finalizeTyping(finalEntry);
         }
+      } else {
+        const finalEntry = this.deepCloneChatThreadEntry(this.chatController.processingMessage as ChatThreadEntry);
+        this.dispatchEvent(new CustomEvent('chat:ai_message_complete', {
+          detail: { simulated: false, entry: finalEntry },
+          bubbles: true,
+          composed: true
+        }));
       }
 
       // Update context and trigger analysis after LLM response is complete

@@ -142,6 +142,15 @@ export class SubmitHelper {
                 userMessage
             });
 
+            this.dispatchEvent(new CustomEvent('chat:user_message_sent', {
+                detail: {
+                    requestOptions,
+                    userMessage
+                },
+                bubbles: true,
+                composed: true
+            }));
+
             await this.chatController.generateAnswer(
                 {
                     ...requestOptions,
